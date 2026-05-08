@@ -1,6 +1,6 @@
-import { defineConfig } from "vitest/config";
-import swc from "unplugin-swc";
-import tsconfigPaths from "vite-tsconfig-paths";
+import swc from 'unplugin-swc';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [
@@ -9,7 +9,7 @@ export default defineConfig({
     swc.vite({
       jsc: {
         parser: {
-          syntax: "typescript",
+          syntax: 'typescript',
           decorators: true,
         },
         transform: {
@@ -21,13 +21,13 @@ export default defineConfig({
   ],
   test: {
     globals: true,
-    environment: "node",
-    include: ["src/**/*.spec.ts", "test/**/*.e2e-spec.ts"],
-    setupFiles: ["test/vitest-setup.ts"],
+    environment: 'node',
+    include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    setupFiles: ['test/vitest-setup.ts'],
     coverage: {
-      include: ["src/**/*.{ts,js}"],
-      reporter: ["text", "json", "html"],
-      reportsDirectory: "../../coverage/worker", // Changed path for consistency with api and to separate reports
+      include: ['src/**/*.{ts,js}'],
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: '../../coverage/worker', // Changed path for consistency with api and to separate reports
     },
   },
 });

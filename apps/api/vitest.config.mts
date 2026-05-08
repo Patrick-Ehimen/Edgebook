@@ -1,6 +1,6 @@
-import { defineConfig } from "vitest/config";
-import swc from "unplugin-swc";
-import tsconfigPaths from "vite-tsconfig-paths";
+import swc from 'unplugin-swc';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [
@@ -10,7 +10,7 @@ export default defineConfig({
     swc.vite({
       jsc: {
         parser: {
-          syntax: "typescript",
+          syntax: 'typescript',
           decorators: true,
         },
         transform: {
@@ -22,13 +22,13 @@ export default defineConfig({
   ],
   test: {
     globals: true, // Enables global APIs like describe, it, expect, vi
-    environment: "node", // Node.js environment is suitable for NestJS backend tests
-    include: ["src/**/*.spec.ts", "test/**/*.e2e-spec.ts"], // Adjust if your test file naming convention differs
-    setupFiles: ["test/vitest-setup.ts"],
+    environment: 'node', // Node.js environment is suitable for NestJS backend tests
+    include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'], // Adjust if your test file naming convention differs
+    setupFiles: ['test/vitest-setup.ts'],
     coverage: {
-      include: ["src/**/*.{ts,js}"], // Include all source files for coverage
-      reporter: ["text", "json", "html"],
-      reportsDirectory: "../../coverage/api", // Changed path to avoid conflict and ensure app-specific coverage under root coverage folder
+      include: ['src/**/*.{ts,js}'], // Include all source files for coverage
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: '../../coverage/api', // Changed path to avoid conflict and ensure app-specific coverage under root coverage folder
     },
   },
 });
