@@ -5,6 +5,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [
     tsconfigPaths(),
+    // @ts-ignore - swc.vite() returns a plugin that is type-incompatible with this version of vitest but works at runtime
     swc.vite({
       jsc: {
         parser: {

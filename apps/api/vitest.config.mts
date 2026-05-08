@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     tsconfigPaths(),
     // This is required to support NestJS decorators and metadata
+    // @ts-ignore - swc.vite() returns a plugin that is type-incompatible with this version of vitest but works at runtime
     swc.vite({
       jsc: {
         parser: {
