@@ -18,7 +18,7 @@ export function ModeToggle() {
       <Tooltip delayDuration={100}>
         <TooltipTrigger asChild>
           <Button
-            className="rounded-full w-8 h-8 bg-background hidden md:flex"
+            className="rounded-full w-8 h-8 bg-background flex"
             variant="outline"
             size="icon"
             onClick={toggleTheme}
