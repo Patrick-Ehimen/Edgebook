@@ -3,6 +3,16 @@
 /node_modules
 /build
 
+# tsc artifacts emitted next to source (compiled by root tsconfig without outDir)
+*.mjs
+*.mjs.map
+*.d.mts
+*.d.mts.map
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+
 # Logs
 logs
 *.log

@@ -14,7 +14,9 @@
     "baseUrl": ".",
     "paths": {
       "@edgebook/shared": ["../../packages/shared/src"],
-      "@edgebook/db": ["../../packages/db/src"]
+      "@edgebook/shared/auth": ["../../packages/shared/src/auth/index.ts"],
+      "@edgebook/db": ["../../packages/db/src"],
+      "@prisma/client": ["../../node_modules/@prisma/client"]
     }
   },
   "include": ["src/**/*.ts"],

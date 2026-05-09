@@ -1,12 +1,438 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum OAuthProvider {
+  google
+  github
+  x
+}
+
+enum AuditKind {
+  SIGNUP
+  SIGNIN
+  SIGNIN_FAILED
+  SIGNOUT
+  EMAIL_VERIFIED
+  TWO_FACTOR_ENROLLED
+  TWO_FACTOR_DISABLED
+  PASSWORD_CHANGED
+  OAUTH_LINKED
+  RECOVERY_CODE_USED
+  API_KEY_ADDED
+  API_KEY_REMOVED
+  EXPORT_REQUESTED
+}
+
+enum Venue {
+  binance
+  bybit
+}
+
+enum AccountType {
+  futures
+  spot
+  margin
+}
+
+enum FillSide {
+  buy
+  sell
+}
+
+enum PositionSide {
+  long
+  short
+}
+
+enum PositionStatus {
+  open
+  closed
+}
+
+enum PositionFillRole {
+  entry
+  scale_in
+  exit
+  scale_out
+}
+
+enum AlertAction {
+  notify
+  pause
+}
+
+enum GoalPeriod {
+  daily
+  weekly
+  monthly
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  handle          String    @unique
+  email           String    @unique
+  emailVerifiedAt DateTime? @db.Timestamptz
+  passwordHash    String
+  createdAt       DateTime  @default(now()) @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @db.Timestamptz
+
+  sessions       Session[]
+  totpSecret     TotpSecret?
+  recoveryCodes  RecoveryCode[]
+  passwordResets PasswordReset[]
+  oauthAccounts  OAuthAccount[]
+  auditEvents    AuditEvent[]
+  accounts       Account[]
+  playbooks      Playbook[]
+  journalEntries JournalEntry[]
+  goals          Goal[]
+  alertRules     AlertRule[]
+  aiReports      AiReport[]
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  jwtId     String    @unique
+  ip        String?
+  userAgent String?
+  expiresAt DateTime  @db.Timestamptz
+  revokedAt DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model TotpSecret {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  secretEnc  String
+  enrolledAt DateTime @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime @db.Timestamptz
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([email])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime @db.Timestamptz
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  userId            String
+  provider          OAuthProvider
+  providerAccountId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Append-only — never DELETE or UPDATE rows in this table.
+model AuditEvent {
+  id          String    @id @default(cuid())
+  userId      String?
+  kind        AuditKind
+  ip          String?
+  userAgent   String?
+  payloadJson Json      @default("{}")
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Exchange accounts ────────────────────────────────────────────────────────
+
+model Account {
+  id           String      @id @default(cuid())
+  userId       String
+  venue        Venue
+  label        String
+  accountType  AccountType
+  baseCurrency String
+  createdAt    DateTime    @default(now()) @db.Timestamptz
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeys   ApiKey[]
+  fills     Fill[]
+  positions Position[]
+
+  @@index([userId])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  accountId  String
+  keyIdHash  String
+  secretEnc  String
+  scope      String[]
+  lastUsedAt DateTime? @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+// ─── Fills (immutable, append-only) ──────────────────────────────────────────
+
+/// Append-only — never UPDATE fills rows. Re-derive positions from fills only.
+model Fill {
+  id              BigInt   @id @default(autoincrement())
+  accountId       String
+  venue           Venue
+  symbol          String
+  side            FillSide
+  qty             Decimal  @db.Decimal(30, 10)
+  price           Decimal  @db.Decimal(30, 10)
+  fee             Decimal  @db.Decimal(30, 10)
+  feeCcy          String
+  fundingFee      Decimal? @db.Decimal(30, 10)
+  exchangeTradeId String
+  executedAt      DateTime @db.Timestamptz
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  account       Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  positionFills PositionFill[]
+
+  @@unique([accountId, exchangeTradeId])
+  @@index([accountId, executedAt(sort: Desc)])
+}
+
+// ─── Positions (derived from fills via FIFO algorithm) ───────────────────────
+
+model Position {
+  id         String         @id @default(cuid())
+  accountId  String
+  symbol     String
+  side       PositionSide
+  openedAt   DateTime       @db.Timestamptz
+  closedAt   DateTime?      @db.Timestamptz
+  qtyMax     Decimal        @db.Decimal(30, 10)
+  avgEntry   Decimal        @db.Decimal(30, 10)
+  avgExit    Decimal?       @db.Decimal(30, 10)
+  grossPnl   Decimal        @db.Decimal(30, 10)
+  fees       Decimal        @db.Decimal(30, 10)
+  funding    Decimal        @db.Decimal(30, 10)
+  netPnl     Decimal        @db.Decimal(30, 10)
+  rPlanned   Decimal?       @db.Decimal(10, 4)
+  rRealized  Decimal?       @db.Decimal(10, 4)
+  mfe        Decimal?       @db.Decimal(10, 4)
+  mae        Decimal?       @db.Decimal(10, 4)
+  playbookId String?
+  conviction Int?
+  status     PositionStatus
+  sourceHash String
+
+  account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  playbook           Playbook?           @relation(fields: [playbookId], references: [id], onDelete: SetNull)
+  positionFills      PositionFill[]
+  tags               PositionTag[]
+  notes              PositionNote?
+  checklistResponses ChecklistResponse[]
+
+  @@index([accountId, closedAt(sort: Desc)])
+  @@index([accountId, playbookId, closedAt])
+}
+
+model PositionFill {
+  positionId String
+  fillId     BigInt
+  role       PositionFillRole
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  fill     Fill     @relation(fields: [fillId], references: [id], onDelete: Restrict)
+
+  @@id([positionId, fillId])
+}
+
+model PositionTag {
+  positionId String
+  tag        String
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@id([positionId, tag])
+  @@index([tag])
+}
+
+model PositionNote {
+  id         String   @id @default(cuid())
+  positionId String   @unique
+  bodyMd     String
+  images     String[]
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+}
+
+// ─── Playbooks ────────────────────────────────────────────────────────────────
+
+model Playbook {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  thesis         String
+  criteriaJson   Json     @default("{}")
+  sampleChartUrl String?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklists Checklist[]
+  positions  Position[]
+
+  @@index([userId])
+}
+
+model Checklist {
+  id         String @id @default(cuid())
+  playbookId String
+  itemsJson  Json   @default("[]")
+
+  playbook           Playbook            @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  checklistResponses ChecklistResponse[]
+}
+
+model ChecklistResponse {
+  id          String @id @default(cuid())
+  positionId  String
+  checklistId String
+  itemId      String
+  value       Json
+
+  position  Position  @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, checklistId, itemId])
+}
+
+// ─── Journal ──────────────────────────────────────────────────────────────────
+
+model JournalEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime @db.Date
+  intentMd   String?
+  eodMd      String?
+  images     String[]
+  mood       Int?
+  sleepHours Decimal? @db.Decimal(4, 2)
+  energy     Int?
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+
+model Goal {
+  id      String     @id @default(cuid())
+  userId  String
+  period  GoalPeriod
+  type    String
+  target  Decimal    @db.Decimal(10, 4)
+  current Decimal    @default(0) @db.Decimal(10, 4)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+model AlertRule {
+  id         String      @id @default(cuid())
+  userId     String
+  kind       String
+  paramsJson Json        @default("{}")
+  action     AlertAction
+  enabled    Boolean     @default(true)
+  createdAt  DateTime    @default(now()) @db.Timestamptz
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertEvents AlertEvent[]
+
+  @@index([userId])
+}
+
+model AlertEvent {
+  id          String    @id @default(cuid())
+  ruleId      String
+  firedAt     DateTime  @db.Timestamptz
+  payloadJson Json      @default("{}")
+  ackByUserAt DateTime? @db.Timestamptz
+
+  rule AlertRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+  @@index([firedAt])
+}
+
+// ─── AI Reports ───────────────────────────────────────────────────────────────
+
+model AiReport {
+  id         String   @id @default(cuid())
+  userId     String
+  period     String
+  model      String
+  promptHash String
+  bodyMd     String
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, promptHash])
+  @@index([userId])
 }
