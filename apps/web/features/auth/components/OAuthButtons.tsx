@@ -1,8 +1,14 @@
 'use client';
 
-// TODO: Implement OAuth sign-in when providers are configured (Google, GitHub, X)
+import { env } from '@/lib/env';
+
+// TODO: Implement OAuth sign-in when providers are configured (GitHub, X)
 export function OAuthButtons() {
   const handleOAuth = (provider: string) => {
+    if (provider === 'google') {
+      window.location.href = `${env.NEXT_PUBLIC_API_URL}/auth/google`;
+      return;
+    }
     // TODO: wire up actual OAuth redirect
     console.log(`oauth:${provider}`);
   };

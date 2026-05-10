@@ -1,4 +1,4 @@
-export type OAuthProvider = "google" | "github" | "x";
+export type OAuthProvider = 'google' | 'github' | 'x';
 
 export interface User {
   id: string;

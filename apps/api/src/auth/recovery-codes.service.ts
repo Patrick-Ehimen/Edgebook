@@ -1,5 +1,5 @@
+import { createHash, randomInt } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { createHash, randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -32,8 +32,7 @@ export class RecoveryCodesService {
 
   private makeCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const part = () =>
-      Array.from({ length: 4 }, () => chars[randomInt(0, chars.length)]).join('');
+    const part = () => Array.from({ length: 4 }, () => chars[randomInt(0, chars.length)]).join('');
     return `${part()}-${part()}`;
   }
 

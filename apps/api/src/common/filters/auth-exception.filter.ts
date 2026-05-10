@@ -1,6 +1,6 @@
-import { ExceptionFilter, Catch, ArgumentsHost } from '@nestjs/common';
-import type { Response } from 'express';
 import { AuthError } from '@edgebook/shared/auth';
+import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
+import type { Response } from 'express';
 
 const STATUS_MAP: Record<string, number> = {
   INVALID_CREDENTIALS: 401,

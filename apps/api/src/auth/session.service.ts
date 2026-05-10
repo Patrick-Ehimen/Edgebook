@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { sign, verify as jwtVerify } from 'jsonwebtoken';
-import type { Response, Request } from 'express';
-import { randomUUID } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import type { Request, Response } from 'express';
+import { verify as jwtVerify, sign } from 'jsonwebtoken';
 import { env } from '../config/env';
-interface User { id: string; handle: string; email: string }
+import { PrismaService } from '../prisma/prisma.service';
+interface User {
+  id: string;
+  handle: string;
+  email: string;
+}
 
 const COOKIE = 'eb_session';
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

@@ -1,31 +1,32 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Req,
-  Res,
-  UseGuards,
-  UseFilters,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { CurrentUserId, CurrentSessionId } from './decorators/current-user.decorator';
-import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { AuthExceptionFilter } from '../common/filters/auth-exception.filter';
-import {
-  SignUpInput,
-  SignInInput,
-  VerifyEmailInput,
   EnrollTotpConfirmInput,
-  TwoFactorChallengeInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  SignInInput,
+  SignUpInput,
+  TwoFactorChallengeInput,
+  VerifyEmailInput,
 } from '@edgebook/shared/auth';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { AuthExceptionFilter } from '../common/filters/auth-exception.filter';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { AuthService } from './auth.service';
+import { CurrentSessionId, CurrentUserId } from './decorators/current-user.decorator';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 function meta(req: Request) {
   return { ip: req.ip, userAgent: req.headers['user-agent'] };
@@ -38,10 +39,7 @@ export class AuthController {
 
   @Post('sign-up')
   @HttpCode(HttpStatus.CREATED)
-  signUp(
-    @Body(new ZodValidationPipe(SignUpInput)) body: SignUpInput,
-    @Req() req: Request,
-  ) {
+  signUp(@Body(new ZodValidationPipe(SignUpInput)) body: SignUpInput, @Req() req: Request) {
     return this.authService.signUp(body, meta(req));
   }
 
@@ -58,10 +56,7 @@ export class AuthController {
   @Post('sign-out')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  signOut(
-    @CurrentSessionId() sessionId: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  signOut(@CurrentSessionId() sessionId: string, @Res({ passthrough: true }) res: Response) {
     return this.authService.signOut(sessionId, res);
   }
 
@@ -119,6 +114,17 @@ export class AuthController {
     @Req() req: Request,
   ) {
     return this.authService.resetPassword(body, meta(req));
+  }
+
+  @Get('google')
+  googleAuth(@Res() res: Response) {
+    const url = this.authService.getGoogleAuthUrl();
+    res.redirect(url);
+  }
+
+  @Get('google/callback')
+  async googleCallback(@Query('code') code: string, @Req() req: Request, @Res() res: Response) {
+    return this.authService.handleGoogleCallback(code, res, meta(req));
   }
 
   @Get('session')
