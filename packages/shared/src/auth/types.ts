@@ -6,5 +6,6 @@ export interface User {
   email: string;
   emailVerifiedAt: string | null; // ISO timestamp
   twoFactorEnrolledAt: string | null;
+  isOnboarded: boolean;
   createdAt: string;
 }

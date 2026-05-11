@@ -77,6 +77,7 @@ export function SignInForm() {
   const { mutate, isPending, error } = useSignIn();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get('reset') === '1';
+  const emailVerified = searchParams.get('verified') === '1';
 
   const form = useForm<SignInInput>({
     resolver: zodResolver(SignInInput),
@@ -89,11 +90,16 @@ export function SignInForm() {
         Welcome back, trader
       </h2>
       <p className="mb-[18px] text-[13px] text-muted-foreground">
-        Sign in to log your trades and unlock today's insights.
+        Sign in to log your trades and unlock today&apos;s insights.
       </p>
 
       <SecurityBadge />
 
+      {emailVerified && (
+        <p className="mb-4 rounded-lg bg-primary/10 px-4 py-2.5 text-sm text-primary">
+          Email verified! Sign in to continue setup.
+        </p>
+      )}
       {resetSuccess && (
         <p className="mb-4 rounded-lg bg-primary/10 px-4 py-2.5 text-sm text-primary">
           Password updated. Sign in with your new password.

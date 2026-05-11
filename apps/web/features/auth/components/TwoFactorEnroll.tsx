@@ -108,7 +108,7 @@ export function TwoFactorEnroll() {
               boxShadow: '0 12px 30px rgba(0,214,143,.22), inset 0 1px 0 rgba(255,255,255,.18)',
             }}
           >
-            I've scanned the QR code →
+            I&apos;ve scanned the QR code →
           </Button>
         </>
       )}

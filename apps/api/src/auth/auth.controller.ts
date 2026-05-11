@@ -132,4 +132,11 @@ export class AuthController {
   getSession(@CurrentUserId() userId: string) {
     return this.authService.getSession(userId);
   }
+
+  @Post('complete-onboarding')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  completeOnboarding(@CurrentUserId() userId: string, @Res({ passthrough: true }) res: Response) {
+    return this.authService.completeOnboarding(userId, res);
+  }
 }

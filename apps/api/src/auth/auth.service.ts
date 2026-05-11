@@ -327,7 +327,7 @@ export class AuthService {
     });
 
     await this.sessionService.create(user, res, meta);
-    return res.redirect(`${env.APP_URL}/dashboard`);
+    return res.redirect(`${env.APP_URL}${user.isOnboarded ? '/dashboard' : '/onboarding'}`);
   }
 
   // ─── Forgot password ────────────────────────────────────────────────────────
@@ -391,14 +391,43 @@ export class AuthService {
     return this.toSessionShape(user);
   }
 
+  // ─── Onboarding ─────────────────────────────────────────────────────────────
+
+  async completeOnboarding(userId: string, res: Response) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isOnboarded: true },
+    });
+
+    await this.prisma.auditEvent.create({
+      data: { userId, kind: 'ONBOARDING_COMPLETED' },
+    });
+
+    res.cookie('eb_onboarded', 'true', {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return { ok: true as const };
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private toSessionShape(user: { id: string; handle: string; email: string }) {
+  private toSessionShape(user: {
+    id: string;
+    handle: string;
+    email: string;
+    isOnboarded: boolean;
+  }) {
     return {
       userId: user.id,
       handle: user.handle,
       email: user.email,
       twoFactorPending: false,
+      isOnboarded: user.isOnboarded,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
   }

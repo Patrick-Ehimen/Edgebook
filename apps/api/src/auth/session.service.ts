@@ -8,9 +8,11 @@ interface User {
   id: string;
   handle: string;
   email: string;
+  isOnboarded: boolean;
 }
 
 const COOKIE = 'eb_session';
+const ONBOARDED_COOKIE = 'eb_onboarded';
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const PENDING_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -45,6 +47,14 @@ export class SessionService {
     });
 
     res.cookie(COOKIE, token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: TTL_MS,
+      path: '/',
+    });
+
+    res.cookie(ONBOARDED_COOKIE, String(user.isOnboarded), {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -105,5 +115,6 @@ export class SessionService {
 
   clearCookie(res: Response): void {
     res.clearCookie(COOKIE, { path: '/' });
+    res.clearCookie(ONBOARDED_COOKIE, { path: '/' });
   }
 }
