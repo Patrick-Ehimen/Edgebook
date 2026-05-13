@@ -1,33 +1,37 @@
-import { Injectable } from '@nestjs/common';
-import { createHash, randomInt } from 'crypto';
-import type { Response } from 'express';
-import { PrismaService } from '../prisma/prisma.service';
-import { PasswordService } from './password.service';
-import { TotpService } from './totp.service';
-import { RecoveryCodesService } from './recovery-codes.service';
-import { SessionService, type RequestMeta } from './session.service';
-import { EmailService } from './email.service';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import {
   AccountExistsError,
+  EmailNotVerifiedError,
   InvalidCodeError,
   InvalidCredentialsError,
-  EmailNotVerifiedError,
 } from '@edgebook/shared/auth';
 import type {
-  SignUpInput,
-  SignInInput,
-  VerifyEmailInput,
   EnrollTotpConfirmInput,
-  TwoFactorChallengeInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  SignInInput,
+  SignUpInput,
+  TwoFactorChallengeInput,
+  VerifyEmailInput,
 } from '@edgebook/shared/auth';
+import { Injectable } from '@nestjs/common';
+import type { Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
+import { env } from '../config/env';
+import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from './email.service';
+import { PasswordService } from './password.service';
+import { RecoveryCodesService } from './recovery-codes.service';
+import { type RequestMeta, SessionService } from './session.service';
+import { TotpService } from './totp.service';
 
 const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient: OAuth2Client;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
@@ -35,7 +39,13 @@ export class AuthService {
     private readonly recoveryCodesService: RecoveryCodesService,
     private readonly sessionService: SessionService,
     private readonly emailService: EmailService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client({
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      redirectUri: env.GOOGLE_CALLBACK_URL,
+    });
+  }
 
   // ─── Sign up ────────────────────────────────────────────────────────────────
 
@@ -203,8 +213,7 @@ export class AuthService {
     });
 
     const isValidPending =
-      pending &&
-      pending.jwtId.startsWith('pending:') &&
+      pending?.jwtId.startsWith('pending:') &&
       pending.revokedAt === null &&
       pending.expiresAt > new Date();
 
@@ -224,6 +233,101 @@ export class AuthService {
     await this.sessionService.create(pending.user, res, meta);
 
     return { session: this.toSessionShape(pending.user) };
+  }
+
+  // ─── Google OAuth ──────────────────────────────────────────────────────────
+
+  getGoogleAuthUrl() {
+    return this.googleClient.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email',
+      ],
+      prompt: 'select_account',
+    });
+  }
+
+  async handleGoogleCallback(code: string, res: Response, meta: RequestMeta) {
+    const { tokens } = await this.googleClient.getToken(code);
+    if (!tokens.id_token) {
+      throw new Error('No ID token returned from Google');
+    }
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      throw new Error('Invalid Google token payload');
+    }
+
+    const { email, sub: googleId, name } = payload;
+
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { oauthAccounts: true },
+    });
+
+    if (!user) {
+      // Create new user
+      const handle = await this.generateUniqueHandle(name || email.split('@')[0]);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          handle,
+          emailVerifiedAt: new Date(),
+        },
+        include: { oauthAccounts: true },
+      });
+
+      await this.prisma.auditEvent.create({
+        data: { userId: user.id, kind: 'SIGNUP', ip: meta.ip, userAgent: meta.userAgent },
+      });
+    } else if (!user.emailVerifiedAt) {
+      // Auto-verify email if they logged in via Google
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+        include: { oauthAccounts: true },
+      });
+    }
+
+    // Link Google account if not already linked
+    const hasGoogleLink = user.oauthAccounts.some(
+      (acc) => acc.provider === 'google' && acc.providerAccountId === googleId,
+    );
+
+    if (!hasGoogleLink) {
+      await this.prisma.oAuthAccount.upsert({
+        where: {
+          provider_providerAccountId: {
+            provider: 'google',
+            providerAccountId: googleId,
+          },
+        },
+        create: {
+          userId: user.id,
+          provider: 'google',
+          providerAccountId: googleId,
+        },
+        update: {
+          userId: user.id,
+        },
+      });
+
+      await this.prisma.auditEvent.create({
+        data: { userId: user.id, kind: 'OAUTH_LINKED', ip: meta.ip, userAgent: meta.userAgent },
+      });
+    }
+
+    await this.prisma.auditEvent.create({
+      data: { userId: user.id, kind: 'SIGNIN', ip: meta.ip, userAgent: meta.userAgent },
+    });
+
+    await this.sessionService.create(user, res, meta);
+    return res.redirect(`${env.APP_URL}${user.isOnboarded ? '/dashboard' : '/onboarding'}`);
   }
 
   // ─── Forgot password ────────────────────────────────────────────────────────
@@ -287,14 +391,43 @@ export class AuthService {
     return this.toSessionShape(user);
   }
 
+  // ─── Onboarding ─────────────────────────────────────────────────────────────
+
+  async completeOnboarding(userId: string, res: Response) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isOnboarded: true },
+    });
+
+    await this.prisma.auditEvent.create({
+      data: { userId, kind: 'ONBOARDING_COMPLETED' },
+    });
+
+    res.cookie('eb_onboarded', 'true', {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return { ok: true as const };
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private toSessionShape(user: { id: string; handle: string; email: string }) {
+  private toSessionShape(user: {
+    id: string;
+    handle: string;
+    email: string;
+    isOnboarded: boolean;
+  }) {
     return {
       userId: user.id,
       handle: user.handle,
       email: user.email,
       twoFactorPending: false,
+      isOnboarded: user.isOnboarded,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
   }
@@ -305,5 +438,25 @@ export class AuthService {
 
   private hashCode(code: string): string {
     return createHash('sha256').update(code).digest('hex');
+  }
+
+  private async generateUniqueHandle(base: string): Promise<string> {
+    const cleanBase = base
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .slice(0, 15);
+
+    let handle = cleanBase;
+    let attempts = 0;
+
+    while (attempts < 5) {
+      const existing = await this.prisma.user.findUnique({ where: { handle } });
+      if (!existing) return handle;
+
+      handle = `${cleanBase}_${randomBytes(2).toString('hex')}`;
+      attempts++;
+    }
+
+    return `${cleanBase}_${randomBytes(4).toString('hex')}`;
   }
 }

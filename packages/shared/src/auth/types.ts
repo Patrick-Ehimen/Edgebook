@@ -1,4 +1,4 @@
-export type OAuthProvider = "google" | "github" | "x";
+export type OAuthProvider = 'google' | 'github' | 'x';
 
 export interface User {
   id: string;
@@ -6,5 +6,6 @@ export interface User {
   email: string;
   emailVerifiedAt: string | null; // ISO timestamp
   twoFactorEnrolledAt: string | null;
+  isOnboarded: boolean;
   createdAt: string;
 }

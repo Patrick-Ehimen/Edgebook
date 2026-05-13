@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /* ------------------------------- primitives ------------------------------- */
 
@@ -8,28 +8,28 @@ export const Email = z
   .toLowerCase()
   .min(3)
   .max(254)
-  .email("Enter a valid email address.");
+  .email('Enter a valid email address.');
 export type Email = z.infer<typeof Email>;
 
 export const Handle = z
   .string()
   .trim()
-  .min(3, "Handle must be at least 3 characters.")
-  .max(20, "Handle must be 20 characters or fewer.")
-  .regex(/^[a-z0-9_]+$/i, "Letters, numbers, and underscores only.");
+  .min(3, 'Handle must be at least 3 characters.')
+  .max(20, 'Handle must be 20 characters or fewer.')
+  .regex(/^[a-z0-9_]+$/i, 'Letters, numbers, and underscores only.');
 export type Handle = z.infer<typeof Handle>;
 
 export const OtpCode = z
   .string()
   .trim()
-  .regex(/^\d{6}$/, "Code must be 6 digits.");
+  .regex(/^\d{6}$/, 'Code must be 6 digits.');
 export type OtpCode = z.infer<typeof OtpCode>;
 
 export const RecoveryCode = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Recovery code format: XXXX-XXXX");
+  .regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/, 'Recovery code format: XXXX-XXXX');
 export type RecoveryCode = z.infer<typeof RecoveryCode>;
 
 /**
@@ -39,11 +39,11 @@ export type RecoveryCode = z.infer<typeof RecoveryCode>;
  */
 export const password = z
   .string()
-  .min(12, "At least 12 characters.")
-  .max(128, "Too long.")
-  .refine((v) => /[a-z]/.test(v), "Include a lowercase letter.")
-  .refine((v) => /[A-Z]/.test(v), "Include an uppercase letter.")
-  .refine((v) => /\d/.test(v), "Include a number.");
+  .min(12, 'At least 12 characters.')
+  .max(128, 'Too long.')
+  .refine((v) => /[a-z]/.test(v), 'Include a lowercase letter.')
+  .refine((v) => /[A-Z]/.test(v), 'Include an uppercase letter.')
+  .refine((v) => /\d/.test(v), 'Include a number.');
 
 /* --------------------------------- session -------------------------------- */
 
@@ -52,20 +52,28 @@ export const SessionSchema = z.object({
   handle: Handle,
   email: Email,
   twoFactorPending: z.boolean(),
+  isOnboarded: z.boolean(),
   expiresAt: z.string(), // ISO
 });
 export type Session = z.infer<typeof SessionSchema>;
+
+/* ------------------------------- onboarding ------------------------------- */
+
+export const CompleteOnboardingResponse = z.object({
+  ok: z.literal(true),
+});
+export type CompleteOnboardingResponse = z.infer<typeof CompleteOnboardingResponse>;
 
 /* --------------------------------- sign-in -------------------------------- */
 
 export const SignInInput = z.object({
   email: Email,
-  password: z.string().min(1, "Enter your password."),
+  password: z.string().min(1, 'Enter your password.'),
   remember: z.boolean().optional(),
 });
 export type SignInInput = z.infer<typeof SignInInput>;
 
-export const SignInResponse = z.discriminatedUnion("twoFactorRequired", [
+export const SignInResponse = z.discriminatedUnion('twoFactorRequired', [
   z.object({ twoFactorRequired: z.literal(false), session: SessionSchema }),
   z.object({ twoFactorRequired: z.literal(true), challengeId: z.string() }),
 ]);
@@ -78,7 +86,7 @@ export const SignUpInput = z.object({
   email: Email,
   password,
   acceptTerms: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms." }),
+    errorMap: () => ({ message: 'You must accept the terms.' }),
   }),
 });
 export type SignUpInput = z.infer<typeof SignUpInput>;
@@ -119,9 +127,7 @@ export type EnrollTotpConfirmInput = z.infer<typeof EnrollTotpConfirmInput>;
 export const EnrollTotpConfirmResponse = z.object({
   enrolledAt: z.string(),
 });
-export type EnrollTotpConfirmResponse = z.infer<
-  typeof EnrollTotpConfirmResponse
->;
+export type EnrollTotpConfirmResponse = z.infer<typeof EnrollTotpConfirmResponse>;
 
 export const TwoFactorChallengeInput = z.object({
   challengeId: z.string(),
@@ -133,9 +139,7 @@ export type TwoFactorChallengeInput = z.infer<typeof TwoFactorChallengeInput>;
 export const TwoFactorChallengeResponse = z.object({
   session: SessionSchema,
 });
-export type TwoFactorChallengeResponse = z.infer<
-  typeof TwoFactorChallengeResponse
->;
+export type TwoFactorChallengeResponse = z.infer<typeof TwoFactorChallengeResponse>;
 
 /* ----------------------------- forgot / reset ----------------------------- */
 

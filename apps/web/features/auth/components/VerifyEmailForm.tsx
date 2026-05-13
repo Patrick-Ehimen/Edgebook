@@ -77,7 +77,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
       </Button>
 
       <p className="text-center text-[12px] text-muted-foreground">
-        Didn't receive it?{' '}
+        Didn&apos;t receive it?{' '}
         <button
           type="button"
           disabled={!canResend || resending}

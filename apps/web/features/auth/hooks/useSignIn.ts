@@ -14,7 +14,7 @@ export function useSignIn() {
         router.push(`/2fa?challengeId=${res.challengeId}`);
       } else {
         qc.setQueryData(['session'], res.session);
-        router.push('/dashboard');
+        router.push(res.session.isOnboarded ? '/dashboard' : '/onboarding');
       }
     },
   });

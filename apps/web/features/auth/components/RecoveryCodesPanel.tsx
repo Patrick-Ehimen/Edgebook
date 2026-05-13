@@ -70,7 +70,7 @@ export function RecoveryCodesPanel({ codes, onSaved }: RecoveryCodesPanelProps) 
           onCheckedChange={(v) => setSaved(Boolean(v))}
           className="mt-0.5 h-[14px] w-[14px] flex-shrink-0"
         />
-        <span>I've saved my recovery codes in a safe place</span>
+        <span>I&apos;ve saved my recovery codes in a safe place</span>
       </label>
 
       <Button

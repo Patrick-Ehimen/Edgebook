@@ -28,6 +28,7 @@ enum AuditKind {
   API_KEY_ADDED
   API_KEY_REMOVED
   EXPORT_REQUESTED
+  ONBOARDING_COMPLETED
 }
 
 enum Venue {
@@ -81,9 +82,10 @@ model User {
   handle          String    @unique
   email           String    @unique
   emailVerifiedAt DateTime? @db.Timestamptz
-  passwordHash    String
+  passwordHash    String?
   createdAt       DateTime  @default(now()) @db.Timestamptz
   updatedAt       DateTime  @updatedAt @db.Timestamptz
+  isOnboarded     Boolean   @default(false)
 
   sessions       Session[]
   totpSecret     TotpSecret?
