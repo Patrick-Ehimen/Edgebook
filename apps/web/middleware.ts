@@ -2,15 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'eb_session';
 
-const PROTECTED = ['/dashboard', '/settings', '/journal', '/positions', '/analytics'];
+const PROTECTED = [
+  '/dashboard',
+  '/trades',
+  '/analytics',
+  '/calendar',
+  '/playbooks',
+  '/journal',
+  '/ai-review',
+  '/goals',
+  '/settings',
+];
 const AUTH_ROUTES = ['/sign-in', '/sign-up', '/forgot', '/verify', '/2fa'];
 
 function isProtected(pathname: string) {
-  return PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 function isAuthRoute(pathname: string) {
-  return AUTH_ROUTES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  return AUTH_ROUTES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export function middleware(req: NextRequest) {
