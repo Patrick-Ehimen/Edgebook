@@ -7,11 +7,13 @@ const PROTECTED = [
   '/trades',
   '/analytics',
   '/calendar',
+  '/mind-lab',
   '/playbooks',
   '/journal',
   '/ai-review',
   '/goals',
   '/settings',
+  '/onboarding',
 ];
 const AUTH_ROUTES = ['/sign-in', '/sign-up', '/forgot', '/verify', '/2fa'];
 

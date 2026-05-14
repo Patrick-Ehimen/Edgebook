@@ -1,20 +1,28 @@
 'use client';
 
+import { useAuth } from '@/providers/auth-provider';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/providers/auth-provider';
 
 const WORKSPACE = [
   { href: '/dashboard', icon: '📊', label: 'Dashboard' },
   { href: '/trades', icon: '📒', label: 'Trade log' },
   { href: '/analytics', icon: '📈', label: 'Analytics' },
   { href: '/calendar', icon: '🗓️', label: 'Calendar' },
+  { href: '/mind-lab', icon: '🧠', label: 'Mind Lab' },
   { href: '/playbooks', icon: '🎯', label: 'Playbook' },
 ];
 
 const COACHING = [
   { href: '/journal', icon: '📓', label: 'Daily journal' },
-  { href: '/ai-review', icon: '📥', label: 'AI weekly review', badge: '2', badgeColor: 'rgba(139,92,246,.2)', badgeText: '#c4b5fd' },
+  {
+    href: '/ai-review',
+    icon: '📥',
+    label: 'AI weekly review',
+    badge: '2',
+    badgeColor: 'rgba(139,92,246,.2)',
+    badgeText: '#c4b5fd',
+  },
   { href: '/goals', icon: '🎯', label: 'Goals & rules' },
   { href: '/settings', icon: '⚙️', label: 'Settings' },
 ];
@@ -24,7 +32,7 @@ export default function SidebarNav() {
   const { session } = useAuth();
 
   const isActive = (href: string) =>
-    pathname === href || (href !== '/dashboard' && pathname.startsWith(href + '/'));
+    pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
 
   const linkStyle = (active: boolean): React.CSSProperties => ({
     display: 'flex',
@@ -84,7 +92,15 @@ export default function SidebarNav() {
       }}
     >
       {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 8px 18px', fontWeight: 600 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '9px',
+          padding: '6px 8px 18px',
+          fontWeight: 600,
+        }}
+      >
         <div
           style={{
             width: 22,
@@ -137,7 +153,16 @@ export default function SidebarNav() {
           href="/settings/connections"
           style={{ ...linkStyle(false), color: 'var(--eb-muted)', fontSize: 12.5 }}
         >
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-muted)', flexShrink: 0, display: 'inline-block' }} />
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: 'var(--eb-muted)',
+              flexShrink: 0,
+              display: 'inline-block',
+            }}
+          />
           <span>+ Connect account</span>
         </Link>
       </nav>
@@ -149,7 +174,7 @@ export default function SidebarNav() {
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
             <span style={{ width: 16, textAlign: 'center' }}>{icon}</span>
             <span>{label}</span>
-            {badge && pill(badge, badgeColor!, badgeText!)}
+            {badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
           </Link>
         ))}
       </nav>
@@ -184,10 +209,27 @@ export default function SidebarNav() {
             {initial}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div
+              style={{
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: 'var(--eb-text)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {displayName}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {session.email}
             </div>
           </div>
