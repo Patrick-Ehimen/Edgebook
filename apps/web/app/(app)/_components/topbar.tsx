@@ -15,6 +15,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 
 const PRESETS = [
@@ -27,17 +28,38 @@ const PRESETS = [
 
 type Period = (typeof PRESETS)[number]['value'];
 
-type Account = { id: string; label: string; exchange: string; color: string };
+type Account = {
+  id: string;
+  label: string;
+  exchange: string;
+  color: string;
+  logo: string;
+  logoDark?: string;
+};
 
 const DEMO_ACCOUNTS: Account[] = [
-  { id: 'bybit-main', label: 'Bybit main', exchange: 'Bybit', color: '#f7a600' },
-  { id: 'binance-perps', label: 'Binance perps', exchange: 'Binance', color: '#f0b90b' },
+  {
+    id: 'bybit-main',
+    label: 'Bybit main',
+    exchange: 'Bybit',
+    color: '#f7a600',
+    logo: '/assets/bybit-logo.svg',
+    logoDark: '/assets/bybit-logo-dark.svg',
+  },
+  {
+    id: 'binance-perps',
+    label: 'Binance perps',
+    exchange: 'Binance',
+    color: '#f0b90b',
+    logo: '/assets/binance-logo.svg',
+  },
 ];
 
 function AccountSelector() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string>('all');
   const ref = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -179,7 +201,13 @@ function AccountSelector() {
                     }}
                   />
                   <span style={{ flex: 1 }}>{acc.label}</span>
-                  <span style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>{acc.exchange}</span>
+                  <Image
+                    src={resolvedTheme === 'dark' && acc.logoDark ? acc.logoDark : acc.logo}
+                    alt={acc.exchange}
+                    width={44}
+                    height={14}
+                    style={{ objectFit: 'contain', opacity: 0.85, flexShrink: 0 }}
+                  />
                   {selected === acc.id && (
                     <Check size={12} style={{ color: 'var(--green)', marginLeft: 4 }} />
                   )}
