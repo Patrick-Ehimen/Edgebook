@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'Goals & Rules — Edgebook' };
 
@@ -7,7 +8,13 @@ const PRESETS = [
     icon: '⚡',
     name: 'Active scalper',
     desc: 'Tight cooldowns, aggressive revenge-trade blocking, soft news alerts.',
-    features: ['Cooldown 30m after 3 losses', '60s revenge block', 'Oversize confirm at 2×', 'News flag (soft)', '0.5% risk cap'],
+    features: [
+      'Cooldown 30m after 3 losses',
+      '60s revenge block',
+      'Oversize confirm at 2×',
+      'News flag (soft)',
+      '0.5% risk cap',
+    ],
     badge: null,
     badgeColor: 'var(--green)',
   },
@@ -15,7 +22,13 @@ const PRESETS = [
     icon: '🛡️',
     name: 'Funded / prop firm',
     desc: 'Hard halt on max-loss, leverage cap, news block. Built to keep your account.',
-    features: ['Daily max loss −2%', 'Monthly DD −5% kill switch', 'News block (hard)', 'Leverage cap 10×', 'Min R:R 1:2'],
+    features: [
+      'Daily max loss −2%',
+      'Monthly DD −5% kill switch',
+      'News block (hard)',
+      'Leverage cap 10×',
+      'Min R:R 1:2',
+    ],
     badge: 'Strict',
     badgeColor: 'var(--eb-yellow)',
   },
@@ -23,7 +36,13 @@ const PRESETS = [
     icon: '📈',
     name: 'Conservative swing',
     desc: 'Looser cooldowns, no revenge block for low-cadence trading, tighter sizing.',
-    features: ['Cooldown 60m after 2 losses', 'No revenge block', 'Oversize confirm at 1.5×', '0.7% risk cap', 'Min R:R 1:2'],
+    features: [
+      'Cooldown 60m after 2 losses',
+      'No revenge block',
+      'Oversize confirm at 1.5×',
+      '0.7% risk cap',
+      'Min R:R 1:2',
+    ],
     badge: 'Coach',
     badgeColor: 'var(--eb-cyan)',
   },
@@ -37,36 +56,59 @@ export default function GoalsPage() {
       </div>
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 4px', color: 'var(--eb-text)' }}>
             Goals &amp; rules
           </h1>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--eb-muted)' }}>
-            Performance targets and discipline guardrails. Soft alerts ping you; hard rules can pause your account.
+            Performance targets and discipline guardrails. Soft alerts ping you; hard rules can
+            pause your account.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
+          <Button
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8, border: '1px solid var(--eb-border)',
-              background: 'var(--eb-panel-2)', color: 'var(--eb-text)',
-              fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '1px solid var(--eb-border)',
+              background: 'var(--eb-panel-2)',
+              color: 'var(--eb-text)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             📋 Apply preset ▾
-          </button>
-          <button
+          </Button>
+          <Button
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8, border: '1px solid #00b67a',
-              background: 'linear-gradient(180deg,#00d68f,#00b67a)', color: '#06140f',
-              fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '1px solid #00b67a',
+              background: 'linear-gradient(180deg,#00d68f,#00b67a)',
+              color: '#06140f',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             + New rule
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -81,15 +123,29 @@ export default function GoalsPage() {
           marginBottom: 14,
         }}
       >
-        <div style={{ fontSize: 54, marginBottom: 8, filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.18))' }}>
+        <div
+          style={{
+            fontSize: 54,
+            marginBottom: 8,
+            filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.18))',
+          }}
+        >
           🎯
         </div>
         <h2 style={{ margin: '6px 0', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
           No rules configured
         </h2>
-        <p style={{ color: 'var(--eb-muted-2)', maxWidth: 480, margin: '0 auto 24px', lineHeight: 1.65, fontSize: 13.5 }}>
-          Rules protect your P&amp;L from your emotions. Soft alerts warn you; hard rules pause the account.
-          Start with a preset, then tune the numbers to fit your style.
+        <p
+          style={{
+            color: 'var(--eb-muted-2)',
+            maxWidth: 480,
+            margin: '0 auto 24px',
+            lineHeight: 1.65,
+            fontSize: 13.5,
+          }}
+        >
+          Rules protect your P&amp;L from your emotions. Soft alerts warn you; hard rules pause the
+          account. Start with a preset, then tune the numbers to fit your style.
         </p>
 
         {/* Preset cards */}
@@ -134,8 +190,26 @@ export default function GoalsPage() {
                 </span>
               )}
               <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-              <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--eb-text)', marginBottom: 4 }}>{name}</div>
-              <div style={{ fontSize: 12, color: 'var(--eb-muted)', lineHeight: 1.45, marginBottom: 10 }}>{desc}</div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 13.5,
+                  color: 'var(--eb-text)',
+                  marginBottom: 4,
+                }}
+              >
+                {name}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--eb-muted)',
+                  lineHeight: 1.45,
+                  marginBottom: 10,
+                }}
+              >
+                {desc}
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {features.map((f) => (
                   <span key={f} style={{ fontSize: 11.5, color: 'var(--eb-muted-2)' }}>
@@ -148,26 +222,41 @@ export default function GoalsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
+          <Button
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 20px', borderRadius: 9, border: '1px solid #00b67a',
-              background: 'linear-gradient(180deg,#00e29a,#00b67a)', color: '#06140f',
-              fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 20px',
+              borderRadius: 9,
+              border: '1px solid #00b67a',
+              background: 'linear-gradient(180deg,#00e29a,#00b67a)',
+              color: '#06140f',
+              fontSize: 13.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Choose a preset →
-          </button>
-          <button
+          </Button>
+          <Button
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 14px', borderRadius: 9, border: '1px solid var(--eb-border)',
-              background: 'var(--eb-panel-2)', color: 'var(--eb-text)',
-              fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 14px',
+              borderRadius: 9,
+              border: '1px solid var(--eb-border)',
+              background: 'var(--eb-panel-2)',
+              color: 'var(--eb-text)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             + Add custom rule
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -189,7 +278,15 @@ export default function GoalsPage() {
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 10.5, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 10.5,
+                color: 'var(--eb-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '.06em',
+                marginBottom: 4,
+              }}
+            >
               {label}
             </div>
             <div

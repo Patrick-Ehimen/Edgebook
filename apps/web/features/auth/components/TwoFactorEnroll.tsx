@@ -108,7 +108,7 @@ export function TwoFactorEnroll() {
               boxShadow: '0 12px 30px rgba(0,214,143,.22), inset 0 1px 0 rgba(255,255,255,.18)',
             }}
           >
-            I've scanned the QR code →
+            I&apos;ve scanned the QR code →
           </Button>
         </>
       )}
@@ -127,8 +127,12 @@ export function TwoFactorEnroll() {
               disabled={confirmMutation.isPending}
             >
               <InputOTPGroup>
-                {Array.from({ length: 6 }, (_, i) => (
-                  <InputOTPSlot key={i} index={i} className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20" />
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <InputOTPSlot
+                    key={index}
+                    index={index}
+                    className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20"
+                  />
                 ))}
               </InputOTPGroup>
             </InputOTP>
@@ -158,7 +162,8 @@ export function TwoFactorEnroll() {
             <button
               type="button"
               onClick={() => setStep('qr')}
-              className="cursor-pointer font-medium hover:underline" style={{ color: '#00a86b' }}
+              className="cursor-pointer font-medium hover:underline"
+              style={{ color: '#00a86b' }}
             >
               ← Back to QR code
             </button>

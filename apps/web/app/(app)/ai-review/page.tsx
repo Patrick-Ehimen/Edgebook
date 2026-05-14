@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'AI Weekly Review — Edgebook' };
 
@@ -10,30 +11,46 @@ export default function AiReviewPage() {
       </div>
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 18,
+        }}
+      >
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 4px', color: 'var(--eb-text)' }}>
             AI weekly review
           </h1>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--eb-muted)' }}>
-            Every Sunday 18:00 UTC — Claude analyses your week and makes one concrete recommendation.
+            Every Sunday 18:00 UTC — Claude analyses your week and makes one concrete
+            recommendation.
           </p>
         </div>
-        <button
+        <Button
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 14px', borderRadius: 8, border: '1px solid var(--eb-border)',
-            background: 'var(--eb-panel-2)', color: 'var(--eb-text)',
-            fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--eb-border)',
+            background: 'var(--eb-panel-2)',
+            color: 'var(--eb-text)',
+            fontSize: 12.5,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
           }}
         >
           ⚙ Review settings
-        </button>
+        </Button>
       </div>
 
       {/* 2-column layout: inbox + reader */}
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 18, alignItems: 'start' }}>
-
+      <div
+        style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 18, alignItems: 'start' }}
+      >
         {/* Inbox sidebar */}
         <aside
           style={{
@@ -96,16 +113,30 @@ export default function AiReviewPage() {
             justifyContent: 'center',
           }}
         >
-          <div style={{ fontSize: 54, marginBottom: 12, filter: 'drop-shadow(0 6px 14px rgba(6,182,212,.2))' }}>
+          <div
+            style={{
+              fontSize: 54,
+              marginBottom: 12,
+              filter: 'drop-shadow(0 6px 14px rgba(6,182,212,.2))',
+            }}
+          >
             🤖
           </div>
           <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
             No weekly reviews yet
           </h2>
-          <p style={{ color: 'var(--eb-muted-2)', maxWidth: 460, margin: '0 0 24px', lineHeight: 1.65, fontSize: 13.5 }}>
+          <p
+            style={{
+              color: 'var(--eb-muted-2)',
+              maxWidth: 460,
+              margin: '0 0 24px',
+              lineHeight: 1.65,
+              fontSize: 13.5,
+            }}
+          >
             Once you have trade data, Claude analyses your week every Sunday — what worked, what
-            didn't, your behavioral patterns, and one specific recommendation. You'll get an
-            unread badge here when it's ready.
+            didn&apos;t, your behavioral patterns, and one specific recommendation. You&apos;ll get
+            an unread badge here when it&apos;s ready.
           </p>
 
           {/* What you'll get */}
@@ -121,10 +152,26 @@ export default function AiReviewPage() {
             }}
           >
             {[
-              { icon: '🏆', title: 'What worked', desc: 'Your strongest playbook and why. Do more of this.' },
-              { icon: '⚠️', title: "What didn't", desc: 'Edge-decay signals and regime shifts to watch.' },
-              { icon: '🧠', title: 'Behavioral pattern', desc: 'Sleep, session, day-of-week correlations.' },
-              { icon: '🎯', title: 'One recommendation', desc: 'Single, reversible action for next week.' },
+              {
+                icon: '🏆',
+                title: 'What worked',
+                desc: 'Your strongest playbook and why. Do more of this.',
+              },
+              {
+                icon: '⚠️',
+                title: "What didn't",
+                desc: 'Edge-decay signals and regime shifts to watch.',
+              },
+              {
+                icon: '🧠',
+                title: 'Behavioral pattern',
+                desc: 'Sleep, session, day-of-week correlations.',
+              },
+              {
+                icon: '🎯',
+                title: 'One recommendation',
+                desc: 'Single, reversible action for next week.',
+              },
             ].map(({ icon, title, desc }) => (
               <div
                 key={title}
@@ -136,33 +183,59 @@ export default function AiReviewPage() {
                 }}
               >
                 <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--eb-text)', marginBottom: 3 }}>{title}</div>
-                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', lineHeight: 1.45 }}>{desc}</div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    color: 'var(--eb-text)',
+                    marginBottom: 3,
+                  }}
+                >
+                  {title}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', lineHeight: 1.45 }}>
+                  {desc}
+                </div>
               </div>
             ))}
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
+            <Button
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '9px 16px', borderRadius: 9, border: '1px solid #00b67a',
-                background: 'linear-gradient(180deg,#00e29a,#00b67a)', color: '#06140f',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '9px 16px',
+                borderRadius: 9,
+                border: '1px solid #00b67a',
+                background: 'linear-gradient(180deg,#00e29a,#00b67a)',
+                color: '#06140f',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               Enable weekly reviews
-            </button>
-            <button
+            </Button>
+            <Button
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '9px 14px', borderRadius: 9, border: '1px solid var(--eb-border)',
-                background: 'var(--eb-panel-2)', color: 'var(--eb-text)',
-                fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '9px 14px',
+                borderRadius: 9,
+                border: '1px solid var(--eb-border)',
+                background: 'var(--eb-panel-2)',
+                color: 'var(--eb-text)',
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               🤖 AI & insights settings
-            </button>
+            </Button>
           </div>
 
           <div
@@ -177,7 +250,8 @@ export default function AiReviewPage() {
               maxWidth: 460,
             }}
           >
-            💡 Reviews use Claude Sonnet by default. Cached analyses don't count toward your token budget.
+            💡 Reviews use Claude Sonnet by default. Cached analyses don&apos;t count toward your
+            token budget.
           </div>
         </div>
       </div>

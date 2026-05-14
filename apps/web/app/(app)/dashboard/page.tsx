@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'Dashboard — Edgebook' };
 
@@ -119,8 +120,8 @@ export default function DashboardPage() {
           marginBottom: 16,
         }}
       >
-        {Array.from({ length: 5 }).map((_, i) => (
-          <SkeletonCard key={i} />
+        {[0, 1, 2, 3, 4].map((id) => (
+          <SkeletonCard key={`kpi-${id}`} />
         ))}
       </div>
 
@@ -150,21 +151,27 @@ export default function DashboardPage() {
             opacity: 0.2,
           }}
         >
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: 12 }, (_, i) => i).map((id) => (
             <div
-              key={i}
+              key={`bar-${id}`}
               style={{
                 background: 'var(--eb-panel-2)',
                 border: '1px solid var(--eb-border)',
                 borderRadius: 5,
-                height: `${28 + Math.sin(i * 0.8) * 22}px`,
+                height: `${28 + Math.sin(id * 0.8) * 22}px`,
                 alignSelf: 'flex-end',
               }}
             />
           ))}
         </div>
 
-        <div style={{ fontSize: 54, marginBottom: 8, filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.2))' }}>
+        <div
+          style={{
+            fontSize: 54,
+            marginBottom: 8,
+            filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.2))',
+          }}
+        >
           🌱
         </div>
         <h2 style={{ margin: '6px 0', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
@@ -184,7 +191,15 @@ export default function DashboardPage() {
         </p>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            marginBottom: 28,
+          }}
+        >
           <Link
             href="/settings/connections"
             style={{
@@ -205,7 +220,7 @@ export default function DashboardPage() {
           >
             🔌 Connect exchange
           </Link>
-          <button
+          <Button
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -221,8 +236,8 @@ export default function DashboardPage() {
             }}
           >
             📁 Upload CSV
-          </button>
-          <button
+          </Button>
+          <Button
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -238,7 +253,7 @@ export default function DashboardPage() {
             }}
           >
             ⌨ Log trade manually
-          </button>
+          </Button>
         </div>
 
         {/* 3-step checklist */}

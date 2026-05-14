@@ -5,7 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Mail } from 'lucide-react';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { PasswordStrengthMeter } from '@/components/ui/password-strength-meter';
@@ -50,9 +57,7 @@ function StepIndicator({ current }: { current: number }) {
               {label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
-            <span className="h-px flex-1 bg-border" />
-          )}
+          {i < STEPS.length - 1 && <span className="h-px flex-1 bg-border" />}
         </React.Fragment>
       ))}
     </div>
@@ -121,7 +126,7 @@ export function ForgotPasswordFlow() {
             Reset your password
           </h2>
           <p className="mb-5 text-[13px] text-muted-foreground">
-            Enter your email and we'll send you a reset code.
+            Enter your email and we&apos;ll send you a reset code.
           </p>
           <Form {...emailForm}>
             <form onSubmit={handleEmailSubmit} className="space-y-4">
@@ -184,10 +189,10 @@ export function ForgotPasswordFlow() {
             <div className="flex justify-center">
               <InputOTP maxLength={6} value={otpValue} onChange={setOtpValue}>
                 <InputOTPGroup>
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
                     <InputOTPSlot
-                      key={i}
-                      index={i}
+                      key={index}
+                      index={index}
                       className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20"
                     />
                   ))}

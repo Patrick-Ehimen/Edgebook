@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/providers/auth-provider';
+import { Button } from '@/components/ui/button';
 
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -70,7 +71,7 @@ export default function Topbar() {
       </div>
 
       {/* Account selector */}
-      <button
+      <Button
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -97,10 +98,10 @@ export default function Topbar() {
         />
         All accounts
         <span style={{ color: 'var(--eb-muted)', marginLeft: 2 }}>▾</span>
-      </button>
+      </Button>
 
       {/* Date range */}
-      <button
+      <Button
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -116,10 +117,10 @@ export default function Topbar() {
         }}
       >
         Last 30D ▾
-      </button>
+      </Button>
 
       {/* Sync */}
-      <button
+      <Button
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -135,10 +136,10 @@ export default function Topbar() {
         }}
       >
         ↻ Sync
-      </button>
+      </Button>
 
       {/* Theme toggle */}
-      <button
+      <Button
         onClick={toggleTheme}
         title="Toggle theme"
         style={{
@@ -156,10 +157,10 @@ export default function Topbar() {
         }}
       >
         {resolvedTheme === 'dark' ? '🌙' : '☀️'}
-      </button>
+      </Button>
 
       {/* Log trade */}
-      <button
+      <Button
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -175,11 +176,11 @@ export default function Topbar() {
           fontFamily: 'inherit',
           transition: 'filter .15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.05)')}
-        onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+        onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.05)')}
+        onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
       >
         + Log trade
-      </button>
+      </Button>
     </header>
   );
 }
