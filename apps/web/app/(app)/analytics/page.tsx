@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Lock, PenLine, Plug, TrendingUp, Upload } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Analytics — Edgebook' };
 
@@ -216,13 +217,13 @@ export default function AnalyticsPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 36,
             marginBottom: 14,
             background: 'linear-gradient(135deg,rgba(0,214,143,.15),rgba(6,182,212,.10))',
             border: '1px solid rgba(0,214,143,.20)',
+            color: 'var(--green)',
           }}
         >
-          📈
+          <TrendingUp size={36} />
         </div>
         <h2
           style={{
@@ -259,7 +260,7 @@ export default function AnalyticsPage() {
               textDecoration: 'none',
             }}
           >
-            🔌 Connect exchange
+            <Plug size={13} /> Connect exchange
           </Link>
           <button
             type="button"
@@ -277,7 +278,7 @@ export default function AnalyticsPage() {
               fontFamily: 'inherit',
             }}
           >
-            📁 Upload CSV
+            <Upload size={13} /> Upload CSV
           </button>
           <button
             type="button"
@@ -295,7 +296,7 @@ export default function AnalyticsPage() {
               fontFamily: 'inherit',
             }}
           >
-            ⌨ Log trade manually
+            <PenLine size={13} /> Log trade manually
           </button>
         </div>
       </div>
@@ -332,6 +333,9 @@ export default function AnalyticsPage() {
                 position: 'absolute',
                 top: 10,
                 right: 10,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
                 fontSize: 11,
                 color: 'var(--eb-muted)',
                 background: 'var(--eb-panel-2)',
@@ -340,7 +344,7 @@ export default function AnalyticsPage() {
                 padding: '2px 7px',
               }}
             >
-              🔒 {lock}
+              <Lock size={10} /> {lock}
             </span>
             <h4
               style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 600, color: 'var(--eb-text)' }}

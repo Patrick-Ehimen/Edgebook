@@ -1,7 +1,26 @@
 import type { Metadata } from 'next';
 import { Button } from '@/components/ui/button';
+import { Archive, BookOpen, FileText, Plug, TrendingUp, Upload } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Trade Log — Edgebook' };
+
+const HOW_IT_WORKS = [
+  {
+    Icon: Archive,
+    title: 'Every fill, immutable',
+    desc: 'Each execution is stored once, append-only. Positions are derived from fills, never manually set.',
+  },
+  {
+    Icon: TrendingUp,
+    title: 'Full charting & replay',
+    desc: 'Entry / exit lines on the chart, MFE/MAE markers, and R-multiple calculated automatically.',
+  },
+  {
+    Icon: FileText,
+    title: 'Notes, tags & checklist',
+    desc: "Attach a note, screenshot, and playbook checklist to every trade while it's fresh.",
+  },
+];
 
 export default function TradesPage() {
   return (
@@ -38,7 +57,7 @@ export default function TradesPage() {
               fontFamily: 'inherit',
             }}
           >
-            📁 Import CSV
+            <Upload size={13} /> Import CSV
           </Button>
           <Button
             style={{
@@ -71,7 +90,9 @@ export default function TradesPage() {
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 44, marginBottom: 10 }}>📒</div>
+        <div style={{ marginBottom: 10, color: 'var(--eb-muted)' }}>
+          <BookOpen size={44} />
+        </div>
         <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
           No trades imported yet
         </h2>
@@ -122,7 +143,7 @@ export default function TradesPage() {
               fontFamily: 'inherit',
             }}
           >
-            📁 Import CSV
+            <Upload size={14} /> Import CSV
           </Button>
           <Button
             style={{
@@ -139,7 +160,7 @@ export default function TradesPage() {
               fontFamily: 'inherit',
             }}
           >
-            🔌 Connect exchange
+            <Plug size={14} /> Connect exchange
           </Button>
         </div>
       </div>
@@ -153,23 +174,7 @@ export default function TradesPage() {
           gap: 10,
         }}
       >
-        {[
-          {
-            icon: '🗂️',
-            title: 'Every fill, immutable',
-            desc: 'Each execution is stored once, append-only. Positions are derived from fills, never manually set.',
-          },
-          {
-            icon: '📈',
-            title: 'Full charting & replay',
-            desc: 'Entry / exit lines on the chart, MFE/MAE markers, and R-multiple calculated automatically.',
-          },
-          {
-            icon: '📝',
-            title: 'Notes, tags & checklist',
-            desc: "Attach a note, screenshot, and playbook checklist to every trade while it's fresh.",
-          },
-        ].map(({ icon, title, desc }) => (
+        {HOW_IT_WORKS.map(({ Icon, title, desc }) => (
           <div
             key={title}
             style={{
@@ -179,7 +184,9 @@ export default function TradesPage() {
               padding: '14px 16px',
             }}
           >
-            <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+            <div style={{ marginBottom: 6, color: 'var(--eb-muted)' }}>
+              <Icon size={22} />
+            </div>
             <div
               style={{ fontWeight: 600, fontSize: 13, color: 'var(--eb-text)', marginBottom: 4 }}
             >

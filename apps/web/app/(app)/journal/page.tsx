@@ -1,11 +1,21 @@
 import type { Metadata } from 'next';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Moon, NotebookPen, Sunrise, Zap } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Daily Journal — Edgebook' };
 
-const STEPS = [
+const STEPS: {
+  Icon: LucideIcon;
+  title: string;
+  desc: string;
+  chip: string;
+  chipColor: string;
+  chipBg: string;
+  chipBorder: string;
+}[] = [
   {
-    icon: '🌅',
+    Icon: Sunrise,
     title: 'Pre-market intent',
     desc: 'Lock in your bias, key levels, max risk, and plan before the first trade fires. Immutable once locked — no hindsight edits.',
     chip: 'Locked at first trade',
@@ -14,7 +24,7 @@ const STEPS = [
     chipBorder: 'rgba(245,165,36,.3)',
   },
   {
-    icon: '⚡',
+    Icon: Zap,
     title: 'Live session',
     desc: "Mid-session notes, rule event log, and trade-by-trade checklist. Timestamps are preserved — the tape doesn't lie.",
     chip: 'Trading active',
@@ -23,7 +33,7 @@ const STEPS = [
     chipBorder: 'rgba(0,214,143,.3)',
   },
   {
-    icon: '🌙',
+    Icon: Moon,
     title: 'End-of-day review',
     desc: "Score the day on process (not outcome), capture the lesson, and set tomorrow's prep. Unlocks after session close.",
     chip: 'Unlocks at EOD',
@@ -73,7 +83,7 @@ export default function JournalPage() {
             fontFamily: 'inherit',
           }}
         >
-          📓 Write today&apos;s entry
+          <NotebookPen size={13} /> Write today&apos;s entry
         </Button>
       </div>
 
@@ -90,12 +100,13 @@ export default function JournalPage() {
       >
         <div
           style={{
-            fontSize: 54,
             marginBottom: 8,
             filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.18))',
+            display: 'inline-flex',
+            color: 'var(--green)',
           }}
         >
-          📓
+          <NotebookPen size={54} />
         </div>
         <h2 style={{ margin: '6px 0', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
           Start your trading journal
@@ -124,7 +135,7 @@ export default function JournalPage() {
             margin: '0 auto 28px',
           }}
         >
-          {STEPS.map(({ icon, title, desc, chip, chipColor, chipBg, chipBorder }, i) => (
+          {STEPS.map(({ Icon, title, desc, chip, chipColor, chipBg, chipBorder }, i) => (
             <div
               key={title}
               style={{
@@ -150,12 +161,10 @@ export default function JournalPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 13,
                   color: i === 1 ? '#06140f' : 'var(--eb-muted)',
-                  fontWeight: 700,
                 }}
               >
-                {icon}
+                <Icon size={13} />
               </div>
               <div style={{ marginTop: 14 }}>
                 <div
@@ -214,7 +223,7 @@ export default function JournalPage() {
             fontFamily: 'inherit',
           }}
         >
-          📓 Write today&apos;s entry →
+          <NotebookPen size={14} /> Write today&apos;s entry →
         </Button>
       </div>
 

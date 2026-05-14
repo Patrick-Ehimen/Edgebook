@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Check, PenLine, Plug, Sprout, Upload } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Dashboard — Edgebook' };
 
@@ -27,7 +28,7 @@ function ChecklistCard({
   title,
   desc,
 }: {
-  step: number | '✓';
+  step: number | React.ReactNode;
   done: boolean;
   title: string;
   desc: string;
@@ -63,7 +64,6 @@ function ChecklistCard({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 10,
             color: done ? 'var(--green)' : 'var(--eb-muted)',
             flexShrink: 0,
           }}
@@ -167,12 +167,12 @@ export default function DashboardPage() {
 
         <div
           style={{
-            fontSize: 54,
             marginBottom: 8,
             filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.2))',
+            color: 'var(--green)',
           }}
         >
-          🌱
+          <Sprout size={54} />
         </div>
         <h2 style={{ margin: '6px 0', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
           Your edge starts with one trade
@@ -218,7 +218,7 @@ export default function DashboardPage() {
               transition: 'filter .15s',
             }}
           >
-            🔌 Connect exchange
+            <Plug size={14} /> Connect exchange
           </Link>
           <Button
             style={{
@@ -235,7 +235,7 @@ export default function DashboardPage() {
               fontFamily: 'inherit',
             }}
           >
-            📁 Upload CSV
+            <Upload size={14} /> Upload CSV
           </Button>
           <Button
             style={{
@@ -252,7 +252,7 @@ export default function DashboardPage() {
               fontFamily: 'inherit',
             }}
           >
-            ⌨ Log trade manually
+            <PenLine size={14} /> Log trade manually
           </Button>
         </div>
 
@@ -268,7 +268,7 @@ export default function DashboardPage() {
           }}
         >
           <ChecklistCard
-            step="✓"
+            step={<Check size={10} />}
             done
             title="Account created"
             desc="Welcome aboard. Your workspace is ready and your data stays yours."

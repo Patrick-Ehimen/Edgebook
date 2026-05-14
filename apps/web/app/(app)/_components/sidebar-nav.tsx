@@ -1,30 +1,44 @@
 'use client';
 
 import { useAuth } from '@/providers/auth-provider';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { LucideIcon } from 'lucide-react';
+import {
+  LayoutDashboard,
+  BookOpen,
+  TrendingUp,
+  CalendarDays,
+  Brain,
+  Target,
+  NotebookPen,
+  Inbox,
+  ShieldCheck,
+  Settings,
+} from 'lucide-react';
 
-const WORKSPACE = [
-  { href: '/dashboard', icon: '📊', label: 'Dashboard' },
-  { href: '/trades', icon: '📒', label: 'Trade log' },
-  { href: '/analytics', icon: '📈', label: 'Analytics' },
-  { href: '/calendar', icon: '🗓️', label: 'Calendar' },
-  { href: '/mind-lab', icon: '🧠', label: 'Mind Lab' },
-  { href: '/playbooks', icon: '🎯', label: 'Playbook' },
+const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
+  { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/trades', Icon: BookOpen, label: 'Trade log' },
+  { href: '/analytics', Icon: TrendingUp, label: 'Analytics' },
+  { href: '/calendar', Icon: CalendarDays, label: 'Calendar' },
+  { href: '/mind-lab', Icon: Brain, label: 'Mind Lab' },
+  { href: '/playbooks', Icon: Target, label: 'Playbook' },
 ];
 
-const COACHING = [
-  { href: '/journal', icon: '📓', label: 'Daily journal' },
+const COACHING: { href: string; Icon: LucideIcon; label: string; badge?: string; badgeColor?: string; badgeText?: string }[] = [
+  { href: '/journal', Icon: NotebookPen, label: 'Daily journal' },
   {
     href: '/ai-review',
-    icon: '📥',
+    Icon: Inbox,
     label: 'AI weekly review',
     badge: '2',
     badgeColor: 'rgba(139,92,246,.2)',
     badgeText: '#c4b5fd',
   },
-  { href: '/goals', icon: '🎯', label: 'Goals & rules' },
-  { href: '/settings', icon: '⚙️', label: 'Settings' },
+  { href: '/goals', Icon: ShieldCheck, label: 'Goals & rules' },
+  { href: '/settings', Icon: Settings, label: 'Settings' },
 ];
 
 export default function SidebarNav() {
@@ -101,23 +115,13 @@ export default function SidebarNav() {
           fontWeight: 600,
         }}
       >
-        <div
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 6,
-            background: 'linear-gradient(135deg, var(--green), #06b6d4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#06140f',
-            fontWeight: 800,
-            fontSize: 13,
-            flexShrink: 0,
-          }}
-        >
-          E
-        </div>
+        <Image
+          src="/assets/logo-mark.svg"
+          alt="Edgebook"
+          width={22}
+          height={22}
+          style={{ borderRadius: 6, flexShrink: 0 }}
+        />
         <span style={{ color: 'var(--eb-text)' }}>Edgebook</span>
         <span
           style={{
@@ -138,9 +142,9 @@ export default function SidebarNav() {
       {/* Workspace nav */}
       <div style={sectionLabel}>Workspace</div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {WORKSPACE.map(({ href, icon, label }) => (
+        {WORKSPACE.map(({ href, Icon, label }) => (
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <span style={{ width: 16, textAlign: 'center' }}>{icon}</span>
+            <Icon size={14} style={{ flexShrink: 0 }} />
             <span>{label}</span>
           </Link>
         ))}
@@ -170,9 +174,9 @@ export default function SidebarNav() {
       {/* Coaching nav */}
       <div style={sectionLabel}>Coaching</div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {COACHING.map(({ href, icon, label, badge, badgeColor, badgeText }) => (
+        {COACHING.map(({ href, Icon, label, badge, badgeColor, badgeText }) => (
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <span style={{ width: 16, textAlign: 'center' }}>{icon}</span>
+            <Icon size={14} style={{ flexShrink: 0 }} />
             <span>{label}</span>
             {badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
           </Link>

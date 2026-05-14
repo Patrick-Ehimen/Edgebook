@@ -1,10 +1,29 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Droplets,
+  Library,
+  Newspaper,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Target,
+  TrendingUp,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Playbooks — Edgebook' };
 
-const TEMPLATES = [
+const TEMPLATES: {
+  Icon: LucideIcon;
+  title: string;
+  badge: string | null;
+  desc: string;
+  tags: string[];
+  checklist: number;
+  rr: string;
+}[] = [
   {
-    icon: '💧',
+    Icon: Droplets,
     title: 'Liquidity sweep',
     badge: 'popular',
     desc: 'Sweep of session high/low into HTF level → reclaim → opposing liquidity. The bread-and-butter of ICT-style traders.',
@@ -13,7 +32,7 @@ const TEMPLATES = [
     rr: '1 : 2',
   },
   {
-    icon: '🚀',
+    Icon: Rocket,
     title: 'Breakout retest',
     badge: null,
     desc: 'Break of HTF level → wait for the retest → enter on confirmation. Conservative but reliable when trend is clean.',
@@ -22,7 +41,7 @@ const TEMPLATES = [
     rr: '1 : 2',
   },
   {
-    icon: '🔄',
+    Icon: RefreshCw,
     title: 'Range fade',
     badge: null,
     desc: 'Fade the extremes of well-defined intraday ranges. Best in low-volatility, sideways tape — typically Asia session.',
@@ -31,7 +50,7 @@ const TEMPLATES = [
     rr: '1 : 1.5',
   },
   {
-    icon: '📈',
+    Icon: TrendingUp,
     title: 'Trend pullback',
     badge: null,
     desc: 'Buy or sell pullbacks to the 20-EMA in trending tape. Simple, robust, works across timeframes.',
@@ -40,7 +59,7 @@ const TEMPLATES = [
     rr: '1 : 2',
   },
   {
-    icon: '📰',
+    Icon: Newspaper,
     title: 'News reversal',
     badge: null,
     desc: 'Fade the overreaction to scheduled high-impact news within 30 minutes. Smaller size, tighter stops.',
@@ -84,13 +103,13 @@ export default function PlaybooksPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 36,
             marginBottom: 14,
             background: 'linear-gradient(135deg,rgba(0,214,143,.15),rgba(6,182,212,.10))',
             border: '1px solid rgba(0,214,143,.20)',
+            color: 'var(--green)',
           }}
         >
-          🎯
+          <Target size={36} />
         </div>
         <h2
           style={{
@@ -127,7 +146,7 @@ export default function PlaybooksPage() {
               fontFamily: 'inherit',
             }}
           >
-            + Create from scratch
+            <Plus size={12} /> Create from scratch
           </button>
           <button
             type="button"
@@ -167,7 +186,7 @@ export default function PlaybooksPage() {
 
       {/* Template grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
-        {TEMPLATES.map(({ icon, title, badge, desc, tags, checklist, rr }) => (
+        {TEMPLATES.map(({ Icon, title, badge, desc, tags, checklist, rr }) => (
           <div
             key={title}
             style={{
@@ -190,7 +209,8 @@ export default function PlaybooksPage() {
                 gap: 7,
               }}
             >
-              {icon} {title}
+              <Icon size={15} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
+              {title}
               {badge && <span style={chipGreenStyle}>{badge}</span>}
             </h4>
             <p
@@ -245,7 +265,7 @@ export default function PlaybooksPage() {
             fontSize: 12.5,
           }}
         >
-          <span style={{ fontSize: 24 }}>＋</span>
+          <Plus size={24} style={{ color: 'var(--eb-muted)' }} />
           <div style={{ fontWeight: 500, color: 'var(--eb-text)' }}>Create from scratch</div>
           <div>Define your own thesis, criteria, and checklist.</div>
         </div>
@@ -269,9 +289,17 @@ export default function PlaybooksPage() {
       >
         <div>
           <h4
-            style={{ margin: '0 0 4px', fontSize: 13.5, fontWeight: 600, color: 'var(--eb-text)' }}
+            style={{
+              margin: '0 0 4px',
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: 'var(--eb-text)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+            }}
           >
-            📚 Browse the community library
+            <Library size={15} style={{ flexShrink: 0 }} /> Browse the community library
           </h4>
           <p style={{ color: 'var(--eb-muted)', fontSize: 12, margin: 0 }}>
             42 verified playbooks shared by other Edgebook traders, sorted by sample size and PF.

@@ -1,7 +1,30 @@
 import type { Metadata } from 'next';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertTriangle,
+  BarChart2,
+  Bot,
+  Brain,
+  Inbox,
+  Lightbulb,
+  Settings,
+  Target,
+  Trophy,
+} from 'lucide-react';
 
 export const metadata: Metadata = { title: 'AI Weekly Review — Edgebook' };
+
+const REVIEW_FEATURES: { Icon: LucideIcon; title: string; desc: string }[] = [
+  { Icon: Trophy, title: 'What worked', desc: 'Your strongest playbook and why. Do more of this.' },
+  {
+    Icon: AlertTriangle,
+    title: "What didn't",
+    desc: 'Edge-decay signals and regime shifts to watch.',
+  },
+  { Icon: Brain, title: 'Behavioral pattern', desc: 'Sleep, session, day-of-week correlations.' },
+  { Icon: Target, title: 'One recommendation', desc: 'Single, reversible action for next week.' },
+];
 
 export default function AiReviewPage() {
   return (
@@ -43,7 +66,7 @@ export default function AiReviewPage() {
             fontFamily: 'inherit',
           }}
         >
-          ⚙ Review settings
+          <Settings size={13} /> Review settings
         </Button>
       </div>
 
@@ -87,7 +110,9 @@ export default function AiReviewPage() {
               color: 'var(--eb-muted)',
             }}
           >
-            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.5 }}>📥</div>
+            <div style={{ marginBottom: 8, opacity: 0.5 }}>
+              <Inbox size={32} />
+            </div>
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
               No reviews yet.
               <br />
@@ -115,12 +140,12 @@ export default function AiReviewPage() {
         >
           <div
             style={{
-              fontSize: 54,
               marginBottom: 12,
               filter: 'drop-shadow(0 6px 14px rgba(6,182,212,.2))',
+              color: 'var(--eb-cyan)',
             }}
           >
-            🤖
+            <Bot size={54} />
           </div>
           <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
             No weekly reviews yet
@@ -151,28 +176,7 @@ export default function AiReviewPage() {
               textAlign: 'left',
             }}
           >
-            {[
-              {
-                icon: '🏆',
-                title: 'What worked',
-                desc: 'Your strongest playbook and why. Do more of this.',
-              },
-              {
-                icon: '⚠️',
-                title: "What didn't",
-                desc: 'Edge-decay signals and regime shifts to watch.',
-              },
-              {
-                icon: '🧠',
-                title: 'Behavioral pattern',
-                desc: 'Sleep, session, day-of-week correlations.',
-              },
-              {
-                icon: '🎯',
-                title: 'One recommendation',
-                desc: 'Single, reversible action for next week.',
-              },
-            ].map(({ icon, title, desc }) => (
+            {REVIEW_FEATURES.map(({ Icon, title, desc }) => (
               <div
                 key={title}
                 style={{
@@ -182,7 +186,9 @@ export default function AiReviewPage() {
                   padding: '12px 14px',
                 }}
               >
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+                <div style={{ marginBottom: 4, color: 'var(--eb-muted)' }}>
+                  <Icon size={18} />
+                </div>
                 <div
                   style={{
                     fontWeight: 600,
@@ -234,7 +240,7 @@ export default function AiReviewPage() {
                 fontFamily: 'inherit',
               }}
             >
-              🤖 AI & insights settings
+              <BarChart2 size={13} /> AI &amp; insights settings
             </Button>
           </div>
 
@@ -248,9 +254,14 @@ export default function AiReviewPage() {
               fontSize: 12,
               color: 'var(--eb-cyan)',
               maxWidth: 460,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+              textAlign: 'left',
             }}
           >
-            💡 Reviews use Claude Sonnet by default. Cached analyses don&apos;t count toward your
+            <Lightbulb size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+            Reviews use Claude Sonnet by default. Cached analyses don&apos;t count toward your
             token budget.
           </div>
         </div>

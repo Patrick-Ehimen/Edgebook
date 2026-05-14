@@ -1,13 +1,11 @@
 'use client';
 
-import Link from 'next/link';
-import { useTheme } from 'next-themes';
-import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
+import { Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
-  const { session } = useAuth();
 
   const toggleTheme = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
 
@@ -42,7 +40,7 @@ export default function Topbar() {
           color: 'var(--eb-muted)',
         }}
       >
-        <span style={{ fontSize: 13 }}>🔎</span>
+        <Search size={13} style={{ flexShrink: 0 }} />
         <input
           placeholder="Search trades, notes, playbooks…"
           style={{
@@ -135,7 +133,8 @@ export default function Topbar() {
           fontFamily: 'inherit',
         }}
       >
-        ↻ Sync
+        <RefreshCw size={12} />
+        Sync
       </Button>
 
       {/* Theme toggle */}
@@ -152,11 +151,10 @@ export default function Topbar() {
           background: 'var(--eb-panel)',
           borderRadius: 8,
           cursor: 'pointer',
-          fontSize: 14,
           color: 'var(--eb-text)',
         }}
       >
-        {resolvedTheme === 'dark' ? '🌙' : '☀️'}
+        {resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
       </Button>
 
       {/* Log trade */}
@@ -176,10 +174,15 @@ export default function Topbar() {
           fontFamily: 'inherit',
           transition: 'filter .15s',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.05)')}
-        onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.filter = 'brightness(1.05)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.filter = 'none';
+        }}
       >
-        + Log trade
+        <Plus size={13} />
+        Log trade
       </Button>
     </header>
   );

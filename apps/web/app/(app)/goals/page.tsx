@@ -1,11 +1,20 @@
 import type { Metadata } from 'next';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Check, ClipboardList, Plus, Shield, Target, TrendingUp, Zap } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Goals & Rules — Edgebook' };
 
-const PRESETS = [
+const PRESETS: {
+  Icon: LucideIcon;
+  name: string;
+  desc: string;
+  features: string[];
+  badge: string | null;
+  badgeColor: string;
+}[] = [
   {
-    icon: '⚡',
+    Icon: Zap,
     name: 'Active scalper',
     desc: 'Tight cooldowns, aggressive revenge-trade blocking, soft news alerts.',
     features: [
@@ -19,7 +28,7 @@ const PRESETS = [
     badgeColor: 'var(--green)',
   },
   {
-    icon: '🛡️',
+    Icon: Shield,
     name: 'Funded / prop firm',
     desc: 'Hard halt on max-loss, leverage cap, news block. Built to keep your account.',
     features: [
@@ -33,7 +42,7 @@ const PRESETS = [
     badgeColor: 'var(--eb-yellow)',
   },
   {
-    icon: '📈',
+    Icon: TrendingUp,
     name: 'Conservative swing',
     desc: 'Looser cooldowns, no revenge block for low-cadence trading, tighter sizing.',
     features: [
@@ -89,7 +98,7 @@ export default function GoalsPage() {
               fontFamily: 'inherit',
             }}
           >
-            📋 Apply preset ▾
+            <ClipboardList size={13} /> Apply preset ▾
           </Button>
           <Button
             style={{
@@ -107,7 +116,7 @@ export default function GoalsPage() {
               fontFamily: 'inherit',
             }}
           >
-            + New rule
+            <Plus size={13} /> New rule
           </Button>
         </div>
       </div>
@@ -125,12 +134,13 @@ export default function GoalsPage() {
       >
         <div
           style={{
-            fontSize: 54,
             marginBottom: 8,
             filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.18))',
+            display: 'inline-flex',
+            color: 'var(--green)',
           }}
         >
-          🎯
+          <Target size={54} />
         </div>
         <h2 style={{ margin: '6px 0', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
           No rules configured
@@ -159,7 +169,7 @@ export default function GoalsPage() {
             textAlign: 'left',
           }}
         >
-          {PRESETS.map(({ icon, name, desc, features, badge, badgeColor }) => (
+          {PRESETS.map(({ Icon, name, desc, features, badge, badgeColor }) => (
             <div
               key={name}
               style={{
@@ -189,7 +199,9 @@ export default function GoalsPage() {
                   {badge}
                 </span>
               )}
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+              <div style={{ marginBottom: 6, color: 'var(--eb-muted)' }}>
+                <Icon size={22} />
+              </div>
               <div
                 style={{
                   fontWeight: 600,
@@ -212,8 +224,17 @@ export default function GoalsPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {features.map((f) => (
-                  <span key={f} style={{ fontSize: 11.5, color: 'var(--eb-muted-2)' }}>
-                    ✓ {f}
+                  <span
+                    key={f}
+                    style={{
+                      fontSize: 11.5,
+                      color: 'var(--eb-muted-2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <Check size={10} style={{ flexShrink: 0, color: 'var(--green)' }} /> {f}
                   </span>
                 ))}
               </div>
@@ -255,7 +276,7 @@ export default function GoalsPage() {
               fontFamily: 'inherit',
             }}
           >
-            + Add custom rule
+            <Plus size={13} /> Add custom rule
           </Button>
         </div>
       </div>

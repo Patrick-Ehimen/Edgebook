@@ -1,32 +1,33 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { BarChart2, Brain, NotebookPen, Plug, Scale, Target, Trophy, Zap } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Mind Lab — Edgebook' };
 
 const FEATURES = [
   {
-    icon: '🎯',
+    Icon: Target,
     iconBg: 'rgba(139,92,246,.12)',
     iconColor: 'var(--eb-purple)',
     title: 'Conviction calibration',
     desc: 'Are you overconfident at low conviction or underconfident at high? We plot your stated vs realized R per conviction level.',
   },
   {
-    icon: '📊',
+    Icon: BarChart2,
     iconBg: 'rgba(0,214,143,.12)',
     iconColor: 'var(--green)',
     title: 'Behavioral × P&L',
     desc: '"Sleep < 6h reduces your expectancy by 42%." We surface correlations between your physical/mental state and your edge.',
   },
   {
-    icon: '⚡',
+    Icon: Zap,
     iconBg: 'rgba(6,182,212,.12)',
     iconColor: 'var(--eb-cyan)',
     title: 'Tilt detector',
     desc: 'Real-time guardrails: cooldowns after losses, revenge re-entry blocks, oversize confirms. Optional auto-pause.',
   },
   {
-    icon: '🏆',
+    Icon: Trophy,
     iconBg: 'rgba(245,165,36,.12)',
     iconColor: 'var(--eb-yellow)',
     title: 'Discipline score',
@@ -49,13 +50,13 @@ export default function MindLabPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 36,
             marginBottom: 14,
             background: 'linear-gradient(135deg,rgba(139,92,246,.15),rgba(6,182,212,.10))',
             border: '1px solid rgba(139,92,246,.25)',
+            color: 'var(--eb-purple)',
           }}
         >
-          🧠
+          <Brain size={36} />
         </div>
         <h2
           style={{
@@ -92,7 +93,7 @@ export default function MindLabPage() {
               textDecoration: 'none',
             }}
           >
-            📓 Start your daily journal
+            <NotebookPen size={13} /> Start your daily journal
           </Link>
           <Link
             href="/goals"
@@ -109,7 +110,7 @@ export default function MindLabPage() {
               textDecoration: 'none',
             }}
           >
-            ⚖ Review tilt rules
+            <Scale size={13} /> Review tilt rules
           </Link>
           <Link
             href="/settings/connections"
@@ -126,7 +127,7 @@ export default function MindLabPage() {
               textDecoration: 'none',
             }}
           >
-            🔌 Connect exchange
+            <Plug size={13} /> Connect exchange
           </Link>
         </div>
       </div>
@@ -148,7 +149,7 @@ export default function MindLabPage() {
 
       {/* 4-column feature grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-        {FEATURES.map(({ icon, iconBg, iconColor, title, desc }) => (
+        {FEATURES.map(({ Icon, iconBg, iconColor, title, desc }) => (
           <div
             key={title}
             style={{
@@ -167,13 +168,12 @@ export default function MindLabPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 16,
                 marginBottom: 8,
                 background: iconBg,
                 color: iconColor,
               }}
             >
-              {icon}
+              <Icon size={16} />
             </div>
             <h4
               style={{
@@ -240,7 +240,7 @@ export default function MindLabPage() {
                 textDecoration: 'none',
               }}
             >
-              📓 Open today&apos;s journal
+              <NotebookPen size={13} /> Open today&apos;s journal
             </Link>
             <button
               type="button"
@@ -287,9 +287,10 @@ export default function MindLabPage() {
             Sample insight (with data)
           </div>
           <div>
-            Your win rate drops <strong style={{ color: 'var(--eb-red)' }}>18%</strong> on revenge
-            trades opened within 60s of a stop-out. We recommend a hard 5-min lockout — likely to
-            recover an estimated <strong style={{ color: 'var(--green)' }}>+5.4R / 90 days</strong>.
+            Your win rate drops{' '}
+            <strong style={{ color: 'var(--eb-red)' }}>18%</strong> on revenge trades opened
+            within 60s of a stop-out. We recommend a hard 5-min lockout — likely to recover an
+            estimated <strong style={{ color: 'var(--green)' }}>+5.4R / 90 days</strong>.
           </div>
         </div>
       </div>
