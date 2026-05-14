@@ -90,7 +90,7 @@ export default function TradesPage() {
           textAlign: 'center',
         }}
       >
-        <div style={{ marginBottom: 10, color: 'var(--eb-muted)' }}>
+        <div style={{ marginBottom: 10, color: 'var(--green)', display: 'inline-flex' }}>
           <BookOpen size={44} />
         </div>
         <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>

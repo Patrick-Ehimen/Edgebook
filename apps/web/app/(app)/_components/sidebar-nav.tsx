@@ -1,22 +1,24 @@
 'use client';
 
 import { useAuth } from '@/providers/auth-provider';
+import type { LucideIcon } from 'lucide-react';
+import {
+  BookOpen,
+  Brain,
+  CalendarDays,
+  ChevronUp,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  NotebookPen,
+  Settings,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { LucideIcon } from 'lucide-react';
-import {
-  LayoutDashboard,
-  BookOpen,
-  TrendingUp,
-  CalendarDays,
-  Brain,
-  Target,
-  NotebookPen,
-  Inbox,
-  ShieldCheck,
-  Settings,
-} from 'lucide-react';
 
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
@@ -27,7 +29,14 @@ const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/playbooks', Icon: Target, label: 'Playbook' },
 ];
 
-const COACHING: { href: string; Icon: LucideIcon; label: string; badge?: string; badgeColor?: string; badgeText?: string }[] = [
+const COACHING: {
+  href: string;
+  Icon: LucideIcon;
+  label: string;
+  badge?: string;
+  badgeColor?: string;
+  badgeText?: string;
+}[] = [
   { href: '/journal', Icon: NotebookPen, label: 'Daily journal' },
   {
     href: '/ai-review',
@@ -38,7 +47,6 @@ const COACHING: { href: string; Icon: LucideIcon; label: string; badge?: string;
     badgeText: '#c4b5fd',
   },
   { href: '/goals', Icon: ShieldCheck, label: 'Goals & rules' },
-  { href: '/settings', Icon: Settings, label: 'Settings' },
 ];
 
 export default function SidebarNav() {
@@ -183,62 +191,119 @@ export default function SidebarNav() {
         ))}
       </nav>
 
-      {/* User info at bottom */}
-      {session && (
+      {/* Profile card at bottom */}
+      <div style={{ marginTop: 'auto', paddingTop: 8 }}>
         <div
           style={{
-            marginTop: 'auto',
-            padding: '10px 8px 4px',
             borderTop: '1px solid var(--eb-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
+            padding: '10px 4px 2px',
           }}
         >
           <div
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: 13,
-              flexShrink: 0,
+              gap: 9,
+              padding: '8px 8px',
+              borderRadius: 9,
+              background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)',
+              cursor: 'pointer',
             }}
           >
-            {initial}
+            {/* Avatar */}
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13,
+                flexShrink: 0,
+                boxShadow: '0 0 0 2px var(--eb-panel-2), 0 0 0 3.5px rgba(139,92,246,.3)',
+              }}
+            >
+              {initial}
+            </div>
+
+            {/* Name + email */}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: 'var(--eb-text)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {displayName}
+              </div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  color: 'var(--eb-muted)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {session?.email}
+              </div>
+            </div>
+
+            <ChevronUp size={13} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div
+
+          {/* Quick actions */}
+          <div style={{ display: 'flex', gap: 4, padding: '6px 2px 0' }}>
+            <Link
+              href="/settings"
               style={{
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--eb-text)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {displayName}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
+                flex: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                padding: '5px 0',
+                borderRadius: 7,
+                fontSize: 11.5,
                 color: 'var(--eb-muted)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                textDecoration: 'none',
+                border: '1px solid transparent',
               }}
             >
-              {session.email}
-            </div>
+              <Settings size={12} /> Settings
+            </Link>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                padding: '5px 0',
+                borderRadius: 7,
+                fontSize: 11.5,
+                color: 'var(--eb-muted)',
+                background: 'transparent',
+                border: '1px solid transparent',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <LogOut size={12} /> Sign out
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </aside>
   );
 }

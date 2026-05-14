@@ -168,6 +168,21 @@
   }
 }
 
+/* ── Button hover feedback ───────────────────────────────────────── */
+button,
+[role="button"] {
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+/* ─────────────────────────────────────────────────────────────── */
+
 @layer utilities {
   @keyframes pulseDot {
     0%,
