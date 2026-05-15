@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
-    "./accounts": "./src/accounts/index.ts"
+    "./accounts": "./src/accounts/index.ts",
+    "./positions": "./src/positions/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -16,6 +17,7 @@
     "lint": "biome check ."
   },
   "dependencies": {
+    "decimal.js": "^10.6.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
