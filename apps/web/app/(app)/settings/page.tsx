@@ -1,5 +1,6 @@
 'use client';
 
+import { AddAccountDialog, useAccounts, useDeleteAccount, useTriggerSync } from '@/features/accounts';
 import { useAuth } from '@/providers/auth-provider';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -812,29 +813,25 @@ function NotificationsSection() {
 }
 
 function ConnectionsSection() {
-  const ACCOUNTS = [
-    {
-      name: 'Binance — Main',
-      meta: 'Last sync 41s ago · 1,284 fills · key ends ••3a91',
-      color: '#f0b90b',
-      logo: '/assets/binance-logo.svg',
-      status: 'ok',
-    },
-    {
-      name: 'Bybit — Alts',
-      meta: 'Last sync 2m ago · 412 fills · key ends ••71ee',
-      color: '#f7a600',
-      logo: '/assets/bybit-logo.svg',
-      status: 'ok',
-    },
-    {
-      name: 'OKX — Hedge',
-      meta: 'Last sync 5m ago · 188 fills · key ends ••84cd',
-      color: '#000',
-      logoText: 'O',
-      status: 'warn',
-    },
-  ] as const;
+  const { data: accounts, isLoading } = useAccounts();
+  const deleteAccount = useDeleteAccount();
+  const triggerSync = useTriggerSync();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const VENUE_META: Record<string, { logo: string; bg: string }> = {
+    binance: { logo: '/assets/binance-logo.svg', bg: '#f0b90b' },
+    bybit: { logo: '/assets/bybit-logo.svg', bg: '#f7a600' },
+  };
+
+  async function handleSync(accountId: string) {
+    setSyncingId(accountId);
+    try {
+      await triggerSync.mutateAsync(accountId);
+    } finally {
+      setSyncingId(null);
+    }
+  }
 
   return (
     <div>
@@ -845,93 +842,107 @@ function ConnectionsSection() {
         Read-only API connections to exchanges. We test for withdrawal scope on every save.
       </p>
 
+      <AddAccountDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+
       <Card>
         <Between>
           <CardTitle>Exchange accounts</CardTitle>
-          <button type="button" style={btnPrimaryStyle}>
+          <button type="button" style={btnPrimaryStyle} onClick={() => setDialogOpen(true)}>
             + Add account
           </button>
         </Between>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          {ACCOUNTS.map(({ name, meta, color, logo, logoText, status }) => (
-            <div
-              key={name}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 12px',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 10,
-                background: 'var(--eb-panel-2)',
-              }}
-            >
+          {isLoading && (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
+              Loading…
+            </div>
+          )}
+
+          {!isLoading && accounts?.length === 0 && (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
+              No accounts connected yet. Add your first exchange above.
+            </div>
+          )}
+
+          {accounts?.map((account) => {
+            const meta = VENUE_META[account.venue];
+            const syncing = syncingId === account.id;
+            return (
               <div
+                key={account.id}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: color,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  color: '#06140f',
-                  flexShrink: 0,
-                  fontSize: 14,
-                  overflow: 'hidden',
+                  gap: 12,
+                  padding: '10px 12px',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 10,
+                  background: 'var(--eb-panel-2)',
                 }}
               >
-                {logo ? (
-                  <Image
-                    src={logo}
-                    alt={name}
-                    width={28}
-                    height={14}
-                    style={{ objectFit: 'contain' }}
-                  />
-                ) : (
-                  <span style={{ color: '#fff' }}>{logoText}</span>
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: 'var(--eb-text)',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: meta?.bg ?? '#444',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    overflow: 'hidden',
                   }}
                 >
-                  {name}
-                  {status === 'ok'
-                    ? chip('read-only', 'var(--green)', 'rgba(0,214,143,.08)', 'rgba(0,214,143,.3)')
-                    : chip(
-                        'key expires in 6 days',
-                        'var(--eb-yellow)',
-                        'rgba(245,165,36,.08)',
-                        'rgba(245,165,36,.3)',
-                      )}
+                  {meta?.logo && (
+                    <Image
+                      src={meta.logo}
+                      alt={account.venue}
+                      width={28}
+                      height={14}
+                      style={{ objectFit: 'contain' }}
+                    />
+                  )}
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', marginTop: 2 }}>{meta}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--eb-text)', display: 'flex', alignItems: 'center' }}>
+                    {account.label}
+                    {account.keyCount > 0
+                      ? chip('read-only', 'var(--green)', 'rgba(0,214,143,.08)', 'rgba(0,214,143,.3)')
+                      : chip('no key', 'var(--eb-yellow)', 'rgba(245,165,36,.08)', 'rgba(245,165,36,.3)')}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', marginTop: 2 }}>
+                    {account.venue} · {account.accountType} · {account.keyCount} key{account.keyCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {account.keyCount > 0 && (
+                    <button
+                      type="button"
+                      disabled={syncing}
+                      onClick={() => handleSync(account.id)}
+                      style={{ ...btnStyle, fontSize: 11.5, padding: '5px 10px' }}
+                    >
+                      <RefreshCw size={11} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                      {syncing ? 'Syncing…' : 'Resync'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={deleteAccount.isPending}
+                    onClick={() => {
+                      if (confirm(`Disconnect "${account.label}"? This cannot be undone.`)) {
+                        deleteAccount.mutate(account.id);
+                      }
+                    }}
+                    style={{ ...btnDangerStyle, fontSize: 11.5, padding: '5px 10px' }}
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button type="button" style={{ ...btnStyle, fontSize: 11.5, padding: '5px 10px' }}>
-                  Edit
-                </button>
-                <button type="button" style={{ ...btnStyle, fontSize: 11.5, padding: '5px 10px' }}>
-                  <RefreshCw size={11} /> Resync
-                </button>
-                <button
-                  type="button"
-                  style={{ ...btnDangerStyle, fontSize: 11.5, padding: '5px 10px' }}
-                >
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

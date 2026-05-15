@@ -62,4 +62,10 @@ export class AccountsController {
   ) {
     return this.accountsService.revokeApiKey(userId, id, keyId);
   }
+
+  @Post(':id/sync')
+  @HttpCode(HttpStatus.OK)
+  triggerSync(@Param('id') id: string, @CurrentUserId() userId: string) {
+    return this.accountsService.triggerSync(userId, id);
+  }
 }
