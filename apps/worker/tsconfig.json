@@ -14,7 +14,10 @@
     "baseUrl": ".",
     "paths": {
       "@edgebook/shared": ["../../packages/shared/src"],
-      "@edgebook/db": ["../../packages/db/src"]
+      "@edgebook/shared/positions": ["../../packages/shared/src/positions/index.ts"],
+      "@edgebook/shared/queues": ["../../packages/shared/src/queues/index.ts"],
+      "@edgebook/db": ["../../packages/db/src"],
+      "@prisma/client": ["../../node_modules/@prisma/client"]
     }
   },
   "include": ["src/**/*.ts"],

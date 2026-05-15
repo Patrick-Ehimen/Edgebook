@@ -1,12 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { AccountForbiddenError, AccountNotFoundError } from '@edgebook/shared/accounts';
 import { type CreateFillInput, type FillSide, computePositions } from '@edgebook/shared/positions';
+import { QUEUE_RECOMPUTE, type RecomputeJobData } from '@edgebook/shared/queues';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PositionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(QUEUE_RECOMPUTE) private readonly recomputeQueue: Queue<RecomputeJobData>,
+  ) {}
 
   // ─── Fills ──────────────────────────────────────────────────────────────────
 
@@ -29,7 +35,11 @@ export class PositionsService {
       },
     });
 
-    await this.recompute(userId, accountId);
+    await this.recomputeQueue.add(
+      'recompute',
+      { accountId, userId },
+      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
+    );
 
     return this.toFillShape(fill);
   }

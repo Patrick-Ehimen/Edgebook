@@ -17,6 +17,7 @@
       "@edgebook/shared/auth": ["../../packages/shared/src/auth/index.ts"],
       "@edgebook/shared/accounts": ["../../packages/shared/src/accounts/index.ts"],
       "@edgebook/shared/positions": ["../../packages/shared/src/positions/index.ts"],
+      "@edgebook/shared/queues": ["../../packages/shared/src/queues/index.ts"],
       "@edgebook/exchange": ["../../packages/exchange/src"],
       "@edgebook/exchange/withdrawal-probe": ["../../packages/exchange/src/withdrawal-probe.ts"],
       "@edgebook/db": ["../../packages/db/src"],

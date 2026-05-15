@@ -1,16 +1,13 @@
 import { QUEUE_RECOMPUTE, QUEUE_SYNC } from '@edgebook/shared/queues';
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
-import { env } from './config/env';
-import { RecomputeProcessor } from './jobs/recompute.processor';
-import { SyncProcessor } from './jobs/sync.processor';
-import { PrismaModule } from './prisma/prisma.module';
+import { Global, Module } from '@nestjs/common';
+import { env } from '../config/env';
 
 const redisConnection = new URL(env.REDIS_URL);
 
+@Global()
 @Module({
   imports: [
-    PrismaModule,
     BullModule.forRoot({
       connection: {
         host: redisConnection.hostname,
@@ -23,6 +20,6 @@ const redisConnection = new URL(env.REDIS_URL);
       { name: QUEUE_SYNC },
     ),
   ],
-  providers: [RecomputeProcessor, SyncProcessor],
+  exports: [BullModule],
 })
-export class AppModule {}
+export class QueueModule {}

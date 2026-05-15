@@ -4,8 +4,9 @@ import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { PositionsModule } from './positions/positions.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { QueueModule } from './queues/queue.module';
 
 @Module({
-  imports: [PrismaModule, EncryptionModule, AuthModule, AccountsModule, PositionsModule],
+  imports: [PrismaModule, EncryptionModule, QueueModule, AuthModule, AccountsModule, PositionsModule],
 })
 export class AppModule {}

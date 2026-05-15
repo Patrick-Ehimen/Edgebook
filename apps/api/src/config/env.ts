@@ -12,6 +12,7 @@ const schema = z.object({
   GOOGLE_CALLBACK_URL: z.string().url().optional(),
   // 32-byte hex key for AES-256-GCM envelope encryption of API key secrets.
   // Generate with: openssl rand -hex 32
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
   ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)')

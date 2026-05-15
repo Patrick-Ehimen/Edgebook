@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
     "./accounts": "./src/accounts/index.ts",
-    "./positions": "./src/positions/index.ts"
+    "./positions": "./src/positions/index.ts",
+    "./queues": "./src/queues/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
