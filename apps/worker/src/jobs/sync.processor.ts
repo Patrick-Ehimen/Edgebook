@@ -1,7 +1,9 @@
+import { createAdapter } from '@edgebook/exchange';
 import { QUEUE_RECOMPUTE, QUEUE_SYNC, type SyncJobData } from '@edgebook/shared/queues';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
+import { decrypt } from '../encryption/decrypt';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Processor(QUEUE_SYNC)
@@ -16,22 +18,59 @@ export class SyncProcessor extends WorkerHost {
   }
 
   async process(job: Job<SyncJobData>): Promise<void> {
-    const { accountId } = job.data;
+    const { accountId, userId, fullSync } = job.data;
     this.logger.log(`Syncing fills for account ${accountId}`);
 
-    // Exchange adapter integration goes here once ccxt.pro adapters are built.
-    // Pattern:
-    //   1. Load ApiKey for accountId (decrypt secret via EncryptionService)
-    //   2. Init ccxt exchange client with key + secret
-    //   3. Fetch trades since lastSyncedAt (or full history if fullSync)
-    //   4. Upsert fills via prisma.fill.createMany({ skipDuplicates: true })
-    //   5. Update account lastSyncedAt
-    //   6. Enqueue recompute job
+    const account = await this.prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+      include: { apiKeys: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
 
-    // Once fills are upserted, trigger recompute
+    const apiKeyRow = account.apiKeys[0];
+    if (!apiKeyRow) {
+      this.logger.warn(`No API key for account ${accountId} — skipping sync`);
+      return;
+    }
+
+    const apiKey = decrypt(apiKeyRow.keyEnc);
+    const secret = decrypt(apiKeyRow.secretEnc);
+    const adapter = createAdapter(account.venue as 'binance' | 'bybit', apiKey, secret);
+
+    let since = new Date(0);
+    if (!fullSync) {
+      const latest = await this.prisma.fill.findFirst({
+        where: { accountId },
+        orderBy: { executedAt: 'desc' },
+        select: { executedAt: true },
+      });
+      if (latest) since = latest.executedAt;
+    }
+
+    const fills = await adapter.fetchFillsSince(since);
+
+    if (fills.length > 0) {
+      await this.prisma.fill.createMany({
+        data: fills.map((f) => ({
+          accountId,
+          venue: account.venue,
+          symbol: f.symbol,
+          side: f.side,
+          qty: f.qty,
+          price: f.price,
+          fee: f.fee,
+          feeCcy: f.feeCcy,
+          fundingFee: null,
+          exchangeTradeId: f.exchangeTradeId,
+          executedAt: f.executedAt,
+        })),
+        skipDuplicates: true,
+      });
+      this.logger.log(`Upserted ${fills.length} fills for account ${accountId}`);
+    }
+
     await this.recomputeQueue.add(
       'recompute',
-      { accountId, userId: job.data.userId },
+      { accountId, userId },
       { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     );
   }

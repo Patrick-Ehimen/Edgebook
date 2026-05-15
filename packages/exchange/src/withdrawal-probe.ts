@@ -1,3 +1,4 @@
+import { AuthenticationError, PermissionDenied, binance, bybit } from 'ccxt';
 import type { Venue } from '@edgebook/shared/accounts';
 
 export interface ProbeResult {
@@ -12,27 +13,76 @@ export interface ProbeOptions {
 }
 
 /**
- * Attempts a withdrawal with the supplied key to verify it is read-only.
- * A key is safe iff the exchange returns a permission-denied error.
- * If the withdrawal succeeds or returns anything other than a permission error,
- * the key has write access and must be rejected.
+ * Verifies that the supplied API key is read-only by inspecting the key's
+ * permission set on the exchange. A key is safe iff withdrawals are disabled.
  *
- * In development mode (NODE_ENV !== 'production') the probe is skipped so
- * engineers can work locally without real exchange credentials.
+ * In development (NODE_ENV !== 'production') the probe is skipped so engineers
+ * can work locally without real exchange credentials.
  */
 export async function probeWithdrawal(opts: ProbeOptions): Promise<ProbeResult> {
   if (process.env.NODE_ENV !== 'production') {
     return { safe: true, reason: 'dev-mode: probe skipped' };
   }
 
-  // Real implementation goes here once ccxt.pro adapters are built.
-  // Pattern per venue:
-  //   binance: POST /sapi/v1/capital/withdraw/apply  → expect { code: -2015 } (invalid API key scope)
-  //   bybit:   POST /v5/asset/withdraw/create        → expect { retCode: 10003 } (invalid permissions)
-  //
-  // If the call resolves with a success shape → return { safe: false, reason: 'withdrawal-succeeded' }
-  // If the call throws with a permissions error → return { safe: true, reason: 'permission-denied' }
-  // Any other error (network, unknown) → throw so the caller can surface it to the user
+  switch (opts.venue) {
+    case 'binance':
+      return probeBinance(opts.apiKey, opts.secret);
+    case 'bybit':
+      return probeBybit(opts.apiKey, opts.secret);
+    default: {
+      const _exhaustive: never = opts.venue;
+      throw new Error(`Unsupported venue: ${_exhaustive}`);
+    }
+  }
+}
 
-  throw new Error(`probeWithdrawal: production impl not yet available for venue "${opts.venue}"`);
+interface BinanceApiRestrictions {
+  enableWithdrawals?: boolean;
+}
+
+interface BinancePrivate {
+  sapiGetAccountApiRestrictions(params: object): Promise<BinanceApiRestrictions>;
+}
+
+async function probeBinance(apiKey: string, secret: string): Promise<ProbeResult> {
+  // Use the spot exchange to reach the sapi/v1/account/apiRestrictions endpoint.
+  // The USDM futures class inherits all spot private methods.
+  const exchange = new binance({ apiKey, secret, enableRateLimit: true });
+  try {
+    const restrictions = await (exchange as unknown as BinancePrivate).sapiGetAccountApiRestrictions({});
+    if (restrictions.enableWithdrawals === true) {
+      return { safe: false, reason: 'withdrawal-enabled' };
+    }
+    return { safe: true, reason: 'read-only-confirmed' };
+  } catch (e) {
+    if (e instanceof AuthenticationError || e instanceof PermissionDenied) {
+      return { safe: false, reason: 'invalid-credentials' };
+    }
+    throw e;
+  }
+}
+
+interface BybitQueryApiResult {
+  result?: { readOnly?: number };
+}
+
+interface BybitPrivate {
+  privateGetV5UserQueryApi(params: object): Promise<BybitQueryApiResult>;
+}
+
+async function probeBybit(apiKey: string, secret: string): Promise<ProbeResult> {
+  const exchange = new bybit({ apiKey, secret, enableRateLimit: true });
+  try {
+    // GET /v5/user/query-api returns readOnly: 1 for read-only keys, 0 otherwise
+    const resp = await (exchange as unknown as BybitPrivate).privateGetV5UserQueryApi({});
+    if (resp.result?.readOnly !== 1) {
+      return { safe: false, reason: 'withdrawal-enabled' };
+    }
+    return { safe: true, reason: 'read-only-confirmed' };
+  } catch (e) {
+    if (e instanceof AuthenticationError || e instanceof PermissionDenied) {
+      return { safe: false, reason: 'invalid-credentials' };
+    }
+    throw e;
+  }
 }

@@ -69,12 +69,14 @@ export class AccountsService {
     if (!probe.safe) throw new KeyScopeError();
 
     const keyIdHash = createHash('sha256').update(input.apiKey).digest('hex');
+    const keyEnc = this.encryption.encrypt(input.apiKey);
     const secretEnc = this.encryption.encrypt(input.secret);
 
     const apiKey = await this.prisma.apiKey.create({
       data: {
         accountId,
         keyIdHash,
+        keyEnc,
         secretEnc,
         scope: ['read'],
       },

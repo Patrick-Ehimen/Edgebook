@@ -213,6 +213,7 @@ model ApiKey {
   id         String    @id @default(cuid())
   accountId  String
   keyIdHash  String
+  keyEnc     String
   secretEnc  String
   scope      String[]
   lastUsedAt DateTime? @db.Timestamptz

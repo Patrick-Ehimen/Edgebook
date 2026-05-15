@@ -1,0 +1,31 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "side": "Buy",
+    "execQty": "0.001",
+    "execPrice": "16620.50",
+    "execFee": "0.01",
+    "execId": "a1b2c3d4e5",
+    "execTime": "1672364174443",
+    "feeCurrency": "USDT"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "Sell",
+    "execQty": "0.001",
+    "execPrice": "17050.00",
+    "execFee": "0.01023",
+    "execId": "f6g7h8i9j0",
+    "execTime": "1672450574443",
+    "feeCurrency": "USDT"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "side": "Buy",
+    "execQty": "0.5",
+    "execPrice": "1210.75",
+    "execFee": "0.363225",
+    "execId": "k1l2m3n4o5",
+    "execTime": "1672537000000"
+  }
+]
