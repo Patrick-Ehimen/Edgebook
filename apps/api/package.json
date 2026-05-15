@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@edgebook/db": "workspace:*",
+    "@edgebook/exchange": "workspace:*",
     "@edgebook/shared": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",

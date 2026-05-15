@@ -23,6 +23,9 @@ importers:
       '@edgebook/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@edgebook/exchange':
+        specifier: workspace:*
+        version: link:../../packages/exchange
       '@edgebook/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -357,6 +360,16 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.40)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(msw@2.14.5(@types/node@20.19.40)(typescript@5.6.3))(terser@5.47.1)
+
+  packages/exchange:
+    dependencies:
+      '@edgebook/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/shared:
     dependencies:
