@@ -13,7 +13,12 @@ interface VerifyEmailFormProps {
 export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
   const [otp, setOtp] = React.useState('');
   const verifyMutation = useVerifyEmail();
-  const { mutate: resend, isPending: resending, secondsLeft, canResend } = useResendVerification(email);
+  const {
+    mutate: resend,
+    isPending: resending,
+    secondsLeft,
+    canResend,
+  } = useResendVerification(email);
 
   // Auto-submit when 6 digits are entered
   useEffect(() => {
@@ -29,22 +34,16 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
         Check your inbox
       </h2>
       <p className="mb-6 text-[13px] text-muted-foreground">
-        We sent a 6-digit code to{' '}
-        <b className="font-medium text-foreground">{email}</b>
+        We sent a 6-digit code to <b className="font-medium text-foreground">{email}</b>
       </p>
 
       <div className="flex justify-center mb-4">
-        <InputOTP
-          maxLength={6}
-          value={otp}
-          onChange={setOtp}
-          disabled={verifyMutation.isPending}
-        >
+        <InputOTP maxLength={6} value={otp} onChange={setOtp} disabled={verifyMutation.isPending}>
           <InputOTPGroup>
-            {Array.from({ length: 6 }, (_, i) => (
+            {[0, 1, 2, 3, 4, 5].map((index) => (
               <InputOTPSlot
-                key={i}
-                index={i}
+                key={index}
+                index={index}
                 className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20"
               />
             ))}
@@ -53,9 +52,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
       </div>
 
       {verifyMutation.error && (
-        <p className="mb-3 text-center text-xs text-destructive">
-          {verifyMutation.error.message}
-        </p>
+        <p className="mb-3 text-center text-xs text-destructive">{verifyMutation.error.message}</p>
       )}
 
       <Button

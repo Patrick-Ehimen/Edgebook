@@ -3,16 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 const SESSION_COOKIE = "eb_session";
 
 const PROTECTED = [
-  "/dashboard",
-  "/settings",
-  "/journal",
-  "/positions",
-  "/analytics",
+  '/dashboard',
+  '/trades',
+  '/analytics',
+  '/calendar',
+  '/mind-lab',
+  '/playbooks',
+  '/journal',
+  '/ai-review',
+  '/goals',
+  '/settings',
+  '/onboarding',
 ];
 const ONBOARDING_ROUTE = "/onboarding";
 
 function isProtected(pathname: string) {
-  return PROTECTED.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export function middleware(req: NextRequest) {

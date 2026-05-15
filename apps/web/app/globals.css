@@ -48,6 +48,40 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Edgebook design-system tokens ──────────────────────────────── */
+:root {
+  --eb-bg: #f6f8fb;
+  --eb-panel: #ffffff;
+  --eb-panel-2: #f1f4f9;
+  --eb-border: #e3e8ef;
+  --eb-text: #0f172a;
+  --eb-muted: #64748b;
+  --eb-muted-2: #475569;
+  --eb-red: #dc2740;
+  --eb-purple: #7c3aed;
+  --eb-cyan: #0891b2;
+  --eb-yellow: #c2680a;
+  --eb-nav-active: #eaf6ef;
+  --eb-nav-active-text: #064e36;
+}
+
+.dark {
+  --eb-bg: #0a0e14;
+  --eb-panel: #10151d;
+  --eb-panel-2: #161c26;
+  --eb-border: #1d2531;
+  --eb-text: #e6e9ef;
+  --eb-muted: #7a8395;
+  --eb-muted-2: #9aa3b5;
+  --eb-red: #ff5b6c;
+  --eb-purple: #8b5cf6;
+  --eb-cyan: #06b6d4;
+  --eb-yellow: #f5a524;
+  --eb-nav-active: #1a2433;
+  --eb-nav-active-text: #e6e9ef;
+}
+/* ─────────────────────────────────────────────────────────────── */
+
 :root {
   --green: #00a86b;
   --ob-bg: #f6f8fb;
@@ -148,6 +182,21 @@
   }
 }
 
+/* ── Button hover feedback ───────────────────────────────────────── */
+button,
+[role="button"] {
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+/* ─────────────────────────────────────────────────────────────── */
+
 @layer utilities {
   @keyframes pulseDot {
     0%,
@@ -160,5 +209,20 @@
   }
   .pulse-dot {
     animation: pulseDot 1.6s infinite;
+  }
+
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+  .dark .shimmer::after {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
   }
 }

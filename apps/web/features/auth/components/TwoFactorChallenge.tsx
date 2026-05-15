@@ -58,28 +58,29 @@ export function TwoFactorChallenge({ challengeId }: TwoFactorChallengeProps) {
           </div>
         ) : (
           <div className="flex justify-center">
-            <InputOTP
-              maxLength={6}
-              value={otp}
-              onChange={setOtp}
-              disabled={isPending}
-            >
+            <InputOTP maxLength={6} value={otp} onChange={setOtp} disabled={isPending}>
               <InputOTPGroup>
-                {Array.from({ length: 6 }, (_, i) => (
-                  <InputOTPSlot key={i} index={i} className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20" />
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <InputOTPSlot
+                    key={index}
+                    index={index}
+                    className="h-12 w-12 text-lg data-[active=true]:border-[#00a86b] data-[active=true]:ring-[#00a86b]/20 dark:bg-[rgba(15,20,29,.7)] dark:text-[#00d68f] dark:data-[active=true]:border-[#00d68f] dark:data-[active=true]:ring-[#00d68f]/20"
+                  />
                 ))}
               </InputOTPGroup>
             </InputOTP>
           </div>
         )}
 
-        {error && (
-          <p className="text-center text-xs text-destructive">{error.message}</p>
-        )}
+        {error && <p className="text-center text-xs text-destructive">{error.message}</p>}
 
         <Button
           type="submit"
-          disabled={isPending || (!useRecovery && otp.length < 6) || (useRecovery && recoveryCode.length < 9)}
+          disabled={
+            isPending ||
+            (!useRecovery && otp.length < 6) ||
+            (useRecovery && recoveryCode.length < 9)
+          }
           className="h-[46px] w-full cursor-pointer rounded-[10px] text-[14px] font-semibold transition-[filter] hover:brightness-110"
           style={{
             background: 'linear-gradient(180deg,#00e29a,#00b67a)',
@@ -99,7 +100,8 @@ export function TwoFactorChallenge({ challengeId }: TwoFactorChallengeProps) {
             setOtp('');
             setRecoveryCode('');
           }}
-          className="cursor-pointer font-medium hover:underline" style={{ color: '#00a86b' }}
+          className="cursor-pointer font-medium hover:underline"
+          style={{ color: '#00a86b' }}
         >
           {useRecovery ? '← Use authenticator app instead' : 'Use a recovery code instead'}
         </button>
