@@ -84,6 +84,13 @@
 
 :root {
   --green: #00a86b;
+  --ob-bg: #f6f8fb;
+  --ob-panel: #ffffff;
+  --ob-panel-2: #f1f4f9;
+  --ob-border: #e3e8ef;
+  --ob-text: #0f172a;
+  --ob-muted: #64748b;
+  --ob-muted-2: #475569;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -120,6 +127,13 @@
 
 .dark {
   --green: #00d68f;
+  --ob-bg: #070a10;
+  --ob-panel: #0f141d;
+  --ob-panel-2: #161c26;
+  --ob-border: #1d2531;
+  --ob-text: #e6e9ef;
+  --ob-muted: #7a8395;
+  --ob-muted-2: #9aa3b5;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

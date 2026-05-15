@@ -9,7 +9,7 @@ export function useVerifyEmail() {
   return useMutation({
     mutationFn: (data: VerifyEmailInput) => authApi.verifyEmail(data),
     onSuccess: () => {
-      router.push('/dashboard');
+      router.push('/sign-in?verified=1');
     },
   });
 }

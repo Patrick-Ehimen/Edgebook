@@ -210,7 +210,7 @@ export function SignUpForm() {
           <a href="#" className="font-medium hover:underline" style={{ color: '#00a86b' }}>
             Privacy Policy
           </a>
-          . You'll set up <b className="text-foreground">2FA</b> right after.
+          . You&apos;ll set up <b className="text-foreground">2FA</b> right after.
         </p>
 
         {/* Hidden to track acceptance state */}

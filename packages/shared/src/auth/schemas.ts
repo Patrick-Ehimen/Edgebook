@@ -52,9 +52,17 @@ export const SessionSchema = z.object({
   handle: Handle,
   email: Email,
   twoFactorPending: z.boolean(),
+  isOnboarded: z.boolean(),
   expiresAt: z.string(), // ISO
 });
 export type Session = z.infer<typeof SessionSchema>;
+
+/* ------------------------------- onboarding ------------------------------- */
+
+export const CompleteOnboardingResponse = z.object({
+  ok: z.literal(true),
+});
+export type CompleteOnboardingResponse = z.infer<typeof CompleteOnboardingResponse>;
 
 /* --------------------------------- sign-in -------------------------------- */
 

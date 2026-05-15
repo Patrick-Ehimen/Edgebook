@@ -9,17 +9,27 @@ interface AuthCtx {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  refreshSession: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthCtx>({ session: null, isLoading: true, isAuthenticated: false });
+const Ctx = createContext<AuthCtx>({
+  session: null,
+  isLoading: true,
+  isAuthenticated: false,
+  refreshSession: async () => {},
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading, refetch } = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get('/auth/session', SessionSchema),
     retry: false,
     staleTime: 5 * 60_000,
   });
+
+  const refreshSession = async () => {
+    await refetch();
+  };
 
   return (
     <Ctx.Provider
@@ -27,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session: session ?? null,
         isLoading,
         isAuthenticated: !!session,
+        refreshSession,
       }}
     >
       {children}
@@ -34,4 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(Ctx);
+export const useAuth = () => {
+  const ctx = useContext(Ctx);
+  return {
+    ...ctx,
+    user: ctx.session, // Alias session as user for convenience
+  };
+};

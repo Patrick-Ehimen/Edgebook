@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AuditKind" ADD VALUE 'ONBOARDING_COMPLETED';
