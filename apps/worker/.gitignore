@@ -2,6 +2,14 @@
 /dist
 /node_modules
 /build
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+vitest.config.mjs
+vitest.config.d.mts
+vitest.config.mjs.map
+vitest.config.d.mts.map
 
 # Logs
 logs
