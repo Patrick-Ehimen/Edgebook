@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { useLogTrade } from '@/providers/log-trade-provider';
 import {
   Bell,
   Calendar,
@@ -340,6 +341,7 @@ function DateRangeFilter() {
 
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
+  const logTrade = useLogTrade();
 
   const toggleTheme = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
 
@@ -485,6 +487,7 @@ export default function Topbar() {
 
       {/* Log trade */}
       <Button
+        onClick={logTrade.open}
         style={{
           display: 'inline-flex',
           alignItems: 'center',

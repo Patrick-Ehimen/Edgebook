@@ -81,6 +81,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
       await accountsApi.addApiKey(account.id, { apiKey: apiKey.trim(), secret: secret.trim() });
       await qc.invalidateQueries({ queryKey: ['accounts'] });
       handleOpenChange(false);
+      // sync is kicked off server-side automatically when the key is saved
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.status === 409 ? 'Key has withdrawal permissions — use a read-only key.' : e.message);

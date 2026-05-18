@@ -53,6 +53,7 @@
   --eb-bg: #f6f8fb;
   --eb-panel: #ffffff;
   --eb-panel-2: #f1f4f9;
+  --eb-input: #ffffff;
   --eb-border: #e3e8ef;
   --eb-text: #0f172a;
   --eb-muted: #64748b;
@@ -69,6 +70,7 @@
   --eb-bg: #0a0e14;
   --eb-panel: #10151d;
   --eb-panel-2: #161c26;
+  --eb-input: #0c1119;
   --eb-border: #1d2531;
   --eb-text: #e6e9ef;
   --eb-muted: #7a8395;
@@ -198,6 +200,11 @@ button:active:not(:disabled),
 /* ─────────────────────────────────────────────────────────────── */
 
 @layer utilities {
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
   @keyframes pulseDot {
     0%,
     100% {
