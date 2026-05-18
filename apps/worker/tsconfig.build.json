@@ -1,4 +1,29 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2021",
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "verbatimModuleSyntax": false,
+    "isolatedModules": false,
+    "strict": false,
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "baseUrl": ".",
+    "paths": {
+      "@edgebook/shared": ["../../packages/shared/src"],
+      "@edgebook/shared/accounts": ["../../packages/shared/src/accounts/index.ts"],
+      "@edgebook/shared/positions": ["../../packages/shared/src/positions/index.ts"],
+      "@edgebook/shared/queues": ["../../packages/shared/src/queues/index.ts"],
+      "@edgebook/exchange": ["../../packages/exchange/src/index.ts"],
+      "@edgebook/db": ["../../packages/db/src"],
+      "@prisma/client": ["../../node_modules/@prisma/client"]
+    }
+  },
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
 }

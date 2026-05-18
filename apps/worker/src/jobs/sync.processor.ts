@@ -20,6 +20,7 @@ export class SyncProcessor extends WorkerHost {
   async process(job: Job<SyncJobData>): Promise<void> {
     const { accountId, userId, fullSync } = job.data;
     this.logger.log(`Syncing fills for account ${accountId}`);
+    try {
 
     const account = await this.prisma.account.findUniqueOrThrow({
       where: { id: accountId },
@@ -73,5 +74,9 @@ export class SyncProcessor extends WorkerHost {
       { accountId, userId },
       { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     );
+    } catch (err) {
+      this.logger.error(`Sync failed for account ${accountId}: ${(err as Error).message}`, (err as Error).stack);
+      throw err;
+    }
   }
 }
