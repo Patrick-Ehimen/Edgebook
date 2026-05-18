@@ -341,7 +341,10 @@ function DateRangeFilter() {
 
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const logTrade = useLogTrade();
+
+  useEffect(() => setMounted(true), []);
 
   const toggleTheme = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
 
@@ -482,7 +485,7 @@ export default function Topbar() {
           color: 'var(--eb-text)',
         }}
       >
-        {resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+        {mounted ? (resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />) : <Sun size={14} />}
       </Button>
 
       {/* Log trade */}
