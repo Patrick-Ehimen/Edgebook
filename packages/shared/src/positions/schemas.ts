@@ -16,5 +16,12 @@ export const CreateFillInput = z.object({
   fundingFee: decimalSigned('Funding fee').nullable().default(null),
   executedAt: z.string().datetime({ message: 'Invalid date — use ISO 8601.' }),
   exchangeTradeId: z.string().trim().min(1).max(128).optional(),
+  thesis: z.string().max(2000).optional(),
+  invalidation: z.string().max(2000).optional(),
+  notes: z.string().max(5000).optional(),
+  sl: decimalPositive('Stop loss').optional(),
+  tp: decimalPositive('Take profit').optional(),
+  conviction: z.number().int().min(1).max(5).optional(),
+  moods: z.array(z.string().max(50)).max(20).optional(),
 });
 export type CreateFillInput = z.infer<typeof CreateFillInput>;

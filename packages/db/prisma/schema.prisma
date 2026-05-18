@@ -241,6 +241,13 @@ model Fill {
   exchangeTradeId String
   executedAt      DateTime @db.Timestamptz
   createdAt       DateTime @default(now()) @db.Timestamptz
+  thesis          String?
+  invalidation    String?
+  notes           String?
+  sl              String?
+  tp              String?
+  conviction      Int?
+  moods           String[]
 
   account       Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
   positionFills PositionFill[]

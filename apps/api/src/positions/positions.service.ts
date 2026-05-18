@@ -32,6 +32,13 @@ export class PositionsService {
         fundingFee: input.fundingFee ?? null,
         exchangeTradeId: input.exchangeTradeId ?? `manual-${randomUUID()}`,
         executedAt: new Date(input.executedAt),
+        thesis: input.thesis ?? null,
+        invalidation: input.invalidation ?? null,
+        notes: input.notes ?? null,
+        sl: input.sl ?? null,
+        tp: input.tp ?? null,
+        conviction: input.conviction ?? null,
+        moods: input.moods ?? [],
       },
     });
 
@@ -198,6 +205,13 @@ export class PositionsService {
     exchangeTradeId: string;
     executedAt: Date;
     createdAt: Date;
+    thesis: string | null;
+    invalidation: string | null;
+    notes: string | null;
+    sl: string | null;
+    tp: string | null;
+    conviction: number | null;
+    moods: string[];
   }) {
     return {
       id: fill.id.toString(),
@@ -213,6 +227,13 @@ export class PositionsService {
       exchangeTradeId: fill.exchangeTradeId,
       executedAt: fill.executedAt.toISOString(),
       createdAt: fill.createdAt.toISOString(),
+      thesis: fill.thesis,
+      invalidation: fill.invalidation,
+      notes: fill.notes,
+      sl: fill.sl,
+      tp: fill.tp,
+      conviction: fill.conviction,
+      moods: fill.moods,
     };
   }
 
