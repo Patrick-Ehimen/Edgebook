@@ -94,6 +94,12 @@ export class AccountsService {
       },
     });
 
+    await this.syncQueue.add(
+      'sync',
+      { accountId, userId, fullSync: true },
+      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+    );
+
     return this.toApiKeyShape(apiKey);
   }
 

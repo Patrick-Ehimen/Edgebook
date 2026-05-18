@@ -3,8 +3,9 @@ const nodeExternals = require('webpack-node-externals');
 module.exports = (options) => ({
   ...options,
   // Bundle @edgebook/* workspace packages inline.
-  // Everything else (real node_modules) stays external for faster builds.
+  // ccxt is kept external to avoid bundling its optional deps (http-proxy-agent, etc.).
   externals: [
+    { ccxt: 'commonjs ccxt' },
     nodeExternals({
       allowlist: [/^@edgebook\//],
     }),

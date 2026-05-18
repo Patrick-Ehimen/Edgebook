@@ -13,6 +13,8 @@ const redisConnection = new URL(env.REDIS_URL);
         host: redisConnection.hostname,
         port: Number(redisConnection.port) || 6379,
         password: redisConnection.password || undefined,
+        maxRetriesPerRequest: null,
+        retryStrategy: (times: number) => Math.min(times * 500, 10_000),
       },
     }),
     BullModule.registerQueue(
