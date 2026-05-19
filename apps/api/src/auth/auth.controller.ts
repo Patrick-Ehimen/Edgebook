@@ -54,7 +54,7 @@ export class AuthController {
   }
 
   @Post('sign-out')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   signOut(@CurrentSessionId() sessionId: string, @Res({ passthrough: true }) res: Response) {
     return this.authService.signOut(sessionId, res);

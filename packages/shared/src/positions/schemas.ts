@@ -37,5 +37,7 @@ export const UpdatePositionMetrics = z.object({
   planAdherence: decimalPositive('Plan adherence').optional(),
   processScore: decimalPositive('Process score').optional(),
   outcomeScore: decimalPositive('Outcome score').optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+  images: z.array(z.string()).optional(),
 });
 export type UpdatePositionMetrics = z.infer<typeof UpdatePositionMetrics>;

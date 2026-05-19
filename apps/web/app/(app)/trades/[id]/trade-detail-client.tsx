@@ -4,7 +4,7 @@ import { positionsApi, useDeletePosition, useLogFill, usePosition, useUpdatePosi
 import type { PositionDetail } from '@/features/positions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -219,6 +219,227 @@ function EmptyHint({ text }: { text: string }) {
   );
 }
 
+// ─── Tag color ───────────────────────────────────────────────────────────────
+
+const TAG_PALETTE = [
+  { bg: 'rgba(139,92,246,.15)', border: 'rgba(139,92,246,.35)', color: '#c4b5fd' },  // purple
+  { bg: 'rgba(0,214,143,.12)',  border: 'rgba(0,214,143,.30)',  color: '#6ee7b7' },  // green
+  { bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)',  color: '#67e8f9' },  // cyan
+  { bg: 'rgba(245,158,11,.12)', border: 'rgba(245,158,11,.30)', color: '#fcd34d' },  // amber
+  { bg: 'rgba(239,68,68,.12)',  border: 'rgba(239,68,68,.30)',  color: '#fca5a5' },  // red
+  { bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)', color: '#f9a8d4' },  // pink
+  { bg: 'rgba(99,102,241,.15)', border: 'rgba(99,102,241,.35)', color: '#a5b4fc' },  // indigo
+  { bg: 'rgba(20,184,166,.12)', border: 'rgba(20,184,166,.30)', color: '#5eead4' },  // teal
+];
+
+function tagColor(tag: string) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0;
+  return TAG_PALETTE[h % TAG_PALETTE.length]!;
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Sk({ h = 14, w, r = 6, style: s }: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      height: h, width: w ?? '100%', borderRadius: r,
+      background: 'var(--eb-panel-2)',
+      animation: 'eb-sk 1.6s ease-in-out infinite',
+      flexShrink: 0,
+      ...s,
+    }} />
+  );
+}
+
+const skPanel: React.CSSProperties = {
+  background: 'var(--eb-panel)',
+  border: '1px solid var(--eb-border)',
+  borderRadius: 11,
+  padding: 16,
+};
+
+function TradeDetailSkeleton() {
+  return (
+    <>
+      <style>{'@keyframes eb-sk{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
+
+      {/* Sticky page head */}
+      <div style={{
+        padding: '20px 26px 14px',
+        borderBottom: '1px solid var(--eb-border)',
+        background: 'var(--eb-panel)',
+        position: 'sticky',
+        top: 53,
+        zIndex: 4,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <div>
+            <Sk h={28} w={140} r={6} />
+            <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
+              <Sk h={12} w={180} r={4} />
+              <Sk h={12} w={140} r={4} />
+              <Sk h={12} w={80} r={4} />
+              <Sk h={12} w={100} r={4} />
+            </div>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Sk h={24} w={60} r={99} />
+            <Sk h={24} w={60} r={99} />
+            <div style={{ width: 8 }} />
+            <Sk h={30} w={80} r={7} />
+            <Sk h={30} w={90} r={7} />
+            <Sk h={30} w={80} r={7} />
+          </div>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: 10,
+        padding: '14px 26px 0',
+      }}>
+        {Array.from({ length: 7 }, (_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+          <div key={i} style={{
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}>
+            <Sk h={10} w="55%" r={3} />
+            <Sk h={20} w="75%" r={5} style={{ marginTop: 5 }} />
+            <Sk h={9} w="50%" r={3} style={{ marginTop: 4 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Two-column body */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 340px',
+        gap: 14,
+        padding: '14px 26px 60px',
+      }}>
+        {/* Left column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Pre-trade plan panel */}
+          <div style={skPanel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Sk h={12} w={120} r={4} />
+              <Sk h={20} w={55} r={99} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <Sk h={74} r={6} />
+              <Sk h={74} r={6} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 10 }}>
+              <Sk h={32} r={6} />
+              <Sk h={32} r={6} />
+              <Sk h={32} r={6} />
+            </div>
+            <Sk h={100} r={6} />
+          </div>
+
+          {/* Attachments panel */}
+          <div style={skPanel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Sk h={12} w={100} r={4} />
+              <Sk h={12} w={80} r={4} />
+            </div>
+            <Sk h={80} r={8} style={{ marginTop: 4 }} />
+          </div>
+
+          {/* Post-trade reflection panel */}
+          <div style={skPanel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Sk h={12} w={160} r={4} />
+              <Sk h={22} w={40} r={7} />
+            </div>
+            <Sk h={80} r={6} style={{ marginBottom: 10 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <Sk h={74} r={6} />
+              <Sk h={74} r={6} />
+            </div>
+            <Sk h={32} r={6} style={{ marginBottom: 10 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <Sk h={32} r={6} />
+              <Sk h={32} r={6} />
+              <Sk h={32} r={6} />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Summary panel */}
+          <div style={skPanel}>
+            <div style={{ marginBottom: 10 }}>
+              <Sk h={12} w={70} r={4} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 10px' }}>
+              {Array.from({ length: 16 }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+                <Sk key={i} h={i % 2 === 0 ? 11 : 13} w={i % 2 === 0 ? '70%' : '85%'} r={3} />
+              ))}
+            </div>
+          </div>
+
+          {/* Conviction & State panel */}
+          <div style={skPanel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Sk h={12} w={140} r={4} />
+              <Sk h={20} w={50} r={99} />
+            </div>
+            <Sk h={10} w={70} r={3} style={{ marginTop: 2, marginBottom: 8 }} />
+            <div style={{ display: 'flex', gap: 4 }}>
+              {Array.from({ length: 5 }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+                <Sk key={i} h={20} w={20} r={99} />
+              ))}
+            </div>
+            <Sk h={10} w={80} r={3} style={{ marginTop: 12, marginBottom: 8 }} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              {([60, 55, 70, 65] as number[]).map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+                <Sk key={i} h={22} w={w} r={99} />
+              ))}
+            </div>
+          </div>
+
+          {/* Playbook panel */}
+          <div style={skPanel}>
+            <div style={{ marginBottom: 10 }}>
+              <Sk h={12} w={80} r={4} />
+            </div>
+            <Sk h={14} w="60%" r={4} style={{ marginTop: 8 }} />
+          </div>
+
+          {/* Tags panel */}
+          <div style={skPanel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Sk h={12} w={50} r={4} />
+              <Sk h={11} w={70} r={4} />
+            </div>
+            <div style={{
+              height: 36,
+              borderRadius: 7,
+              border: '1px solid var(--eb-border)',
+              background: 'var(--eb-panel-2)',
+            }} />
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TradeDetailClient({
@@ -242,11 +463,7 @@ export function TradeDetailClient({
   }
 
   if (isLoading) {
-    return (
-      <div style={{ padding: '60px 26px', textAlign: 'center', color: 'var(--eb-muted)' }}>
-        Loading trade…
-      </div>
-    );
+    return <TradeDetailSkeleton />;
   }
 
   if (error || !position) {
@@ -316,7 +533,7 @@ function CloseTradeDialog({
   const [exitPrice, setExitPrice] = useState('');
   const [exitTime, setExitTime] = useState('');
   const [fee, setFee] = useState('');
-  const [feeCcy, setFeeCcy] = useState('USDT');
+  const feeCcy = 'USDT';
   const [funding, setFunding] = useState('');
   const [rRealized, setRRealized] = useState('');
   const [mfe, setMfe] = useState('');
@@ -836,6 +1053,25 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
     });
   }
 
+  // Tags state
+  const [tags, setTags] = useState<string[]>(position.tags ?? []);
+  const [tagInput, setTagInput] = useState('');
+
+  async function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!tag || tags.includes(tag)) { setTagInput(''); return; }
+    const next = [...tags, tag];
+    setTags(next);
+    setTagInput('');
+    await updateMetrics.mutateAsync({ tags: next });
+  }
+
+  async function removeTag(tag: string) {
+    const next = tags.filter((t) => t !== tag);
+    setTags(next);
+    await updateMetrics.mutateAsync({ tags: next });
+  }
+
   // Editable reflection state
   const [wentRight, setWentRight] = useState(position.wentRight ?? '');
   const [wentWrong, setWentWrong] = useState(position.wentWrong ?? '');
@@ -863,6 +1099,47 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
     });
   }
 
+  // Attachments — persisted via PositionNote.images
+  const [images, setImages] = useState<string[]>(position.images ?? []);
+  const [dragOver, setDragOver] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesSavedRef = useRef(true); // skip save on initial mount
+
+  // Auto-persist whenever the images array changes
+  useEffect(() => {
+    if (imagesSavedRef.current) { imagesSavedRef.current = false; return; }
+    updateMetrics.mutate({ images });
+  }, [images, updateMetrics]);
+
+  const MAX_IMAGES = 6;
+
+  const handleFiles = useCallback((files: File[]) => {
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result;
+        if (typeof result === 'string') {
+          setImages((prev) => prev.length >= MAX_IMAGES ? prev : [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      for (const item of items.filter((it) => it.type.startsWith('image/'))) {
+        const blob = item.getAsFile();
+        if (blob) handleFiles([blob]);
+      }
+    }
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [handleFiles]);
+
   const pnl = fmtPnl(position.netPnl);
   const pnlV = Number.parseFloat(position.netPnl);
   const hold = holdTime(position.openedAt, position.closedAt);
@@ -872,6 +1149,26 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
 
   return (
     <>
+      {lightbox && (
+        <button
+          type="button"
+          onClick={() => setLightbox(null)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 200, cursor: 'zoom-out',
+            border: 0, padding: 0,
+          }}
+        >
+          <img
+            src={lightbox}
+            alt="Attachment preview"
+            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 24px 60px rgba(0,0,0,.7)' }}
+          />
+        </button>
+      )}
+
       {showCloseDialog && (
         <CloseTradeDialog
           position={position}
@@ -1043,9 +1340,6 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 ✓ Close trade
               </button>
             )}
-            <button type="button" style={btn}>
-              ✏️ Edit
-            </button>
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
@@ -1211,6 +1505,115 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             </div>
           </div>
 
+          {/* Attachments */}
+          <div style={panel}>
+            <PanelH3
+              left={`📎 Attachments${images.length > 0 ? ` · ${images.length} / ${MAX_IMAGES}` : ''}`}
+              right={
+                images.length < MAX_IMAGES ? (
+                  <span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>paste or drag</span>
+                ) : (
+                  <span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>max reached</span>
+                )
+              }
+            />
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                handleFiles(Array.from(e.target.files ?? []));
+                e.target.value = '';
+              }}
+            />
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
+                marginTop: images.length === 0 ? 0 : 4,
+              }}
+            >
+              {/* Thumbnails */}
+              {images.map((src, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable insertion-order array
+                <div key={i} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(src)}
+                    style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in', borderRadius: 8 }}
+                  >
+                    <img
+                      src={src}
+                      alt={`Attachment ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        aspectRatio: '16/10',
+                        objectFit: 'cover',
+                        borderRadius: 8,
+                        border: '1px solid var(--eb-border)',
+                        display: 'block',
+                      }}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                    style={{
+                      position: 'absolute', top: 4, right: 4,
+                      background: 'rgba(0,0,0,.55)', border: 0, borderRadius: 4,
+                      color: '#fff', cursor: 'pointer', padding: '2px 6px',
+                      fontSize: 10, lineHeight: 1,
+                    }}
+                  >✕</button>
+                </div>
+              ))}
+
+              {/* Drop / add tile — hidden once the limit is reached */}
+              {images.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    handleFiles(Array.from(e.dataTransfer.files));
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    aspectRatio: '16/10',
+                    border: `1.5px dashed ${dragOver ? 'var(--green)' : 'var(--eb-border)'}`,
+                    borderRadius: 8,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    background: dragOver ? 'rgba(0,214,143,.05)' : 'transparent',
+                    transition: 'border-color .15s, background .15s',
+                    color: 'var(--eb-muted)',
+                    gap: 4,
+                    padding: 8,
+                    textAlign: 'center',
+                    gridColumn: images.length === 0 ? '1 / -1' : undefined,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontSize: 20, opacity: 0.45, lineHeight: 1 }}>＋</span>
+                  <span style={{ fontSize: 11, lineHeight: 1.4 }}>
+                    {images.length === 0 ? 'Drop screenshot or paste from clipboard' : 'Add image'}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Post-trade reflection */}
           <div style={panel}>
             <PanelH3
@@ -1321,27 +1724,6 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             </div>
           </div>
 
-          {/* Rule events */}
-          <div style={panel}>
-            <PanelH3
-              left="⚖️ Rule events"
-              right={<span style={chip}>0 fired</span>}
-            />
-            <EmptyHint text="No rule events — tilt engine found no violations for this trade." />
-          </div>
-
-          {/* Linked trades */}
-          <div style={panel}>
-            <PanelH3
-              left="🔗 Linked trades"
-              right={
-                <button type="button" style={{ ...btn, padding: '4px 9px', fontSize: 11.5 }}>
-                  + Link a trade
-                </button>
-              }
-            />
-            <EmptyHint text="No linked trades." />
-          </div>
         </div>
 
         {/* ── RIGHT COLUMN ────────────────────────────────────────────── */}
@@ -1400,10 +1782,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             </div>
           </div>
 
-          {/* Performance metrics — editable */}
+          {/* R-multiples */}
           <div style={panel}>
             <PanelH3
-              left="📊 Performance"
+              left="📏 R-multiples"
               right={
                 metricsDirty ? (
                   <button
@@ -1426,24 +1808,46 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               }
             />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {([
-                { label: 'Planned R:R', val: rPlanned, set: setRPlanned, placeholder: 'e.g. 2.5', hint: 'Before entry' },
-                { label: 'Realized R', val: rRealized, set: setRRealized, placeholder: 'e.g. 1.84', hint: 'Actual outcome' },
-                { label: 'MFE', val: mfe, set: setMfe, placeholder: 'e.g. 2.31', hint: 'Peak in your favour' },
-                { label: 'MAE', val: mae, set: setMae, placeholder: 'e.g. -0.54', hint: 'Peak against you' },
-              ] as { label: string; val: string; set: (v: string) => void; placeholder: string; hint: string }[]).map(({ label, val, set, placeholder, hint }) => (
-                <div key={label}>
-                  <label style={fieldLabel}>{label}</label>
-                  <input
-                    style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
-                    value={val}
-                    onChange={(e) => set(e.target.value)}
-                    placeholder={placeholder}
-                    inputMode="decimal"
-                  />
-                  <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 2, display: 'block' }}>{hint}</span>
-                </div>
-              ))}
+              <div>
+                <label style={fieldLabel}>R-planned</label>
+                <input
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
+                  placeholder="e.g. 2.0"
+                  inputMode="decimal"
+                  value={rPlanned}
+                  onChange={(e) => setRPlanned(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel}>R-realized</label>
+                <input
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
+                  placeholder="e.g. 1.84"
+                  inputMode="decimal"
+                  value={rRealized}
+                  onChange={(e) => setRRealized(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel}>MFE</label>
+                <input
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
+                  placeholder="e.g. 2.31"
+                  inputMode="decimal"
+                  value={mfe}
+                  onChange={(e) => setMfe(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel}>MAE</label>
+                <input
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
+                  placeholder="e.g. -0.54"
+                  inputMode="decimal"
+                  value={mae}
+                  onChange={(e) => setMae(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
@@ -1511,47 +1915,6 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               )}
             </div>
 
-            {[
-              { label: 'Sleep', value: '— h' },
-              { label: 'Energy', value: '— / 10' },
-              { label: 'Focus', value: '— / 10' },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}
-              >
-                <span
-                  style={{
-                    flex: '0 0 60px',
-                    fontSize: 11.5,
-                    color: 'var(--eb-muted)',
-                  }}
-                >
-                  {label}
-                </span>
-                <span
-                  style={{
-                    flex: 1,
-                    height: 4,
-                    background: 'var(--eb-panel-2)',
-                    borderRadius: 99,
-                    border: '1px solid var(--eb-border)',
-                  }}
-                />
-                <span
-                  style={{
-                    flex: '0 0 48px',
-                    textAlign: 'right',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    fontSize: 12.5,
-                    fontWeight: 500,
-                    color: 'var(--eb-muted)',
-                  }}
-                >
-                  {value}
-                </span>
-              </div>
-            ))}
           </div>
 
           {/* Playbook */}
@@ -1580,9 +1943,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           <div style={panel}>
             <PanelH3
               left="🏷️ Tags"
-              right={
-                <span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>type to add</span>
-              }
+              right={<span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>Enter to add</span>}
             />
             <div
               style={{
@@ -1597,18 +1958,42 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 alignItems: 'center',
               }}
             >
+              {tags.map((tag) => {
+                const c = tagColor(tag);
+                return (
+                  <span
+                    key={tag}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: 11.5, padding: '3px 8px', borderRadius: 99,
+                      background: c.bg, border: `1px solid ${c.border}`, color: c.color,
+                    }}
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      style={{
+                        background: 'none', border: 0, color: c.color,
+                        cursor: 'pointer', padding: 0, lineHeight: 1,
+                        fontSize: 11, opacity: 0.7,
+                      }}
+                    >✕</button>
+                  </span>
+                );
+              })}
               <input
-                placeholder="Add tag…"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); }
+                }}
+                placeholder={tags.length === 0 ? 'Add tag…' : ''}
                 style={{
-                  flex: 1,
-                  minWidth: 80,
-                  background: 'transparent',
-                  border: 0,
-                  color: 'var(--eb-text)',
-                  outline: 0,
-                  fontSize: 12,
-                  fontFamily: 'inherit',
-                  padding: '2px 5px',
+                  flex: 1, minWidth: 80,
+                  background: 'transparent', border: 0,
+                  color: 'var(--eb-text)', outline: 0,
+                  fontSize: 12, fontFamily: 'inherit', padding: '2px 5px',
                 }}
               />
             </div>

@@ -239,7 +239,9 @@ export default function TradesPage() {
         <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
       )}
 
-      {hasAccounts && (
+      {hasAccounts && loading && <TradesPageSkeleton />}
+
+      {hasAccounts && !loading && (
         <>
           {/* Filter bar */}
           {positions && positions.length > 0 && (
@@ -313,11 +315,7 @@ export default function TradesPage() {
               overflow: 'hidden',
             }}
           >
-            {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
-                Loading positions…
-              </div>
-            ) : !positions || positions.length === 0 ? (
+            {!positions || positions.length === 0 ? (
               <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
             ) : filtered.length === 0 ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
@@ -474,6 +472,93 @@ export default function TradesPage() {
       <AddAccountDialog open={connectOpen} onOpenChange={setConnectOpen} />
       {csvOpen && <CsvImportDialog onClose={() => setCsvOpen(false)} />}
     </div>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Sk({ h = 14, w, r = 6, style: s }: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      height: h, width: w ?? '100%', borderRadius: r,
+      background: 'var(--eb-panel-2)',
+      animation: 'eb-sk 1.6s ease-in-out infinite',
+      flexShrink: 0,
+      ...s,
+    }} />
+  );
+}
+
+const SK_HDR_W = [58, 72, 44, 52, 72, 68, 72, 52, 68, 60, 44, 70, 44, 52];
+const SK_ROW_W = [50, 80, 38, 55, 65, 62, 60, 48, 62, 52, 40, 45, 20, 45];
+
+function TradesPageSkeleton() {
+  return (
+    <>
+      <style>{'@keyframes eb-sk{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
+
+      {/* Filter bar skeleton */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+        {([130, 95, 105, 100, 115] as number[]).map((w, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+          <Sk key={i} h={28} w={w} r={99} />
+        ))}
+      </div>
+
+      {/* Summary strip skeleton */}
+      <div style={{
+        display: 'flex', gap: 16, alignItems: 'center',
+        padding: '9px 14px',
+        background: 'var(--eb-panel)',
+        border: '1px solid var(--eb-border)',
+        borderRadius: 9,
+        marginBottom: 14,
+      }}>
+        {([55, 65, 50, 70, 60, 80, 100] as number[]).map((w, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+          <Sk key={i} h={12} w={w} r={4} />
+        ))}
+      </div>
+
+      {/* Table skeleton */}
+      <div style={{
+        background: 'var(--eb-panel)',
+        border: '1px solid var(--eb-border)',
+        borderRadius: 11,
+        overflow: 'hidden',
+      }}>
+        {/* Header row */}
+        <div style={{
+          display: 'flex',
+          padding: '9px 0',
+          borderBottom: '1px solid var(--eb-border)',
+        }}>
+          {SK_HDR_W.map((w, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+            <div key={i} style={{ padding: '0 12px', flexShrink: 0 }}>
+              <Sk h={11} w={w} r={3} />
+            </div>
+          ))}
+        </div>
+        {/* Data rows */}
+        {Array.from({ length: 8 }, (_, row) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+          <div key={row} style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '9px 0',
+            borderBottom: '1px solid var(--eb-border)',
+          }}>
+            {SK_ROW_W.map((w, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
+              <div key={i} style={{ padding: '0 12px', flexShrink: 0 }}>
+                <Sk h={14} w={w} r={4} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

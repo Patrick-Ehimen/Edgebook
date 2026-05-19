@@ -1,9 +1,9 @@
 'use client';
 
 import { useAccounts } from '@/features/accounts';
-import { type CreateFillBody, useLogFill } from '@/features/positions';
+import { positionsApi, type CreateFillBody, useLogFill } from '@/features/positions';
 import { AlertCircle, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
   open: boolean;
@@ -171,10 +171,6 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
   const [status, setStatus] = useState<'open' | 'closed' | 'planned'>('open');
   const [exitPrice, setExitPrice] = useState('');
   const [exitTime, setExitTime] = useState('');
-  const [fee, setFee] = useState('');
-  const [feeCcy, setFeeCcy] = useState('USDT');
-  const [funding, setFunding] = useState('');
-  const [slippage, setSlippage] = useState('');
   const [thesis, setThesis] = useState('');
   const [invalidation, setInvalidation] = useState('');
   const [notes, setNotes] = useState('');
@@ -182,7 +178,27 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
   // ── right-column state ────────────────────────────────────────────────────
   const [conviction, setConviction] = useState(0);
   const [moods, setMoods] = useState<Set<Mood>>(new Set());
-  const [tags, setTags] = useState('');
+
+  // Screenshots
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const screenshotRef = useRef<HTMLInputElement>(null);
+
+  const MAX_SCREENSHOTS = 6;
+
+  const handleScreenshots = useCallback((files: File[]) => {
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result;
+        if (typeof result === 'string') {
+          setScreenshots((prev) => prev.length >= MAX_SCREENSHOTS ? prev : [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
 
   const [error, setError] = useState('');
 
@@ -198,9 +214,9 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
     setSymbol(''); setSide('buy'); setQty(''); setLeverage(''); setRiskPct('');
     setEntry(''); setEntryTime(''); setSl(''); setTp('');
     setStatus('open'); setExitPrice(''); setExitTime('');
-    setFee(''); setFeeCcy('USDT'); setFunding(''); setSlippage('');
     setThesis(''); setInvalidation(''); setNotes('');
-    setConviction(0); setMoods(new Set()); setTags('');
+    setConviction(0); setMoods(new Set());
+    setScreenshots([]); setDragOver(false);
     setError('');
   }
 
@@ -230,9 +246,9 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
         side,
         qty: qty.trim(),
         price: entry.trim(),
-        fee: fee.trim() || '0',
-        feeCcy: feeCcy.trim().toUpperCase() || 'USDT',
-        fundingFee: funding.trim() || null,
+        fee: '0',
+        feeCcy: 'USDT',
+        fundingFee: null,
         executedAt: new Date(entryTime.trim().replace(' ', 'T') + ':00Z').toISOString(),
         thesis: thesis.trim() || undefined,
         invalidation: invalidation.trim() || undefined,
@@ -243,6 +259,19 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
         moods: moods.size > 0 ? [...moods] : undefined,
       };
       await logFill.mutateAsync(body);
+
+      // Persist screenshots to the resulting position
+      if (screenshots.length > 0) {
+        const list = await positionsApi.list(accountId);
+        const sym = body.symbol;
+        const newPos = list
+          .filter((p) => p.symbol === sym && p.status === 'open')
+          .sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime())[0];
+        if (newPos) {
+          await positionsApi.updateMetrics(accountId, newPos.id, { images: screenshots });
+        }
+      }
+
       handleClose(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -275,17 +304,28 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
     return (diff * Number(qty)).toFixed(2);
   }, [exitPrice, entry, qty, side]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts + paste
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSubmit();
       if (e.key === 'Escape') handleClose(false);
     }
+    function onPaste(e: ClipboardEvent) {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imageItems = items.filter((it) => it.type.startsWith('image/'));
+      if (imageItems.length > 0) {
+        handleScreenshots(imageItems.map((it) => it.getAsFile()).filter(Boolean) as File[]);
+      }
+    }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('paste', onPaste);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, accountId, symbol, qty, entry, entryTime, fee, feeCcy, funding, side]);
+  }, [open, accountId, symbol, qty, entry, entryTime, side, handleScreenshots]);
 
   if (!open) return null;
 
@@ -456,19 +496,6 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
               </div>
             )}
 
-            {/* Row: Fees · Funding · Slippage */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <Field label="Fees">
-                <PrefixInput prefix="$" placeholder="4.86" value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" />
-              </Field>
-              <Field label="Funding">
-                <PrefixInput prefix="$" placeholder="-0.42" value={funding} onChange={(e) => setFunding(e.target.value)} inputMode="decimal" />
-              </Field>
-              <Field label="Slippage">
-                <PrefixInput prefix="$" placeholder="0.00" value={slippage} onChange={(e) => setSlippage(e.target.value)} inputMode="decimal" />
-              </Field>
-            </div>
-
             {/* Notes */}
             <Field label="Notes">
               <textarea
@@ -479,23 +506,66 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
               />
             </Field>
 
-            {/* Screenshot */}
-            <Field label="Screenshot">
-              <label
-                style={{
-                  display: 'block',
-                  border: '1.5px dashed var(--eb-border)', borderRadius: 8,
-                  padding: 14, textAlign: 'center', color: 'var(--eb-muted)',
-                  fontSize: 12, cursor: 'pointer',
-                  background: 'var(--eb-input)',
-                  transition: 'border-color .12s, color .12s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--eb-cyan, #06b6d4)'; e.currentTarget.style.color = 'var(--eb-text)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--eb-border)'; e.currentTarget.style.color = 'var(--eb-muted)'; }}
-              >
-                📎 Drop image, paste from clipboard, or <u>browse</u>
-                <input type="file" accept="image/*" style={{ display: 'none' }} />
-              </label>
+            {/* Screenshots */}
+            <Field label={`Screenshots${screenshots.length > 0 ? ` · ${screenshots.length} / ${MAX_SCREENSHOTS}` : ''}`}>
+              <input
+                ref={screenshotRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => { handleScreenshots(Array.from(e.target.files ?? [])); e.target.value = ''; }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {screenshots.map((src, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: stable order
+                  <div key={i} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setScreenshots((prev) => prev.filter((_, j) => j !== i))}
+                      style={{
+                        position: 'absolute', top: 3, right: 3, zIndex: 1,
+                        background: 'rgba(0,0,0,.55)', border: 0, borderRadius: 4,
+                        color: '#fff', cursor: 'pointer', padding: '1px 5px',
+                        fontSize: 10, lineHeight: 1,
+                      }}
+                    >✕</button>
+                    <img
+                      src={src}
+                      alt={`screenshot ${i + 1}`}
+                      style={{
+                        width: '100%', aspectRatio: '16/10', objectFit: 'cover',
+                        borderRadius: 6, border: '1px solid var(--eb-border)', display: 'block',
+                      }}
+                    />
+                  </div>
+                ))}
+                {screenshots.length < MAX_SCREENSHOTS && (
+                  <button
+                    type="button"
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => { e.preventDefault(); setDragOver(false); handleScreenshots(Array.from(e.dataTransfer.files)); }}
+                    onClick={() => screenshotRef.current?.click()}
+                    style={{
+                      aspectRatio: '16/10',
+                      border: `1.5px dashed ${dragOver ? 'var(--green)' : 'var(--eb-border)'}`,
+                      borderRadius: 6, display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', gap: 3, padding: 6, textAlign: 'center',
+                      background: dragOver ? 'rgba(0,214,143,.05)' : 'var(--eb-input)',
+                      color: 'var(--eb-muted)', transition: 'border-color .12s, background .12s',
+                      fontFamily: 'inherit',
+                      gridColumn: screenshots.length === 0 ? '1 / -1' : undefined,
+                    }}
+                  >
+                    <span style={{ fontSize: 16, opacity: 0.4, lineHeight: 1 }}>＋</span>
+                    <span style={{ fontSize: 11, lineHeight: 1.4 }}>
+                      {screenshots.length === 0 ? 'Drop or paste image' : 'Add image'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </Field>
           </div>
 
@@ -567,11 +637,6 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
                   );
                 })}
               </div>
-            </Field>
-
-            {/* Tags */}
-            <Field label="Tags">
-              <input style={inp} placeholder="Type to add… (EU session, HTF aligned, scalp)" value={tags} onChange={(e) => setTags(e.target.value)} />
             </Field>
 
             {/* Live calc */}

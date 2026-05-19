@@ -160,9 +160,9 @@ export class PositionsService {
     const position = await this.prisma.position.findUnique({
       where: { id: positionId },
       include: {
-        positionFills: {
-          include: { fill: true },
-        },
+        positionFills: { include: { fill: true } },
+        tags: true,
+        notes: { select: { images: true } },
       },
     });
 
@@ -177,6 +177,8 @@ export class PositionsService {
         role: pf.role,
         fill: this.toFillShape(pf.fill),
       })),
+      tags: position.tags.map((t) => t.tag),
+      images: position.notes?.images ?? [],
     };
   }
 
@@ -206,6 +208,24 @@ export class PositionsService {
         ...(input.outcomeScore !== undefined && { outcomeScore: input.outcomeScore }),
       },
     });
+
+    if (input.tags !== undefined) {
+      await this.prisma.positionTag.deleteMany({ where: { positionId } });
+      if (input.tags.length > 0) {
+        await this.prisma.positionTag.createMany({
+          data: input.tags.map((tag) => ({ positionId, tag })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    if (input.images !== undefined) {
+      await this.prisma.positionNote.upsert({
+        where: { positionId },
+        create: { positionId, bodyMd: '', images: input.images },
+        update: { images: input.images },
+      });
+    }
 
     return this.toPositionShape(updated);
   }

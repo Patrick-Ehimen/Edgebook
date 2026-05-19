@@ -17,6 +17,8 @@ export interface UpdatePositionMetricsBody {
   planAdherence?: string | undefined;
   processScore?: string | undefined;
   outcomeScore?: string | undefined;
+  tags?: string[] | undefined;
+  images?: string[] | undefined;
 }
 
 export interface CreateFillBody {

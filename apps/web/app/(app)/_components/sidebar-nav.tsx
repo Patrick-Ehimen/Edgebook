@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/providers/auth-provider';
+import { useSignOut } from '@/features/auth';
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpen,
@@ -52,6 +53,7 @@ const COACHING: {
 export default function SidebarNav() {
   const pathname = usePathname();
   const { session } = useAuth();
+  const signOut = useSignOut();
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -283,6 +285,8 @@ export default function SidebarNav() {
             </Link>
             <button
               type="button"
+              onClick={() => signOut.mutate()}
+              disabled={signOut.isPending}
               style={{
                 flex: 1,
                 display: 'inline-flex',
@@ -295,11 +299,12 @@ export default function SidebarNav() {
                 color: 'var(--eb-muted)',
                 background: 'transparent',
                 border: '1px solid transparent',
-                cursor: 'pointer',
+                cursor: signOut.isPending ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
+                opacity: signOut.isPending ? 0.5 : 1,
               }}
             >
-              <LogOut size={12} /> Sign out
+              <LogOut size={12} /> {signOut.isPending ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
         </div>

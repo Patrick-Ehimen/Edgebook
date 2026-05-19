@@ -117,6 +117,7 @@ export class AuthService {
   async signOut(sessionId: string, res: Response) {
     await this.sessionService.revoke(sessionId);
     this.sessionService.clearCookie(res);
+    return { ok: true as const };
   }
 
   // ─── Verify email ───────────────────────────────────────────────────────────

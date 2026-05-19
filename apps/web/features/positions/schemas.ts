@@ -62,6 +62,8 @@ export type Position = z.infer<typeof PositionSchema>;
 
 export const PositionDetailSchema = PositionSchema.extend({
   fills: z.array(PositionFillSchema),
+  tags: z.array(z.string()),
+  images: z.array(z.string()),
 });
 
 export type PositionDetail = z.infer<typeof PositionDetailSchema>;
