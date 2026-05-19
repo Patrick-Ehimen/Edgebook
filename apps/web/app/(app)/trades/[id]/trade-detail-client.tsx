@@ -5,6 +5,10 @@ import type { PositionDetail } from '@/features/positions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AlertTriangle, Brain, Check, ClipboardList, Paperclip,
+  Plus, NotebookPen, Star, Tag, Target, Trash2, X,
+} from 'lucide-react';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -677,7 +681,7 @@ function CloseTradeDialog({
             background: 'linear-gradient(135deg,#00d68f,#06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#06140f', fontWeight: 800, fontSize: 14,
-          }}>✓</div>
+          }}><Check size={14} /></div>
           <div>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
               Close trade — {position.symbol}
@@ -689,7 +693,7 @@ function CloseTradeDialog({
           <button
             type="button" onClick={onClose} aria-label="Close"
             style={{ marginLeft: 'auto', background: 'transparent', border: 0, color: 'var(--eb-muted)', cursor: 'pointer', padding: '4px 6px', borderRadius: 5, display: 'flex' }}
-          >✕</button>
+          ><X size={14} /></button>
         </div>
 
         {/* Body */}
@@ -882,7 +886,7 @@ function CloseTradeDialog({
               background: 'rgba(255,91,108,.06)', border: '1px solid rgba(255,91,108,.25)',
               fontSize: 12.5, color: 'var(--eb-red)', display: 'flex', alignItems: 'center', gap: 7,
             }}>
-              ⚠ {error}
+              <AlertTriangle size={13} /> {error}
             </div>
           )}
         </div>
@@ -963,8 +967,8 @@ function ConfirmDeletePopup({
             background: 'rgba(255,91,108,.14)',
             border: '1px solid rgba(255,91,108,.30)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 15,
-          }}>🗑</span>
+            color: 'var(--eb-red)',
+          }}><Trash2 size={15} /></span>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--eb-text)' }}>
             Delete trade
           </h3>
@@ -1031,27 +1035,6 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
   const updateMetrics = useUpdatePosition(accountId, position.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-
-  // Editable metrics state
-  const [rPlanned, setRPlanned] = useState(position.rPlanned ?? '');
-  const [rRealized, setRRealized] = useState(position.rRealized ?? '');
-  const [mfe, setMfe] = useState(position.mfe ?? '');
-  const [mae, setMae] = useState(position.mae ?? '');
-  const metricsDirty =
-    rPlanned !== (position.rPlanned ?? '') ||
-    rRealized !== (position.rRealized ?? '') ||
-    mfe !== (position.mfe ?? '') ||
-    mae !== (position.mae ?? '');
-
-  async function saveMetrics() {
-    const toVal = (s: string) => s.trim() || undefined;
-    await updateMetrics.mutateAsync({
-      rPlanned: toVal(rPlanned),
-      rRealized: toVal(rRealized),
-      mfe: toVal(mfe),
-      mae: toVal(mae),
-    });
-  }
 
   // Tags state
   const [tags, setTags] = useState<string[]>(position.tags ?? []);
@@ -1337,7 +1320,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                   fontWeight: 600,
                 }}
               >
-                ✓ Close trade
+                <Check size={13} /> Close trade
               </button>
             )}
             <button
@@ -1350,7 +1333,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 color: 'var(--eb-red)',
               }}
             >
-              🗑 Delete
+              <Trash2 size={13} /> Delete
             </button>
           </div>
         </div>
@@ -1445,7 +1428,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Pre-trade plan */}
           <div style={panel}>
             <PanelH3
-              left="📋 Pre-trade plan"
+              left={<><ClipboardList size={13} /> Pre-trade plan</>}
               right={<span style={chip}>Locked at open</span>}
             />
             <div
@@ -1508,7 +1491,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Attachments */}
           <div style={panel}>
             <PanelH3
-              left={`📎 Attachments${images.length > 0 ? ` · ${images.length} / ${MAX_IMAGES}` : ''}`}
+              left={<><Paperclip size={13} /> Attachments{images.length > 0 ? ` · ${images.length} / ${MAX_IMAGES}` : ''}</>}
               right={
                 images.length < MAX_IMAGES ? (
                   <span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>paste or drag</span>
@@ -1567,10 +1550,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                     style={{
                       position: 'absolute', top: 4, right: 4,
                       background: 'rgba(0,0,0,.55)', border: 0, borderRadius: 4,
-                      color: '#fff', cursor: 'pointer', padding: '2px 6px',
-                      fontSize: 10, lineHeight: 1,
+                      color: '#fff', cursor: 'pointer', padding: '3px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
-                  >✕</button>
+                  ><X size={10} /></button>
                 </div>
               ))}
 
@@ -1605,7 +1588,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                     fontFamily: 'inherit',
                   }}
                 >
-                  <span style={{ fontSize: 20, opacity: 0.45, lineHeight: 1 }}>＋</span>
+                  <Plus size={20} style={{ opacity: 0.45 }} />
                   <span style={{ fontSize: 11, lineHeight: 1.4 }}>
                     {images.length === 0 ? 'Drop screenshot or paste from clipboard' : 'Add image'}
                   </span>
@@ -1617,7 +1600,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Post-trade reflection */}
           <div style={panel}>
             <PanelH3
-              left="🪞 Post-trade reflection"
+              left={<><NotebookPen size={13} /> Post-trade reflection</>}
               right={
                 reflectionDirty ? (
                   <button
@@ -1782,79 +1765,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             </div>
           </div>
 
-          {/* R-multiples */}
-          <div style={panel}>
-            <PanelH3
-              left="📏 R-multiples"
-              right={
-                metricsDirty ? (
-                  <button
-                    type="button"
-                    onClick={saveMetrics}
-                    disabled={updateMetrics.isPending}
-                    style={{
-                      padding: '4px 12px', borderRadius: 7, fontSize: 11.5, fontWeight: 600,
-                      border: '1px solid #00b67a',
-                      background: updateMetrics.isPending ? 'rgba(0,214,143,.3)' : 'linear-gradient(180deg,#00d68f,#00b67a)',
-                      color: '#06140f', cursor: updateMetrics.isPending ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    {updateMetrics.isPending ? 'Saving…' : 'Save'}
-                  </button>
-                ) : (
-                  <span style={{ ...chip, fontSize: 11 }}>click to edit</span>
-                )
-              }
-            />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <label style={fieldLabel}>R-planned</label>
-                <input
-                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
-                  placeholder="e.g. 2.0"
-                  inputMode="decimal"
-                  value={rPlanned}
-                  onChange={(e) => setRPlanned(e.target.value)}
-                />
-              </div>
-              <div>
-                <label style={fieldLabel}>R-realized</label>
-                <input
-                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
-                  placeholder="e.g. 1.84"
-                  inputMode="decimal"
-                  value={rRealized}
-                  onChange={(e) => setRRealized(e.target.value)}
-                />
-              </div>
-              <div>
-                <label style={fieldLabel}>MFE</label>
-                <input
-                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
-                  placeholder="e.g. 2.31"
-                  inputMode="decimal"
-                  value={mfe}
-                  onChange={(e) => setMfe(e.target.value)}
-                />
-              </div>
-              <div>
-                <label style={fieldLabel}>MAE</label>
-                <input
-                  style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
-                  placeholder="e.g. -0.54"
-                  inputMode="decimal"
-                  value={mae}
-                  onChange={(e) => setMae(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Conviction & state */}
           <div style={panel}>
             <PanelH3
-              left="🧠 Conviction & state"
+              left={<><Brain size={13} /> Conviction & state</>}
               right={<span style={chip}>At open</span>}
             />
 
@@ -1864,16 +1778,16 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 {[1, 2, 3, 4, 5].map((i) => {
                   const filled = firstFill?.conviction != null && i <= firstFill.conviction;
                   return (
-                    <span
+                    <Star
                       key={i}
+                      size={17}
                       style={{
-                        fontSize: 17,
                         color: filled ? '#fbbf24' : 'var(--eb-border)',
-                        textShadow: filled ? '0 0 6px rgba(251,191,36,.35)' : 'none',
+                        fill: filled ? '#fbbf24' : 'none',
+                        filter: filled ? 'drop-shadow(0 0 3px rgba(251,191,36,.35))' : 'none',
+                        flexShrink: 0,
                       }}
-                    >
-                      ★
-                    </span>
+                    />
                   );
                 })}
                 {firstFill?.conviction != null ? (
@@ -1920,7 +1834,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Playbook */}
           <div style={panel}>
             <PanelH3
-              left="🎯 Playbook"
+              left={<><Target size={13} /> Playbook</>}
               right={
                 position.playbookId ? (
                   <span style={{ ...chip, cursor: 'pointer' }}>Open ↗</span>
@@ -1942,7 +1856,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Tags */}
           <div style={panel}>
             <PanelH3
-              left="🏷️ Tags"
+              left={<><Tag size={13} /> Tags</>}
               right={<span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>Enter to add</span>}
             />
             <div
@@ -1976,9 +1890,9 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                       style={{
                         background: 'none', border: 0, color: c.color,
                         cursor: 'pointer', padding: 0, lineHeight: 1,
-                        fontSize: 11, opacity: 0.7,
+                        opacity: 0.7, display: 'flex',
                       }}
-                    >✕</button>
+                    ><X size={10} /></button>
                   </span>
                 );
               })}
