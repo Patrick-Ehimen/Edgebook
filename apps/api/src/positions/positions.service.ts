@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { AccountForbiddenError, AccountNotFoundError } from '@edgebook/shared/accounts';
-import { type CreateFillInput, type FillSide, computePositions } from '@edgebook/shared/positions';
+import { type CreateFillInput, type FillSide, type UpdatePositionMetricsType, computePositions } from '@edgebook/shared/positions';
 import { QUEUE_RECOMPUTE, type RecomputeJobData } from '@edgebook/shared/queues';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -180,6 +180,72 @@ export class PositionsService {
     };
   }
 
+  async updatePositionMetrics(
+    userId: string,
+    accountId: string,
+    positionId: string,
+    input: UpdatePositionMetricsType,
+  ) {
+    await this.assertOwnership(userId, accountId);
+
+    const position = await this.prisma.position.findUnique({ where: { id: positionId } });
+    if (!position || position.accountId !== accountId) throw new AccountNotFoundError();
+
+    const updated = await this.prisma.position.update({
+      where: { id: positionId },
+      data: {
+        ...(input.rPlanned !== undefined && { rPlanned: input.rPlanned }),
+        ...(input.rRealized !== undefined && { rRealized: input.rRealized }),
+        ...(input.mfe !== undefined && { mfe: input.mfe }),
+        ...(input.mae !== undefined && { mae: input.mae }),
+        ...(input.wentRight !== undefined && { wentRight: input.wentRight }),
+        ...(input.wentWrong !== undefined && { wentWrong: input.wentWrong }),
+        ...(input.lesson !== undefined && { lesson: input.lesson }),
+        ...(input.planAdherence !== undefined && { planAdherence: input.planAdherence }),
+        ...(input.processScore !== undefined && { processScore: input.processScore }),
+        ...(input.outcomeScore !== undefined && { outcomeScore: input.outcomeScore }),
+      },
+    });
+
+    return this.toPositionShape(updated);
+  }
+
+  async deletePosition(userId: string, accountId: string, positionId: string) {
+    await this.assertOwnership(userId, accountId);
+
+    const position = await this.prisma.position.findUnique({
+      where: { id: positionId },
+      include: { positionFills: { select: { fillId: true } } },
+    });
+
+    if (!position || position.accountId !== accountId) {
+      throw new AccountNotFoundError();
+    }
+
+    const fillIds = position.positionFills.map((pf) => pf.fillId);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Remove join rows first so fills are no longer referenced (Restrict on Fill)
+        await tx.positionFill.deleteMany({ where: { positionId } });
+
+        // 2. Delete fills (now unreferenced)
+        if (fillIds.length > 0) {
+          await tx.fill.deleteMany({ where: { id: { in: fillIds } } });
+        }
+
+        // 3. Delete position (cascades PositionTag, PositionNote, ChecklistResponse)
+        await tx.position.delete({ where: { id: positionId } });
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        err instanceof Error ? err.message : 'Failed to delete position',
+      );
+    }
+
+    return { ok: true as const };
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private async assertOwnership(userId: string, accountId: string) {
@@ -256,6 +322,12 @@ export class PositionsService {
     rRealized: { toString(): string } | null;
     mfe: { toString(): string } | null;
     mae: { toString(): string } | null;
+    wentRight: string | null;
+    wentWrong: string | null;
+    lesson: string | null;
+    planAdherence: { toString(): string } | null;
+    processScore: { toString(): string } | null;
+    outcomeScore: { toString(): string } | null;
     playbookId: string | null;
     sourceHash: string;
   }) {
@@ -278,6 +350,12 @@ export class PositionsService {
       rRealized: pos.rRealized?.toString() ?? null,
       mfe: pos.mfe?.toString() ?? null,
       mae: pos.mae?.toString() ?? null,
+      wentRight: pos.wentRight,
+      wentWrong: pos.wentWrong,
+      lesson: pos.lesson,
+      planAdherence: pos.planAdherence?.toString() ?? null,
+      processScore: pos.processScore?.toString() ?? null,
+      outcomeScore: pos.outcomeScore?.toString() ?? null,
       playbookId: pos.playbookId,
       sourceHash: pos.sourceHash,
     };

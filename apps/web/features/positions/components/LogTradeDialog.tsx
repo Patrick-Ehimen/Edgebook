@@ -225,13 +225,6 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
     if (!entryTime) { setError('Entry time is required.'); return; }
     setError('');
     try {
-      const fullNotes = [
-        thesis.trim() ? `Thesis: ${thesis.trim()}` : '',
-        invalidation.trim() ? `Invalidation: ${invalidation.trim()}` : '',
-        notes.trim(),
-      ]
-        .filter(Boolean)
-        .join('\n\n');
       const body: CreateFillBody = {
         symbol: symbol.trim().toUpperCase(),
         side,
@@ -243,7 +236,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
         executedAt: new Date(entryTime.trim().replace(' ', 'T') + ':00Z').toISOString(),
         thesis: thesis.trim() || undefined,
         invalidation: invalidation.trim() || undefined,
-        notes: fullNotes || undefined,
+        notes: notes.trim() || undefined,
         sl: sl.trim() || undefined,
         tp: tp.trim() || undefined,
         conviction: conviction > 0 ? conviction : undefined,

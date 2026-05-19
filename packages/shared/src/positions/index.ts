@@ -1,6 +1,6 @@
 export { computePositions } from './fifo';
-export { CreateFillInput } from './schemas';
-export type { CreateFillInput as CreateFillInputType } from './schemas';
+export { CreateFillInput, UpdatePositionMetrics } from './schemas';
+export type { CreateFillInput as CreateFillInputType, UpdatePositionMetrics as UpdatePositionMetricsType } from './schemas';
 export type {
   ComputedPosition,
   FillRole,

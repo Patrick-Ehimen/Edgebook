@@ -48,6 +48,12 @@ export const PositionSchema = z.object({
   rRealized: z.string().nullable(),
   mfe: z.string().nullable(),
   mae: z.string().nullable(),
+  wentRight: z.string().nullable(),
+  wentWrong: z.string().nullable(),
+  lesson: z.string().nullable(),
+  planAdherence: z.string().nullable(),
+  processScore: z.string().nullable(),
+  outcomeScore: z.string().nullable(),
   playbookId: z.string().nullable(),
   sourceHash: z.string(),
 });

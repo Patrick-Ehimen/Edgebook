@@ -25,3 +25,17 @@ export const CreateFillInput = z.object({
   moods: z.array(z.string().max(50)).max(20).optional(),
 });
 export type CreateFillInput = z.infer<typeof CreateFillInput>;
+
+export const UpdatePositionMetrics = z.object({
+  rPlanned: decimalSigned('Planned R').optional(),
+  rRealized: decimalSigned('Realized R').optional(),
+  mfe: decimalSigned('MFE').optional(),
+  mae: decimalSigned('MAE').optional(),
+  wentRight: z.string().max(5000).optional(),
+  wentWrong: z.string().max(5000).optional(),
+  lesson: z.string().max(1000).optional(),
+  planAdherence: decimalPositive('Plan adherence').optional(),
+  processScore: decimalPositive('Process score').optional(),
+  outcomeScore: decimalPositive('Outcome score').optional(),
+});
+export type UpdatePositionMetrics = z.infer<typeof UpdatePositionMetrics>;

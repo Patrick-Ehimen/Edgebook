@@ -1,11 +1,13 @@
-import { CreateFillInput } from '@edgebook/shared/positions';
+import { CreateFillInput, UpdatePositionMetrics } from '@edgebook/shared/positions';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseFilters,
   UseGuards,
@@ -55,5 +57,26 @@ export class PositionsController {
     @CurrentUserId() userId: string,
   ) {
     return this.positionsService.getPosition(userId, accountId, positionId);
+  }
+
+  @Patch('positions/:positionId')
+  @HttpCode(HttpStatus.OK)
+  updatePositionMetrics(
+    @Param('accountId') accountId: string,
+    @Param('positionId') positionId: string,
+    @Body(new ZodValidationPipe(UpdatePositionMetrics)) body: UpdatePositionMetrics,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.positionsService.updatePositionMetrics(userId, accountId, positionId, body);
+  }
+
+  @Delete('positions/:positionId')
+  @HttpCode(HttpStatus.OK)
+  deletePosition(
+    @Param('accountId') accountId: string,
+    @Param('positionId') positionId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.positionsService.deletePosition(userId, accountId, positionId);
   }
 }

@@ -272,14 +272,20 @@ model Position {
   fees       Decimal        @db.Decimal(30, 10)
   funding    Decimal        @db.Decimal(30, 10)
   netPnl     Decimal        @db.Decimal(30, 10)
-  rPlanned   Decimal?       @db.Decimal(10, 4)
-  rRealized  Decimal?       @db.Decimal(10, 4)
-  mfe        Decimal?       @db.Decimal(10, 4)
-  mae        Decimal?       @db.Decimal(10, 4)
-  playbookId String?
-  conviction Int?
-  status     PositionStatus
-  sourceHash String
+  rPlanned      Decimal?       @db.Decimal(10, 4)
+  rRealized     Decimal?       @db.Decimal(10, 4)
+  mfe           Decimal?       @db.Decimal(10, 4)
+  mae           Decimal?       @db.Decimal(10, 4)
+  wentRight     String?
+  wentWrong     String?
+  lesson        String?
+  planAdherence Decimal?       @db.Decimal(5, 2)
+  processScore  Decimal?       @db.Decimal(4, 1)
+  outcomeScore  Decimal?       @db.Decimal(4, 1)
+  playbookId    String?
+  conviction    Int?
+  status        PositionStatus
+  sourceHash    String
 
   account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
   playbook           Playbook?           @relation(fields: [playbookId], references: [id], onDelete: SetNull)

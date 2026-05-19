@@ -5,10 +5,11 @@ import { usePositions } from '@/features/positions';
 import { useLogTrade } from '@/providers/log-trade-provider';
 import { FileUp, Link2, PenLine, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const POLL_INTERVAL = 3_000;
 const POLL_TIMEOUT = 90_000;
+const PAGE_SIZE = 50;
 
 function fmt(n: string | null | undefined, decimals = 2) {
   if (!n) return '—';
@@ -60,12 +61,24 @@ export default function TradesPage() {
   const logTrade = useLogTrade();
   const [accountId, setAccountId] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [page, setPage] = useState(0);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [csvOpen, setCsvOpen] = useState(false);
+
+  // Filters
+  const [filterSymbol, setFilterSymbol] = useState('');
+  const [filterSide, setFilterSide] = useState<'any' | 'long' | 'short'>('any');
+  const [filterStatus, setFilterStatus] = useState<'any' | 'open' | 'closed'>('any');
+  const [filterResult, setFilterResult] = useState<'any' | 'win' | 'loss'>('any');
+  const [filterDate, setFilterDate] = useState<'all' | '7d' | '30d' | '90d'>('all');
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerSync = useTriggerSync();
 
   const selectedId = accountId ?? accounts?.[0]?.id ?? null;
   const prevCountRef = useRef<number | null>(null);
+
+  // Reset to first page whenever account or filters change
+  useEffect(() => { setPage(0); }, [selectedId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
 
   const { data: positions, isLoading: loadingPositions } = usePositions(selectedId, {
     refetchInterval: polling ? POLL_INTERVAL : false,
@@ -107,9 +120,40 @@ export default function TradesPage() {
   const hasAccounts = (accounts?.length ?? 0) > 0;
   const loading = loadingAccounts || loadingPositions;
 
-  const pnlTotal = positions?.reduce((sum, p) => sum + Number.parseFloat(p.netPnl), 0) ?? 0;
-  const wins = positions?.filter((p) => Number.parseFloat(p.netPnl) > 0).length ?? 0;
-  const losses = positions?.filter((p) => Number.parseFloat(p.netPnl) < 0).length ?? 0;
+  const filtered = useMemo(() => {
+    let list = positions ?? [];
+    if (filterSymbol.trim()) {
+      const q = filterSymbol.trim().toUpperCase();
+      list = list.filter((p) => p.symbol.toUpperCase().includes(q));
+    }
+    if (filterSide !== 'any') list = list.filter((p) => p.side === filterSide);
+    if (filterStatus !== 'any') list = list.filter((p) => p.status === filterStatus);
+    if (filterResult !== 'any') {
+      list = list.filter((p) => {
+        if (p.status === 'open') return false;
+        const v = Number.parseFloat(p.netPnl);
+        return filterResult === 'win' ? v > 0 : v < 0;
+      });
+    }
+    if (filterDate !== 'all') {
+      const days = filterDate === '7d' ? 7 : filterDate === '30d' ? 30 : 90;
+      const cutoff = Date.now() - days * 86_400_000;
+      list = list.filter((p) => new Date(p.openedAt).getTime() >= cutoff);
+    }
+    return list;
+  }, [positions, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
+
+  const isFiltered = filterSymbol.trim() || filterSide !== 'any' || filterStatus !== 'any' || filterResult !== 'any' || filterDate !== 'all';
+
+  const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Summary stats reflect filtered results
+  const closed = filtered.filter((p) => p.status === 'closed');
+  const openCount = filtered.filter((p) => p.status === 'open').length;
+  const pnlTotal = closed.reduce((sum, p) => sum + Number.parseFloat(p.netPnl), 0);
+  const wins = closed.filter((p) => Number.parseFloat(p.netPnl) > 0).length;
+  const losses = closed.filter((p) => Number.parseFloat(p.netPnl) < 0).length;
 
   return (
     <div style={{ padding: '22px 26px 60px', maxWidth: 1400, width: '100%', alignSelf: 'center' }}>
@@ -122,6 +166,21 @@ export default function TradesPage() {
           Trade log
         </h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setCsvOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '6px 11px', borderRadius: 8,
+              border: '1px solid var(--eb-border)',
+              background: 'var(--eb-panel-2)',
+              color: 'var(--eb-muted-2)', fontSize: 12,
+              fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            <FileUp size={12} />
+            Import CSV
+          </button>
           {hasAccounts && (
             <select
               value={selectedId ?? ''}
@@ -182,6 +241,22 @@ export default function TradesPage() {
 
       {hasAccounts && (
         <>
+          {/* Filter bar */}
+          {positions && positions.length > 0 && (
+            <FilterBar
+              symbol={filterSymbol} onSymbol={setFilterSymbol}
+              side={filterSide} onSide={setFilterSide}
+              status={filterStatus} onStatus={setFilterStatus}
+              result={filterResult} onResult={setFilterResult}
+              date={filterDate} onDate={setFilterDate}
+              matchCount={filtered.length}
+              onClear={() => {
+                setFilterSymbol(''); setFilterSide('any');
+                setFilterStatus('any'); setFilterResult('any'); setFilterDate('all');
+              }}
+            />
+          )}
+
           {/* Summary strip */}
           {positions && positions.length > 0 && (
             <div
@@ -199,14 +274,22 @@ export default function TradesPage() {
               }}
             >
               <span>
-                <strong style={{ color: 'var(--eb-text)' }}>{positions.length}</strong> positions
+                <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong> trades
               </span>
+              <span style={{ color: 'var(--eb-border)' }}>·</span>
+              <span>
+                <strong style={{ color: 'var(--green)' }}>{closed.length}</strong> closed
+              </span>
+              <span>
+                <strong style={{ color: openCount > 0 ? '#a78bfa' : 'var(--eb-muted)' }}>{openCount}</strong> open
+              </span>
+              <span style={{ color: 'var(--eb-border)' }}>·</span>
               <span>
                 <strong style={{ color: 'var(--green)' }}>{wins}W</strong>
                 {' / '}
                 <strong style={{ color: 'var(--eb-red)' }}>{losses}L</strong>
               </span>
-              {positions.length > 0 && wins + losses > 0 && (
+              {filtered.length > 0 && wins + losses > 0 && (
                 <span>
                   Win rate{' '}
                   <strong style={{ color: 'var(--eb-text)' }}>
@@ -236,18 +319,22 @@ export default function TradesPage() {
               </div>
             ) : !positions || positions.length === 0 ? (
               <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
+                No trades match the current filters.
+              </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'Net P&L', 'Funding', 'Hold', 'Status'].map((h) => (
+                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Funding', 'Hold', 'Playbook', 'Rules', 'Status'].map((h) => (
                         <th key={h} style={thStyle}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {positions.map((pos) => {
+                    {paginated.map((pos) => {
                       const pnl = fmtPnl(pos.netPnl);
                       return (
                         <tr
@@ -276,14 +363,44 @@ export default function TradesPage() {
                           <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>
                             {fmt(pos.avgExit)}
                           </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: pnl.color }}>
-                            {pnl.text}
+                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: (() => { const v = Number.parseFloat(pos.rRealized ?? ''); return pos.rRealized && !Number.isNaN(v) ? (v >= 0 ? 'var(--green)' : 'var(--eb-red)') : 'var(--eb-muted)'; })() }}>
+                            {pos.rRealized && !Number.isNaN(Number.parseFloat(pos.rRealized))
+                              ? `${Number.parseFloat(pos.rRealized) >= 0 ? '+' : ''}${Number.parseFloat(pos.rRealized).toFixed(2)}R`
+                              : '—'}
+                          </td>
+                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: pos.mfe ? 'var(--green)' : 'var(--eb-muted)' }}>
+                            {pos.mfe && !Number.isNaN(Number.parseFloat(pos.mfe))
+                              ? `+${Number.parseFloat(pos.mfe).toFixed(2)}R`
+                              : '—'}
+                          </td>
+                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: pos.status === 'open' ? 'var(--eb-muted)' : pnl.color }}>
+                            {pos.status === 'open' ? '—' : pnl.text}
                           </td>
                           <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>
                             {fmt(pos.funding)}
                           </td>
                           <td style={{ ...tdStyle, color: 'var(--eb-muted)' }}>
                             {holdTime(pos.openedAt, pos.closedAt)}
+                          </td>
+                          <td style={{ ...tdStyle, maxWidth: 130 }}>
+                            {pos.playbookId ? (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center',
+                                fontSize: 11, padding: '2px 8px', borderRadius: 99,
+                                color: '#a78bfa',
+                                background: 'rgba(139,92,246,.10)',
+                                border: '1px solid rgba(139,92,246,.25)',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}>
+                                {pos.playbookId.slice(0, 10)}…
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ ...tdStyle, color: 'var(--eb-muted)', fontSize: 12 }}>
+                            —
                           </td>
                           <td style={tdStyle}>
                             <span
@@ -309,11 +426,380 @@ export default function TradesPage() {
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {pageCount > 1 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: 12,
+              padding: '8px 4px',
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
+                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of{' '}
+                <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong>
+                {isFiltered && <span style={{ color: 'var(--eb-muted)' }}> (filtered)</span>} trades
+              </span>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <PageBtn onClick={() => setPage(0)} disabled={page === 0} label="«" />
+                <PageBtn onClick={() => setPage((p) => p - 1)} disabled={page === 0} label="‹ Prev" />
+                {Array.from({ length: pageCount }, (_, i) => i)
+                  .filter((i) => Math.abs(i - page) <= 2)
+                  .map((i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPage(i)}
+                      style={{
+                        minWidth: 32, height: 30, borderRadius: 7,
+                        border: `1px solid ${i === page ? 'rgba(0,214,143,.5)' : 'var(--eb-border)'}`,
+                        background: i === page ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
+                        color: i === page ? 'var(--green)' : 'var(--eb-muted-2)',
+                        fontSize: 12, fontWeight: i === page ? 600 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                <PageBtn onClick={() => setPage((p) => p + 1)} disabled={page === pageCount - 1} label="Next ›" />
+                <PageBtn onClick={() => setPage(pageCount - 1)} disabled={page === pageCount - 1} label="»" />
+              </div>
+            </div>
+          )}
         </>
       )}
 
       <AddAccountDialog open={connectOpen} onOpenChange={setConnectOpen} />
+      {csvOpen && <CsvImportDialog onClose={() => setCsvOpen(false)} />}
     </div>
+  );
+}
+
+// ─── CSV Import Dialog ────────────────────────────────────────────────────────
+
+function CsvImportDialog({ onClose }: { onClose: () => void }) {
+  const [dragOver, setDragOver] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
+  function handleFile(f: File) {
+    if (f.name.endsWith('.csv') || f.type === 'text/csv') setFile(f);
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(4,7,12,.62)', backdropFilter: 'blur(5px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 100,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        width: 480, background: 'var(--eb-panel)',
+        border: '1px solid var(--eb-border)', borderRadius: 14,
+        boxShadow: '0 24px 60px rgba(0,0,0,.5)', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '14px 18px', borderBottom: '1px solid var(--eb-border)',
+          background: 'linear-gradient(180deg,var(--eb-panel-2),var(--eb-panel))',
+        }}>
+          <span style={{
+            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+            background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14,
+          }}>
+            <FileUp size={14} style={{ color: 'var(--eb-muted)' }} />
+          </span>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Import CSV</h2>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--eb-muted)' }}>
+              Binance, Bybit, or generic trade history export
+            </p>
+          </div>
+          <button
+            type="button" onClick={onClose} aria-label="Close"
+            style={{ marginLeft: 'auto', background: 'transparent', border: 0, color: 'var(--eb-muted)', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex' }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20 }}>
+          {/* Drop zone */}
+          <label
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 8,
+              border: `2px dashed ${dragOver ? 'var(--green)' : file ? 'rgba(0,214,143,.5)' : 'var(--eb-border)'}`,
+              borderRadius: 10, padding: '32px 20px', cursor: 'pointer',
+              background: dragOver ? 'rgba(0,214,143,.06)' : file ? 'rgba(0,214,143,.03)' : 'var(--eb-panel-2)',
+              transition: 'border-color .15s, background .15s',
+            }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault(); setDragOver(false);
+              const f = e.dataTransfer.files[0];
+              if (f) handleFile(f);
+            }}
+          >
+            {file ? (
+              <>
+                <span style={{ fontSize: 28 }}>📄</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>{file.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
+                  {(file.size / 1024).toFixed(1)} KB · Click to replace
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 28 }}>⤓</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--eb-muted-2)' }}>
+                  Drop your CSV here, or <span style={{ color: 'var(--green)', textDecoration: 'underline' }}>browse</span>
+                </span>
+                <span style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                  .csv files only · Binance, Bybit, and generic formats
+                </span>
+              </>
+            )}
+            <input
+              type="file" accept=".csv,text/csv" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+          </label>
+
+          {/* Format guide */}
+          <div style={{ marginTop: 14 }}>
+            <p style={{ fontSize: 11, color: 'var(--eb-muted)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600 }}>
+              Expected columns (generic format)
+            </p>
+            <div style={{
+              fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
+              color: 'var(--eb-muted-2)', background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)', borderRadius: 7,
+              padding: '8px 12px', lineHeight: 1.7,
+            }}>
+              symbol, side, qty, price, fee, fee_ccy, executed_at
+            </div>
+          </div>
+
+          {/* Coming soon notice */}
+          <div style={{
+            marginTop: 14, padding: '10px 12px', borderRadius: 8,
+            background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.2)',
+            fontSize: 12, color: '#a78bfa', display: 'flex', gap: 8, alignItems: 'flex-start',
+          }}>
+            <span style={{ flexShrink: 0 }}>🚧</span>
+            <span>CSV parsing is coming soon. You can select your file now — import will be enabled in the next release.</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '12px 18px', borderTop: '1px solid var(--eb-border)',
+          background: 'var(--eb-panel-2)',
+        }}>
+          <button
+            type="button" onClick={onClose}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--eb-border)', background: 'transparent', color: 'var(--eb-muted-2)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button" disabled
+            style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(0,182,122,.4)', background: 'rgba(0,214,143,.12)', color: 'rgba(0,214,143,.5)', fontSize: 12.5, fontWeight: 600, cursor: 'not-allowed', fontFamily: 'inherit' }}
+          >
+            Import trades
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Filter bar ───────────────────────────────────────────────────────────────
+
+type Side = 'any' | 'long' | 'short';
+type StatusF = 'any' | 'open' | 'closed';
+type ResultF = 'any' | 'win' | 'loss';
+type DateF = 'all' | '7d' | '30d' | '90d';
+
+const SIDE_OPTS: { value: Side; label: string }[] = [
+  { value: 'any', label: 'Side: any' },
+  { value: 'long', label: 'Side: Long' },
+  { value: 'short', label: 'Side: Short' },
+];
+const STATUS_OPTS: { value: StatusF; label: string }[] = [
+  { value: 'any', label: 'Status: any' },
+  { value: 'open', label: 'Status: open' },
+  { value: 'closed', label: 'Status: closed' },
+];
+const RESULT_OPTS: { value: ResultF; label: string }[] = [
+  { value: 'any', label: 'Win/Loss: any' },
+  { value: 'win', label: 'Win/Loss: wins' },
+  { value: 'loss', label: 'Win/Loss: losses' },
+];
+const DATE_OPTS: { value: DateF; label: string }[] = [
+  { value: 'all', label: 'Date: all time' },
+  { value: '7d', label: 'Date: last 7D' },
+  { value: '30d', label: 'Date: last 30D' },
+  { value: '90d', label: 'Date: last 90D' },
+];
+
+function cycle<T>(opts: { value: T }[], current: T): T {
+  const idx = opts.findIndex((o) => o.value === current);
+  const next = opts[(idx + 1) % opts.length];
+  return next ? next.value : opts[0]?.value ?? current;
+}
+
+function FilterChip<T extends string>({
+  opts,
+  value,
+  onChange,
+  activeColor,
+}: {
+  opts: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  activeColor?: string | undefined;
+}) {
+  const label = opts.find((o) => o.value === value)?.label ?? '';
+  const isActive = value !== opts[0]?.value;
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(cycle(opts, value))}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '5px 11px', borderRadius: 99, cursor: 'pointer',
+        fontFamily: 'inherit', fontSize: 12, whiteSpace: 'nowrap',
+        border: `1px solid ${isActive ? (activeColor ?? 'rgba(0,214,143,.45)') : 'var(--eb-border)'}`,
+        background: isActive ? (activeColor ? `${activeColor}18` : 'rgba(0,214,143,.09)') : 'var(--eb-panel-2)',
+        color: isActive ? (activeColor ?? 'var(--green)') : 'var(--eb-muted-2)',
+        fontWeight: isActive ? 600 : 400,
+        transition: 'background .12s, border-color .12s, color .12s',
+      }}
+    >
+      {label} {isActive ? '✕' : '▾'}
+    </button>
+  );
+}
+
+function FilterBar({
+  symbol, onSymbol,
+  side, onSide,
+  status, onStatus,
+  result, onResult,
+  date, onDate,
+  matchCount,
+  onClear,
+}: {
+  symbol: string; onSymbol: (v: string) => void;
+  side: Side; onSide: (v: Side) => void;
+  status: StatusF; onStatus: (v: StatusF) => void;
+  result: ResultF; onResult: (v: ResultF) => void;
+  date: DateF; onDate: (v: DateF) => void;
+  matchCount: number;
+  onClear: () => void;
+}) {
+  const anyActive = symbol.trim() || side !== 'any' || status !== 'any' || result !== 'any' || date !== 'all';
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+      gap: 6, marginBottom: 10,
+    }}>
+      {/* Symbol search */}
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '5px 11px', borderRadius: 99,
+        border: `1px solid ${symbol.trim() ? 'rgba(0,214,143,.45)' : 'var(--eb-border)'}`,
+        background: symbol.trim() ? 'rgba(0,214,143,.09)' : 'var(--eb-panel-2)',
+        minWidth: 130,
+      }}>
+        <span style={{ fontSize: 11, color: 'var(--eb-muted)', flexShrink: 0 }}>Symbol:</span>
+        <input
+          value={symbol}
+          onChange={(e) => onSymbol(e.target.value)}
+          placeholder="any"
+          style={{
+            background: 'transparent', border: 0, outline: 0,
+            color: symbol.trim() ? 'var(--green)' : 'var(--eb-muted-2)',
+            fontSize: 12, fontFamily: 'inherit', fontWeight: symbol.trim() ? 600 : 400,
+            width: 72,
+          }}
+        />
+        {symbol.trim() && (
+          <button
+            type="button"
+            onClick={() => onSymbol('')}
+            style={{ background: 'none', border: 0, color: 'var(--green)', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 11 }}
+          >✕</button>
+        )}
+      </div>
+
+      <FilterChip opts={SIDE_OPTS} value={side} onChange={onSide}
+        activeColor={side === 'long' ? 'var(--green)' : side === 'short' ? 'var(--eb-red)' : undefined}
+      />
+      <FilterChip opts={STATUS_OPTS} value={status} onChange={onStatus}
+        activeColor="rgba(139,92,246,1)"
+      />
+      <FilterChip opts={RESULT_OPTS} value={result} onChange={onResult}
+        activeColor={result === 'win' ? 'var(--green)' : result === 'loss' ? 'var(--eb-red)' : undefined}
+      />
+      <FilterChip opts={DATE_OPTS} value={date} onChange={onDate}
+        activeColor="#a78bfa"
+      />
+
+      {anyActive && (
+        <button
+          type="button"
+          onClick={onClear}
+          style={{
+            padding: '5px 11px', borderRadius: 99, cursor: 'pointer',
+            border: '1px solid var(--eb-border)', background: 'transparent',
+            color: 'var(--eb-muted)', fontSize: 12, fontFamily: 'inherit',
+          }}
+        >
+          Clear filters
+        </button>
+      )}
+
+      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--eb-muted)' }}>
+        <strong style={{ color: 'var(--eb-text)' }}>{matchCount}</strong> trade{matchCount !== 1 ? 's' : ''}
+        {anyActive ? ' matched' : ''}
+      </span>
+    </div>
+  );
+}
+
+// ─── Pagination button ────────────────────────────────────────────────────────
+
+function PageBtn({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: '0 10px', height: 30, borderRadius: 7,
+        border: '1px solid var(--eb-border)',
+        background: 'var(--eb-panel-2)',
+        color: disabled ? 'var(--eb-border)' : 'var(--eb-muted-2)',
+        fontSize: 12, cursor: disabled ? 'default' : 'pointer',
+        fontFamily: 'inherit',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

@@ -1,9 +1,23 @@
 import { api } from '@/lib/api-client';
 import { z } from 'zod';
-import { PositionDetailSchema, PositionListResponse } from './schemas';
+import { PositionDetailSchema, PositionListResponse, PositionSchema } from './schemas';
 
 const FillResponse = z.object({ id: z.string() }).passthrough();
 const RecomputeResponse = z.object({ positionCount: z.number() });
+const DeleteResponse = z.object({ ok: z.literal(true) });
+
+export interface UpdatePositionMetricsBody {
+  rPlanned?: string | undefined;
+  rRealized?: string | undefined;
+  mfe?: string | undefined;
+  mae?: string | undefined;
+  wentRight?: string | undefined;
+  wentWrong?: string | undefined;
+  lesson?: string | undefined;
+  planAdherence?: string | undefined;
+  processScore?: string | undefined;
+  outcomeScore?: string | undefined;
+}
 
 export interface CreateFillBody {
   symbol: string;
@@ -35,4 +49,10 @@ export const positionsApi = {
 
   recompute: (accountId: string) =>
     api.post(`/accounts/${accountId}/recompute`, RecomputeResponse, {}),
+
+  updateMetrics: (accountId: string, positionId: string, body: UpdatePositionMetricsBody) =>
+    api.patch(`/accounts/${accountId}/positions/${positionId}`, PositionSchema, body),
+
+  deletePosition: (accountId: string, positionId: string) =>
+    api.delete(`/accounts/${accountId}/positions/${positionId}`, DeleteResponse),
 };
