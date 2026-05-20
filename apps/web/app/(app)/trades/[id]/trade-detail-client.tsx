@@ -5,6 +5,7 @@ import type { PositionDetail } from '@/features/positions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle, Brain, Check, ClipboardList, Paperclip,
   Plus, NotebookPen, Star, Tag, Target, Trash2, X,
@@ -529,6 +530,7 @@ function CloseTradeDialog({
 }) {
   const logFill = useLogFill(accountId);
   const router = useRouter();
+  const qc = useQueryClient();
 
   const defaultQty = openQty(position);
   const exitSide = position.side === 'long' ? 'sell' : 'buy';
@@ -629,6 +631,7 @@ function CloseTradeDialog({
         }
       }
 
+      qc.removeQueries({ queryKey: ['position', accountId, position.id] });
       router.push(`/trades?account=${accountId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');

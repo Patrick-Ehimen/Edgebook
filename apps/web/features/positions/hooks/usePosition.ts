@@ -6,5 +6,6 @@ export function usePosition(accountId: string | null, positionId: string | null)
     queryKey: ['position', accountId, positionId],
     queryFn: () => positionsApi.getById(accountId!, positionId!),
     enabled: !!accountId && !!positionId,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
