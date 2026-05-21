@@ -21,19 +21,11 @@ function isProtected(pathname: string) {
   return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionCookie = req.cookies.get(SESSION_COOKIE);
   const hasSession = !!sessionCookie;
 
-  // Simple check for onboarding status from cookie if possible, 
-  // but usually we might need a more robust way.
-  // For now, let's assume we might store a small flag in another cookie 
-  // or just handle it carefully.
-  // Actually, without parsing the session (which is usually a JWT or similar), 
-  // middleware can't know `isOnboarded` easily unless it's in a separate cookie.
-  
-  // Let's check if we have an 'eb_onboarded' cookie.
   const isOnboarded = req.cookies.get("eb_onboarded")?.value === "true";
 
   if (isProtected(pathname) && !hasSession) {
