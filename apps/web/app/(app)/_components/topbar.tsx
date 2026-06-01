@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useLogTrade } from '@/providers/log-trade-provider';
+import { SearchPalette } from './SearchPalette';
 import {
   Bell,
   Calendar,
@@ -342,9 +343,21 @@ function DateRangeFilter() {
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const logTrade = useLogTrade();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const toggleTheme = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
 
@@ -364,7 +377,9 @@ export default function Topbar() {
       className="dark:bg-[rgba(10,14,20,.7)] bg-[rgba(246,248,251,.85)]"
     >
       {/* Search */}
-      <div
+      <button
+        type="button"
+        onClick={() => setPaletteOpen(true)}
         style={{
           flex: 1,
           maxWidth: 480,
@@ -376,21 +391,15 @@ export default function Topbar() {
           padding: '6px 10px',
           borderRadius: 8,
           color: 'var(--eb-muted)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          textAlign: 'left',
         }}
       >
         <Search size={13} style={{ flexShrink: 0 }} />
-        <input
-          placeholder="Search trades, notes, playbooks…"
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 0,
-            outline: 'none',
-            color: 'var(--eb-text)',
-            fontSize: 13,
-            fontFamily: 'inherit',
-          }}
-        />
+        <span style={{ flex: 1, fontSize: 13, color: 'var(--eb-muted)' }}>
+          Search trades, notes, playbooks…
+        </span>
         <kbd
           style={{
             fontSize: 11,
@@ -404,7 +413,8 @@ export default function Topbar() {
         >
           ⌘ K
         </kbd>
-      </div>
+      </button>
+      <SearchPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* Account selector */}
       <AccountSelector />

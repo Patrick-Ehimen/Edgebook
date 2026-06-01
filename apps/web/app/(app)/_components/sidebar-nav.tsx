@@ -1,13 +1,18 @@
 'use client';
 
-import { useAuth } from '@/providers/auth-provider';
+import { useAccounts } from '@/features/accounts';
 import { useSignOut } from '@/features/auth';
+import { usePositions } from '@/features/positions';
+import { useAuth } from '@/providers/auth-provider';
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpen,
   Brain,
   CalendarDays,
   ChevronUp,
+  ClipboardList,
+  DollarSign,
+  FlaskConical,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -16,6 +21,7 @@ import {
   ShieldCheck,
   Target,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -28,6 +34,13 @@ const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/calendar', Icon: CalendarDays, label: 'Calendar' },
   { href: '/mind-lab', Icon: Brain, label: 'Mind Lab' },
   { href: '/playbooks', Icon: Target, label: 'Playbook' },
+];
+
+const PROP: { href: string; Icon: LucideIcon; label: string }[] = [
+  { href: '/prop/accounts', Icon: Users, label: 'Prop accounts' },
+  { href: '/prop/rules', Icon: ClipboardList, label: 'Rule library' },
+  { href: '/prop/backtest', Icon: FlaskConical, label: 'Backtest' },
+  { href: '/prop/payouts', Icon: DollarSign, label: 'Payouts' },
 ];
 
 const COACHING: {
@@ -54,6 +67,9 @@ export default function SidebarNav() {
   const pathname = usePathname();
   const { session } = useAuth();
   const signOut = useSignOut();
+  const { data: accounts } = useAccounts();
+  const { data: positions } = usePositions(accounts?.[0]?.id ?? null);
+  const tradeCount = positions?.length ?? 0;
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -156,6 +172,13 @@ export default function SidebarNav() {
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
             <Icon size={14} style={{ flexShrink: 0 }} />
             <span>{label}</span>
+            {href === '/trades' &&
+              tradeCount > 0 &&
+              pill(
+                tradeCount > 999 ? '999+' : String(tradeCount),
+                'var(--eb-panel-2)',
+                'var(--eb-muted-2)',
+              )}
           </Link>
         ))}
       </nav>
@@ -179,6 +202,17 @@ export default function SidebarNav() {
           />
           <span>+ Connect account</span>
         </Link>
+      </nav>
+
+      {/* Prop trading nav */}
+      <div style={sectionLabel}>Prop trading</div>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {PROP.map(({ href, Icon, label }) => (
+          <Link key={href} href={href} style={linkStyle(isActive(href))}>
+            <Icon size={14} style={{ flexShrink: 0 }} />
+            <span>{label}</span>
+          </Link>
+        ))}
       </nav>
 
       {/* Coaching nav */}
