@@ -3,7 +3,8 @@
 import { AddAccountDialog, useAccounts, useTriggerSync } from '@/features/accounts';
 import { usePositions } from '@/features/positions';
 import { useLogTrade } from '@/providers/log-trade-provider';
-import { FileUp, Link2, PenLine, RefreshCw } from 'lucide-react';
+import { TradeCalendar } from '../_components/TradeCalendar';
+import { CalendarDays, FileUp, LayoutList, Link2, PenLine, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -66,6 +67,7 @@ export default function TradesPage() {
   const [page, setPage] = useState(0);
   const [connectOpen, setConnectOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [view, setView] = useState<'list' | 'calendar'>('list');
 
   // Filters
   const [filterSymbol, setFilterSymbol] = useState('');
@@ -245,24 +247,60 @@ export default function TradesPage() {
 
       {!loading && hasAccounts && (
         <>
-          {/* Filter bar */}
+          {/* Filter bar + view toggle */}
           {positions && positions.length > 0 && (
-            <FilterBar
-              symbol={filterSymbol} onSymbol={setFilterSymbol}
-              side={filterSide} onSide={setFilterSide}
-              status={filterStatus} onStatus={setFilterStatus}
-              result={filterResult} onResult={setFilterResult}
-              date={filterDate} onDate={setFilterDate}
-              matchCount={filtered.length}
-              onClear={() => {
-                setFilterSymbol(''); setFilterSide('any');
-                setFilterStatus('any'); setFilterResult('any'); setFilterDate('all');
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0, visibility: view === 'calendar' ? 'hidden' : 'visible' }}>
+                <FilterBar
+                  symbol={filterSymbol} onSymbol={setFilterSymbol}
+                  side={filterSide} onSide={setFilterSide}
+                  status={filterStatus} onStatus={setFilterStatus}
+                  result={filterResult} onResult={setFilterResult}
+                  date={filterDate} onDate={setFilterDate}
+                  matchCount={filtered.length}
+                  onClear={() => {
+                    setFilterSymbol(''); setFilterSide('any');
+                    setFilterStatus('any'); setFilterResult('any'); setFilterDate('all');
+                  }}
+                />
+              </div>
+              <div style={{
+                display: 'flex', padding: 3, gap: 2,
+                background: 'var(--eb-panel)', border: '1px solid var(--eb-border)',
+                borderRadius: 8, flexShrink: 0,
+              }}>
+                {(['list', 'calendar'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    title={v === 'list' ? 'List view' : 'Calendar view'}
+                    onClick={() => setView(v)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '5px 8px', borderRadius: 6, cursor: 'pointer',
+                      border: `1px solid ${view === v ? 'var(--eb-border)' : 'transparent'}`,
+                      background: view === v ? 'var(--eb-panel-2)' : 'transparent',
+                      color: view === v ? 'var(--eb-text)' : 'var(--eb-muted)',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {v === 'list' ? <LayoutList size={13} /> : <CalendarDays size={13} />}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
-          {/* Summary strip */}
-          {positions && positions.length > 0 && (
+          {/* Calendar view */}
+          {positions && positions.length > 0 && view === 'calendar' && (
+            <TradeCalendar positions={filtered} />
+          )}
+
+          {/* List view — also shown when no positions (empty state) */}
+          {(view === 'list' || !positions || positions.length === 0) && (
+            <>
+              {/* Summary strip */}
+              {positions && positions.length > 0 && (
             <div
               style={{
                 display: 'flex',
@@ -467,6 +505,8 @@ export default function TradesPage() {
                 <PageBtn onClick={() => setPage(pageCount - 1)} disabled={page === pageCount - 1} label="»" />
               </div>
             </div>
+          )}
+            </>
           )}
         </>
       )}
