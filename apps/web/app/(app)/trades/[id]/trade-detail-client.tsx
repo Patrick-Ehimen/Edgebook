@@ -39,8 +39,10 @@ function fmtR(n: string | null | undefined): string {
 function holdTime(openedAt: string, closedAt: string | null): string {
   if (!closedAt) return 'open';
   const ms = new Date(closedAt).getTime() - new Date(openedAt).getTime();
-  const h = Math.floor(ms / 3_600_000);
+  const d = Math.floor(ms / 86_400_000);
+  const h = Math.floor((ms % 86_400_000) / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 

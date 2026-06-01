@@ -30,8 +30,10 @@ function fmtPnl(n: string | null | undefined) {
 function holdTime(openedAt: string, closedAt: string | null) {
   if (!closedAt) return 'open';
   const ms = new Date(closedAt).getTime() - new Date(openedAt).getTime();
-  const h = Math.floor(ms / 3600000);
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -235,13 +237,13 @@ export default function TradesPage() {
         </div>
       </div>
 
-      {!hasAccounts && !loadingAccounts && (
+      {loading && <TradesPageSkeleton />}
+
+      {!loading && !hasAccounts && (
         <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
       )}
 
-      {hasAccounts && loading && <TradesPageSkeleton />}
-
-      {hasAccounts && !loading && (
+      {!loading && hasAccounts && (
         <>
           {/* Filter bar */}
           {positions && positions.length > 0 && (
@@ -541,7 +543,7 @@ function TradesPageSkeleton() {
           ))}
         </div>
         {/* Data rows */}
-        {Array.from({ length: 8 }, (_, row) => (
+        {Array.from({ length: 15 }, (_, row) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
           <div key={row} style={{
             display: 'flex',
