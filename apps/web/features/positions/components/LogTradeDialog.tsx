@@ -1,6 +1,7 @@
 'use client';
 
 import { useAccounts } from '@/features/accounts';
+import { usePlaybooks } from '@/features/playbooks';
 import { positionsApi, type CreateFillBody, useLogFill } from '@/features/positions';
 import { AlertCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

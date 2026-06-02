@@ -227,6 +227,23 @@ export default function SidebarNav() {
         ))}
       </nav>
 
+      {/* Journal streak — only on /journal */}
+      {pathname.startsWith('/journal') && (
+        <>
+          <div style={sectionLabel}>Streak</div>
+          <div style={{ padding: '2px 6px 6px', fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'var(--eb-muted)' }}>Journal streak</span>
+              <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>12 days</b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5 }}>
+              <span style={{ color: 'var(--eb-muted)' }}>Discipline avg</span>
+              <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>84/100</b>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Profile card at bottom */}
       <div style={{ marginTop: 'auto', paddingTop: 8 }}>
         <div
