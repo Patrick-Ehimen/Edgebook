@@ -28,6 +28,7 @@ export const PlaybookSchema = z.object({
   status: PlaybookStatusSchema,
   criteriaJson: z.record(z.unknown()),
   sampleChartUrl: z.string().nullable(),
+  images: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   checklists: z.array(ChecklistSchema),
@@ -37,3 +38,6 @@ export const PlaybookSchema = z.object({
 export type Playbook = z.infer<typeof PlaybookSchema>;
 
 export const PlaybookListResponse = z.array(PlaybookSchema);
+
+export const ImagesResponse = z.object({ images: z.array(z.string()) });
+export type ImagesResponse = z.infer<typeof ImagesResponse>;

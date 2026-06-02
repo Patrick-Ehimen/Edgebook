@@ -1,4 +1,4 @@
-import type { CreatePlaybook, UpdateChecklist, UpdatePlaybook } from '@edgebook/shared';
+import type { CreatePlaybook, UpdateChecklist, UpdatePlaybook, UpdatePlaybookImages } from '@edgebook/shared';
 import {
   ForbiddenException,
   Injectable,
@@ -43,6 +43,7 @@ export class PlaybooksService {
         status: input.status ?? 'experimental',
         criteriaJson: input.criteriaJson ?? {},
         sampleChartUrl: input.sampleChartUrl ?? null,
+        images: input.images ?? [],
         checklists:
           input.checklistItems && input.checklistItems.length > 0
             ? { create: { itemsJson: input.checklistItems } }
@@ -96,6 +97,16 @@ export class PlaybooksService {
       where: { id: checklistId },
       data: { itemsJson: input.items },
     });
+  }
+
+  async updateImages(userId: string, playbookId: string, images: string[]) {
+    await this.assertOwnership(userId, playbookId);
+    const updated = await this.prisma.playbook.update({
+      where: { id: playbookId },
+      data: { images },
+      select: { images: true },
+    });
+    return updated;
   }
 
   async createChecklist(userId: string, playbookId: string, input: UpdateChecklist) {

@@ -4,11 +4,13 @@ import { DeleteConfirmDialog } from '@/features/playbooks/components/DeleteConfi
 import { PlaybookFormDialog } from '@/features/playbooks/components/PlaybookFormDialog';
 import { useDeletePlaybook } from '@/features/playbooks/hooks/useDeletePlaybook';
 import { usePlaybook } from '@/features/playbooks/hooks/usePlaybook';
+import { useUpdatePlaybookImages } from '@/features/playbooks/hooks/useUpdatePlaybookImages';
 import {
   ArrowLeft,
   BookOpen,
   CheckSquare,
   Clock,
+  Paperclip,
   Pencil,
   Sparkles,
   Target,
@@ -103,9 +105,11 @@ function Skeleton() {
 export function PlaybookDetailClient({ id }: { id: string }) {
   const { data: playbook, isLoading, isError } = usePlaybook(id);
   const deletePlaybook = useDeletePlaybook();
+  const updateImages = useUpdatePlaybookImages(id);
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   if (isLoading) return <Skeleton />;
 
@@ -120,12 +124,49 @@ export function PlaybookDetailClient({ id }: { id: string }) {
     );
   }
 
+  const STATUS_STYLE: Record<string, React.CSSProperties> = {
+    active:       { color: 'var(--green)', borderColor: 'rgba(0,214,143,.30)', background: 'rgba(0,214,143,.08)' },
+    experimental: { color: '#f5a524',      borderColor: 'rgba(245,165,36,.30)', background: 'rgba(245,165,36,.08)' },
+    paused:       { color: '#ff5b6c',      borderColor: 'rgba(255,91,108,.30)', background: 'rgba(255,91,108,.08)' },
+  };
+  const statusStyle = STATUS_STYLE[playbook.status] ?? STATUS_STYLE.active;
+
   const criteria = playbook.criteriaJson as Record<string, string | string[]>;
   const checklist = playbook.checklists[0]?.itemsJson ?? [];
   const sessions = (criteria.sessions as string[] | undefined)?.join(' · ') ?? '—';
   const timeframes = (criteria.timeframes as string[] | undefined)?.join(' · ') ?? '—';
+  const symbols = (criteria.symbols as string[] | undefined) ?? [];
+  const tags = (criteria.tags as string[] | undefined) ?? [];
   const riskPct = criteria.riskPct as string | undefined;
   const minRR = criteria.minRR as string | undefined;
+
+  const TAG_ACCENTS = ['#00d68f', '#06b6d4', '#818cf8', '#f5a524', '#fb923c', '#e879f9', '#ff5b6c', '#34d399'];
+
+  const playbookImages = (playbook.images ?? []) as string[];
+
+  const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 10 - playbookImages.length;
+    const toProcess = files.slice(0, remaining);
+    Promise.all(
+      toProcess.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Read failed'));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then((results) => {
+      updateImages.mutate([...playbookImages, ...results]);
+    });
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (url: string) => {
+    updateImages.mutate(playbookImages.filter((img) => img !== url));
+  };
 
   return (
     <>
@@ -178,7 +219,7 @@ export function PlaybookDetailClient({ id }: { id: string }) {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--eb-text)' }}>{playbook.name}</h1>
-              <span style={CHIP_GREEN}>active</span>
+              <span style={{ ...CHIP, ...statusStyle, textTransform: 'capitalize' }}>{playbook.status}</span>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--eb-muted)', lineHeight: 1.6 }}>{playbook.thesis}</p>
           </div>
@@ -237,18 +278,84 @@ export function PlaybookDetailClient({ id }: { id: string }) {
                 <div style={{ color: 'var(--eb-muted)', fontSize: 12.5, fontStyle: 'italic', padding: '8px 0' }}>No checklist defined.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {checklist.map((item, i) => (
-                    <div
-                      key={item.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--eb-input, #0c1119)', border: '1px solid var(--eb-border)', borderRadius: 8 }}
-                    >
-                      <span style={{ width: 18, height: 18, borderRadius: 4, border: '1.5px solid var(--eb-border)', flexShrink: 0, background: 'transparent' }} />
-                      <span style={{ flex: 1, fontSize: 12.5, color: 'var(--eb-text)' }}>{item.label}</span>
-                      {item.required && (
-                        <span style={{ fontSize: 10, color: 'var(--red, #ff5b6c)', border: '1px solid rgba(255,91,108,.3)', background: 'rgba(255,91,108,.08)', padding: '1px 6px', borderRadius: 99 }}>
-                          required
-                        </span>
-                      )}
+                  {checklist.map((item, i) => {
+                    const color = TAG_ACCENTS[i % TAG_ACCENTS.length];
+                    return (
+                      <div
+                        key={item.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: `${color}0d`, border: `1px solid ${color}30`, borderLeft: `3px solid ${color}`, borderRadius: 8 }}
+                      >
+                        <span style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${color}60`, flexShrink: 0, background: 'transparent' }} />
+                        <span style={{ flex: 1, fontSize: 12.5, color: 'var(--eb-text)' }}>{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <hr style={SEP} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <p style={{ ...HSEC, margin: 0 }}>Reference images</p>
+                <label
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '4px 10px', borderRadius: 7,
+                    border: '1px solid var(--eb-border)',
+                    background: 'var(--eb-input, #0c1119)',
+                    color: 'var(--eb-muted)', fontSize: 11.5,
+                    cursor: playbookImages.length >= 10 ? 'not-allowed' : 'pointer',
+                    opacity: playbookImages.length >= 10 ? 0.5 : 1,
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    disabled={playbookImages.length >= 10 || updateImages.isPending}
+                    onChange={handleAddImages}
+                  />
+                  <Paperclip size={11} />
+                  {updateImages.isPending ? 'Saving…' : 'Add image'}
+                </label>
+              </div>
+
+              {playbookImages.length === 0 ? (
+                <div style={{ color: 'var(--eb-muted)', fontSize: 12, fontStyle: 'italic', padding: '8px 0' }}>
+                  No reference images yet. Click "Add image" to attach screenshots.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {playbookImages.map((url, i) => (
+                    <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                      <img
+                        src={url}
+                        alt=""
+                        onClick={() => setLightbox(url)}
+                        style={{
+                          width: 110, height: 82, objectFit: 'cover',
+                          borderRadius: 8, border: '1px solid var(--eb-border)',
+                          cursor: 'pointer', display: 'block',
+                          transition: 'opacity .1s',
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.85'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '1'; }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(url)}
+                        disabled={updateImages.isPending}
+                        style={{
+                          position: 'absolute', top: -5, right: -5,
+                          width: 18, height: 18, borderRadius: 99,
+                          background: '#ff5b6c', border: '1px solid rgba(0,0,0,.3)',
+                          color: '#fff', cursor: 'pointer', fontSize: 12,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          padding: 0, lineHeight: 1, opacity: updateImages.isPending ? 0.5 : 1,
+                        }}
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -276,22 +383,34 @@ export function PlaybookDetailClient({ id }: { id: string }) {
               ))}
 
               <div style={{ marginTop: 12 }}>
-                <p style={{ ...HSEC, marginBottom: 8 }}>Sessions</p>
+                <p style={{ ...HSEC, marginBottom: 8 }}>Symbols</p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(criteria.sessions as string[] | undefined)?.map((s) => (
-                    <span key={s} style={CHIP_GREEN}>{s}</span>
-                  )) ?? <span style={{ ...CHIP, fontStyle: 'italic' }}>All sessions</span>}
+                  {symbols.length > 0 ? symbols.map((sym, i) => {
+                    const color = TAG_ACCENTS[i % TAG_ACCENTS.length];
+                    return (
+                      <span key={sym} style={{ ...CHIP, color, borderColor: `${color}40`, background: `${color}18`, fontFamily: '"JetBrains Mono",monospace', fontSize: 11, fontWeight: 600 }}>
+                        {sym}
+                      </span>
+                    );
+                  }) : <span style={{ ...CHIP, fontStyle: 'italic' }}>All symbols</span>}
                 </div>
               </div>
 
-              <div style={{ marginTop: 12 }}>
-                <p style={{ ...HSEC, marginBottom: 8 }}>Timeframes</p>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(criteria.timeframes as string[] | undefined)?.map((tf) => (
-                    <span key={tf} style={CHIP}>{tf}</span>
-                  )) ?? <span style={{ ...CHIP, fontStyle: 'italic' }}>All timeframes</span>}
+              {tags.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ ...HSEC, marginBottom: 8 }}>Tags</p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {tags.map((tag, i) => {
+                      const color = TAG_ACCENTS[i % TAG_ACCENTS.length];
+                      return (
+                        <span key={tag} style={{ ...CHIP, color, borderColor: `${color}40`, background: `${color}18`, fontFamily: '"JetBrains Mono",monospace', fontSize: 11, fontWeight: 600 }}>
+                          {tag}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Performance stub */}
@@ -350,6 +469,37 @@ export function PlaybookDetailClient({ id }: { id: string }) {
             }
           }}
         />
+      )}
+
+      {lightbox && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 400,
+            background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24, cursor: 'zoom-out',
+          }}
+          onClick={() => setLightbox(null)}
+        >
+          <img
+            src={lightbox}
+            alt=""
+            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 24px 60px rgba(0,0,0,.6)', cursor: 'default' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            style={{
+              position: 'fixed', top: 20, right: 20,
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              color: '#fff', width: 36, height: 36, borderRadius: 99,
+              fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            ×
+          </button>
+        </div>
       )}
     </>
   );

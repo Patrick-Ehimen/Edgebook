@@ -2,6 +2,7 @@ import {
   CreatePlaybook,
   UpdateChecklist,
   UpdatePlaybook,
+  UpdatePlaybookImages,
 } from '@edgebook/shared';
 import {
   Body,
@@ -58,6 +59,16 @@ export class PlaybooksController {
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.playbooksService.remove(userId, id);
+  }
+
+  @Patch(':id/images')
+  @HttpCode(HttpStatus.OK)
+  updateImages(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdatePlaybookImages)) body: UpdatePlaybookImages,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.playbooksService.updateImages(userId, id, body.images);
   }
 
   @Post(':id/checklists')

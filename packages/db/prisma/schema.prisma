@@ -345,6 +345,7 @@ model Playbook {
   status         PlaybookStatus @default(experimental)
   criteriaJson   Json           @default("{}")
   sampleChartUrl String?
+  images         String[]
   createdAt      DateTime       @default(now()) @db.Timestamptz
   updatedAt      DateTime       @updatedAt @db.Timestamptz
 

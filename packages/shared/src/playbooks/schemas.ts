@@ -17,6 +17,8 @@ export const CriteriaJson = z.object({
   invalidation: z.string().max(2000).optional(),
   sessions: z.array(z.string().max(50)).max(10).optional(),
   timeframes: z.array(z.string().max(20)).max(10).optional(),
+  symbols: z.array(z.string().max(30)).max(20).optional(),
+  tags: z.array(z.string().max(50)).max(30).optional(),
   minRR: z.string().max(20).optional(),
   riskPct: z.string().regex(/^\d+(\.\d+)?$/).optional(),
 });
@@ -29,6 +31,7 @@ export const CreatePlaybook = z.object({
   criteriaJson: CriteriaJson.optional().default({}),
   sampleChartUrl: z.string().url().max(2048).optional().nullable(),
   checklistItems: z.array(ChecklistItem).max(30).optional().default([]),
+  images: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreatePlaybook = z.infer<typeof CreatePlaybook>;
 
@@ -45,3 +48,8 @@ export const UpdateChecklist = z.object({
   items: z.array(ChecklistItem).max(30),
 });
 export type UpdateChecklist = z.infer<typeof UpdateChecklist>;
+
+export const UpdatePlaybookImages = z.object({
+  images: z.array(z.string().min(1)).max(10),
+});
+export type UpdatePlaybookImages = z.infer<typeof UpdatePlaybookImages>;

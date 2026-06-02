@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useCreatePlaybook } from '../hooks/useCreatePlaybook';
 import { useUpdatePlaybook } from '../hooks/useUpdatePlaybook';
 import { useUpdateChecklist } from '../hooks/useUpdateChecklist';
+import { useUpdatePlaybookImages } from '../hooks/useUpdatePlaybookImages';
 import type { ChecklistItem, Playbook } from '../schemas';
 
 // ── shared style tokens (matches HTML prototype) ──────────────────────────────
@@ -173,19 +174,133 @@ function ToggleChips({ options, selected, onChange }: {
   );
 }
 
+// ── Tag input (shared) ────────────────────────────────────────────────────────
+
+const TAG_ACCENTS = ['#00d68f', '#06b6d4', '#818cf8', '#f5a524', '#fb923c', '#e879f9', '#ff5b6c', '#34d399'];
+
+function TagInput({
+  tags,
+  onChange,
+  placeholder,
+  transform = (v) => v,
+}: {
+  tags: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+  transform?: (v: string) => string;
+}) {
+  const [input, setInput] = useState('');
+
+  const addTag = (raw: string) => {
+    const val = transform(raw.trim());
+    if (!val || tags.includes(val)) { setInput(''); return; }
+    onChange([...tags, val]);
+    setInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(input);
+    } else if (e.key === 'Backspace' && input === '') {
+      onChange(tags.slice(0, -1));
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center',
+        background: 'var(--eb-input, #0c1119)',
+        border: '1px solid var(--eb-border)',
+        borderRadius: 8,
+        padding: '6px 8px',
+        minHeight: 38,
+        cursor: 'text',
+      }}
+      onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}
+    >
+      {tags.map((tag, i) => {
+        const color = TAG_ACCENTS[i % TAG_ACCENTS.length];
+        return (
+          <span key={tag} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 8px', borderRadius: 5,
+            fontSize: 11, fontFamily: '"JetBrains Mono",monospace', fontWeight: 600,
+            background: `${color}18`, border: `1px solid ${color}40`, color,
+          }}>
+            {tag}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(tags.filter((_, j) => j !== i)); }}
+              style={{ background: 'transparent', border: 0, color, cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 13, display: 'flex', alignItems: 'center' }}
+            >
+              ×
+            </button>
+          </span>
+        );
+      })}
+      <input
+        style={{ flex: 1, minWidth: 80, background: 'transparent', border: 0, outline: 0, color: 'var(--eb-text)', fontFamily: 'inherit', fontSize: 13, padding: '1px 2px' }}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { if (input.trim()) addTag(input); }}
+        placeholder={tags.length === 0 ? placeholder : ''}
+      />
+    </div>
+  );
+}
+
 // ── Checklist builder ─────────────────────────────────────────────────────────
 
 function ChecklistBuilder({ items, onChange }: { items: ChecklistItem[]; onChange: (v: ChecklistItem[]) => void }) {
   const uid = useId();
+  const [draft, setDraft] = useState('');
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const commit = () => {
+    const label = draft.trim();
+    if (!label) return;
+    onChange([...items, { id: `${uid}-${Date.now()}`, label, type: 'checkbox', required: false }]);
+    setDraft('');
+  };
+
+  const onDragStart = (idx: number) => setDragIdx(idx);
+  const onDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setOverIdx(idx); };
+  const onDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setOverIdx(null); return; }
+    const next = [...items];
+    const [moved] = next.splice(dragIdx, 1) as [ChecklistItem];
+    next.splice(idx, 0, moved);
+    onChange(next);
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+  const onDragEnd = () => { setDragIdx(null); setOverIdx(null); };
 
   return (
     <div>
       {items.map((item, idx) => (
-        <div key={item.id} style={CHK_ROW}>
+        <div
+          key={item.id}
+          draggable
+          onDragStart={() => onDragStart(idx)}
+          onDragOver={(e) => onDragOver(e, idx)}
+          onDrop={(e) => onDrop(e, idx)}
+          onDragEnd={onDragEnd}
+          style={{
+            ...CHK_ROW,
+            opacity: dragIdx === idx ? 0.35 : 1,
+            borderColor: overIdx === idx && dragIdx !== idx ? 'var(--green)' : 'var(--eb-border)',
+            transition: 'border-color .1s, opacity .1s',
+          }}
+        >
           <GripVertical size={13} style={{ color: 'var(--eb-muted)', flexShrink: 0, cursor: 'grab' }} />
           <input
             style={{ flex: 1, background: 'transparent', border: 0, color: 'var(--eb-text)', outline: 0, fontSize: 12.5, fontFamily: 'inherit' }}
-            placeholder={`Item ${idx + 1}`}
             value={item.label}
             onChange={(e) => onChange(items.map((it, i) => i === idx ? { ...it, label: e.target.value } : it))}
           />
@@ -200,18 +315,15 @@ function ChecklistBuilder({ items, onChange }: { items: ChecklistItem[]; onChang
           </button>
         </div>
       ))}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onChange([...items, { id: `${uid}-${Date.now()}`, label: '', type: 'checkbox', required: false }])}
-        onKeyDown={(e) => e.key === 'Enter' && onChange([...items, { id: `${uid}-${Date.now()}`, label: '', type: 'checkbox', required: false }])}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 10px', color: 'var(--eb-muted)', fontSize: 12,
-          cursor: 'pointer', border: '1px dashed var(--eb-border)', borderRadius: 8,
-        }}
-      >
-        + Add checklist item
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px dashed var(--eb-border)', borderRadius: 8, padding: '4px 10px', background: 'var(--eb-input, #0c1119)' }}>
+        <span style={{ color: 'var(--eb-muted)', fontSize: 13, flexShrink: 0 }}>+</span>
+        <input
+          style={{ flex: 1, background: 'transparent', border: 0, color: 'var(--eb-text)', outline: 0, fontSize: 12.5, fontFamily: 'inherit', padding: '3px 0' }}
+          placeholder="Type item and press Enter…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+        />
       </div>
     </div>
   );
@@ -230,15 +342,15 @@ interface Props {
 
 export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Props) {
   const isEdit = !!playbook;
-  const criteria = playbook?.criteriaJson as Record<string, string> | undefined;
+  const criteria = playbook?.criteriaJson as Record<string, unknown> | undefined;
 
   // Core fields
   const [name, setName]               = useState(prefill?.name ?? playbook?.name ?? '');
   const [status, setStatus]           = useState<Status>((playbook?.status as Status | undefined) ?? 'experimental');
   const [thesis, setThesis]           = useState(prefill?.thesis ?? playbook?.thesis ?? '');
-  const [entry, setEntry]             = useState(criteria?.entry ?? '');
-  const [exit, setExit]               = useState(criteria?.exit ?? '');
-  const [invalidation, setInvalidation] = useState(criteria?.invalidation ?? '');
+  const [entry, setEntry]             = useState((criteria?.entry as string) ?? '');
+  const [exit, setExit]               = useState((criteria?.exit as string) ?? '');
+  const [invalidation, setInvalidation] = useState((criteria?.invalidation as string) ?? '');
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
     prefill?.checklistItems ?? playbook?.checklists[0]?.itemsJson ?? [],
   );
@@ -246,18 +358,49 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
   // Right-column config
   const [sessions, setSessions]     = useState<string[]>(['EU', 'US']);
   const [timeframes, setTimeframes] = useState<string[]>(['5m', '15m']);
-  const [symbols, setSymbols]       = useState('');
+  const [symbols, setSymbols]       = useState<string[]>(() => {
+    const raw = criteria?.symbols;
+    if (Array.isArray(raw)) return raw as string[];
+    if (typeof raw === 'string' && raw.trim()) return raw.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    return [];
+  });
   const [riskPct, setRiskPct]       = useState('0.5');
   const [maxTrades, setMaxTrades]   = useState('3');
   const [minRR, setMinRR]           = useState('1 : 2');
   const [minConviction, setMinConviction] = useState('3');
-  const [tags, setTags]             = useState('');
+  const [tags, setTags]             = useState<string[]>(() => {
+    const raw = criteria?.tags;
+    if (Array.isArray(raw)) return raw as string[];
+    if (typeof raw === 'string' && raw.trim()) return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    return [];
+  });
+
+  const [images, setImages] = useState<string[]>(() => (playbook?.images ?? []) as string[]);
 
   const create = useCreatePlaybook();
   const update = useUpdatePlaybook(playbook?.id ?? '');
   const updateChecklist = useUpdateChecklist(playbook?.id ?? '');
+  const updateImages = useUpdatePlaybookImages(playbook?.id ?? '');
 
   const close = () => onOpenChange(false);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 10 - images.length;
+    const toProcess = files.slice(0, remaining);
+    Promise.all(
+      toProcess.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Read failed'));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then((results) => setImages((prev) => [...prev, ...results]));
+    e.target.value = '';
+  };
 
   const handleSubmit = async (asDraft = false) => {
     if (!name.trim() || !thesis.trim()) return;
@@ -268,19 +411,22 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
     if (invalidation.trim()) criteriaJson.invalidation = invalidation.trim();
     if (sessions.length)   criteriaJson.sessions = sessions;
     if (timeframes.length) criteriaJson.timeframes = timeframes;
+    if (symbols.length)    criteriaJson.symbols = symbols;
+    if (tags.length)       criteriaJson.tags = tags;
     if (minRR.trim())      criteriaJson.minRR = minRR.trim().replace(/\s+/g, '');
     if (riskPct.trim())    criteriaJson.riskPct = riskPct.trim();
 
     try {
       if (isEdit) {
         await update.mutateAsync({ name: name.trim(), thesis: thesis.trim(), status, criteriaJson });
+        await updateImages.mutateAsync(images);
         await updateChecklist.mutateAsync({
           checklistId: playbook.checklists[0]?.id ?? null,
           body: { items: checklistItems },
         });
         toast.success('Playbook updated.');
       } else {
-        await create.mutateAsync({ name: name.trim(), thesis: thesis.trim(), status, criteriaJson, checklistItems });
+        await create.mutateAsync({ name: name.trim(), thesis: thesis.trim(), status, criteriaJson, checklistItems, images });
         toast.success(asDraft ? 'Saved as draft.' : 'Playbook created.');
       }
       close();
@@ -289,7 +435,7 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
     }
   };
 
-  const isPending = create.isPending || update.isPending || updateChecklist.isPending;
+  const isPending = create.isPending || update.isPending || updateChecklist.isPending || updateImages.isPending;
 
   if (!open) return null;
 
@@ -387,11 +533,54 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
             <ChecklistBuilder items={checklistItems} onChange={setChecklistItems} />
 
             <hr style={SEP} />
-            <p style={HSEC}>Sample chart</p>
-            <div style={{ border: '1.5px dashed var(--eb-border)', borderRadius: 8, padding: 14, textAlign: 'center', color: 'var(--eb-muted)', fontSize: 12, cursor: 'pointer', background: 'var(--eb-input, #0c1119)' }}>
+            <p style={HSEC}>Reference images</p>
+            {images.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {images.map((src, i) => (
+                  <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={src}
+                      alt=""
+                      style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--eb-border)', display: 'block' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setImages(images.filter((_, j) => j !== i))}
+                      style={{
+                        position: 'absolute', top: -5, right: -5,
+                        width: 17, height: 17, borderRadius: 99,
+                        background: '#ff5b6c', border: 0, color: '#fff',
+                        cursor: 'pointer', fontSize: 11, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label
+              style={{
+                display: 'block', border: '1.5px dashed var(--eb-border)',
+                borderRadius: 8, padding: '10px 14px', textAlign: 'center',
+                color: 'var(--eb-muted)', fontSize: 12,
+                cursor: images.length >= 10 ? 'not-allowed' : 'pointer',
+                background: 'var(--eb-input, #0c1119)',
+                opacity: images.length >= 10 ? 0.5 : 1,
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                disabled={images.length >= 10}
+                onChange={handleFileSelect}
+              />
               <Paperclip size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5, color: 'var(--eb-muted-2)' }} />
-              Drop a TradingView screenshot or paste from clipboard · helps you remember what the setup looks like
-            </div>
+              {images.length === 0 ? 'Add screenshots or chart images (up to 10)' : `Add more · ${images.length}/10`}
+            </label>
           </div>
 
           {/* RIGHT — config + preview */}
@@ -410,13 +599,8 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
               onChange={setTimeframes}
             />
 
-            <Field label="Allowed symbols" help="Leave empty to allow all. Auto-tags work without restriction.">
-              <input
-                style={INPUT}
-                value={symbols}
-                onChange={(e) => setSymbols(e.target.value)}
-                placeholder="Type to add (BTCUSDT, ETHUSDT, …)"
-              />
+            <Field label="Allowed symbols" help="Press Enter or comma to add. Backspace removes last. Leave empty to allow all.">
+              <TagInput tags={symbols} onChange={setSymbols} placeholder="BTCUSDT, ETHUSDT… (Enter to add)" transform={(v) => v.toUpperCase()} />
             </Field>
 
             <hr style={SEP} />
@@ -465,13 +649,8 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
             </div>
 
             <hr style={SEP} />
-            <Field label="Tags">
-              <input
-                style={INPUT}
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="Free tags… (ICT, smart-money, liquidity)"
-              />
+            <Field label="Tags" help="Press Enter or comma to add. Backspace removes last.">
+              <TagInput tags={tags} onChange={setTags} placeholder="ICT, smart-money, liquidity… (Enter to add)" />
             </Field>
 
             <hr style={SEP} />
@@ -481,6 +660,7 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
                 ['Strategy',       name || '—'],
                 ['Sessions',       sessions.join(' · ') || '—'],
                 ['Timeframes',     timeframes.join(' · ') || '—'],
+                ['Symbols',        symbols.length ? symbols.join(' · ') : 'All'],
                 ['Risk / trade',   riskPct ? `${riskPct}%` : '—'],
                 ['Min R:R',        minRR || '—'],
               ].map(([k, v]) => (

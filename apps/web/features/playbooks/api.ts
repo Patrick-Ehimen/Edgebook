@@ -1,6 +1,6 @@
 import { api } from '@/lib/api-client';
 import { z } from 'zod';
-import { ChecklistSchema, PlaybookListResponse, PlaybookSchema } from './schemas';
+import { ChecklistSchema, ImagesResponse, PlaybookListResponse, PlaybookSchema } from './schemas';
 
 export interface CreatePlaybookBody {
   name: string;
@@ -9,6 +9,7 @@ export interface CreatePlaybookBody {
   criteriaJson?: Record<string, unknown>;
   sampleChartUrl?: string | null;
   checklistItems?: Array<{ id: string; label: string; type: 'checkbox' | 'text' | 'number'; required: boolean }>;
+  images?: string[];
 }
 
 export interface UpdatePlaybookBody {
@@ -42,4 +43,7 @@ export const playbooksApi = {
 
   updateChecklist: (playbookId: string, checklistId: string, body: UpdateChecklistBody) =>
     api.patch(`/playbooks/${playbookId}/checklists/${checklistId}`, ChecklistSchema, body),
+
+  updateImages: (id: string, images: string[]) =>
+    api.patch(`/playbooks/${id}/images`, ImagesResponse, { images }),
 };
