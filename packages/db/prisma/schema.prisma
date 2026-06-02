@@ -331,15 +331,22 @@ model PositionNote {
 
 // ─── Playbooks ────────────────────────────────────────────────────────────────
 
+enum PlaybookStatus {
+  experimental
+  active
+  paused
+}
+
 model Playbook {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   userId         String
   name           String
   thesis         String
-  criteriaJson   Json     @default("{}")
+  status         PlaybookStatus @default(experimental)
+  criteriaJson   Json           @default("{}")
   sampleChartUrl String?
-  createdAt      DateTime @default(now()) @db.Timestamptz
-  updatedAt      DateTime @updatedAt @db.Timestamptz
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @db.Timestamptz
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   checklists Checklist[]
