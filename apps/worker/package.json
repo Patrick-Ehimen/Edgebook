@@ -25,7 +25,7 @@
     "@edgebook/exchange": "workspace:*",
     "@edgebook/shared": "workspace:*",
     "@nestjs/bullmq": "^11.0.4",
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^11.1.24",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "^7.8.0",
