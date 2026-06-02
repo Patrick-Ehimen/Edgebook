@@ -39,5 +39,6 @@ export const UpdatePositionMetrics = z.object({
   outcomeScore: decimalPositive('Outcome score').optional(),
   tags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   images: z.array(z.string()).optional(),
+  checklistState: z.record(z.enum(['done', 'miss', 'none'])).optional(),
 });
 export type UpdatePositionMetrics = z.infer<typeof UpdatePositionMetrics>;

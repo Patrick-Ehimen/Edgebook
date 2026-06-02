@@ -206,6 +206,7 @@ export class PositionsService {
         ...(input.planAdherence !== undefined && { planAdherence: input.planAdherence }),
         ...(input.processScore !== undefined && { processScore: input.processScore }),
         ...(input.outcomeScore !== undefined && { outcomeScore: input.outcomeScore }),
+        ...(input.checklistState !== undefined && { checklistState: input.checklistState }),
       },
     });
 
@@ -350,6 +351,7 @@ export class PositionsService {
     outcomeScore: { toString(): string } | null;
     playbookId: string | null;
     sourceHash: string;
+    checklistState?: unknown;
   }) {
     return {
       id: pos.id,
@@ -378,6 +380,7 @@ export class PositionsService {
       outcomeScore: pos.outcomeScore?.toString() ?? null,
       playbookId: pos.playbookId,
       sourceHash: pos.sourceHash,
+      checklistState: pos.checklistState ?? null,
     };
   }
 }

@@ -29,6 +29,9 @@ export const PositionFillSchema = z.object({
 
 export type PositionFill = z.infer<typeof PositionFillSchema>;
 
+export const CheckStateSchema = z.enum(['done', 'miss', 'none']);
+export type CheckState = z.infer<typeof CheckStateSchema>;
+
 export const PositionSchema = z.object({
   id: z.string(),
   accountId: z.string(),
@@ -56,6 +59,7 @@ export const PositionSchema = z.object({
   outcomeScore: z.string().nullable(),
   playbookId: z.string().nullable(),
   sourceHash: z.string(),
+  checklistState: z.record(CheckStateSchema).nullable().optional(),
 });
 
 export type Position = z.infer<typeof PositionSchema>;

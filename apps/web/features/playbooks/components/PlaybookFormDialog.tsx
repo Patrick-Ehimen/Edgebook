@@ -447,7 +447,7 @@ export function PlaybookFormDialog({ open, onOpenChange, playbook, prefill }: Pr
       <div style={{ width: '100%', maxWidth: 980, background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 14, boxShadow: '0 24px 60px rgba(0,0,0,.45)', overflow: 'hidden' }}>
 
         {/* ── Header ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderBottom: '1px solid var(--eb-border)', background: 'linear-gradient(180deg,#141a24,#10151d)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderBottom: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)' }}>
           <span style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#00d68f,#06b6d4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#06140f', flexShrink: 0 }}>
             <Target size={15} strokeWidth={2.2} />
           </span>

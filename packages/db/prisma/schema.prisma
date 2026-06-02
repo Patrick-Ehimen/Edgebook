@@ -282,10 +282,11 @@ model Position {
   planAdherence Decimal?       @db.Decimal(5, 2)
   processScore  Decimal?       @db.Decimal(4, 1)
   outcomeScore  Decimal?       @db.Decimal(4, 1)
-  playbookId    String?
-  conviction    Int?
-  status        PositionStatus
-  sourceHash    String
+  playbookId      String?
+  conviction      Int?
+  status          PositionStatus
+  sourceHash      String
+  checklistState  Json?
 
   account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
   playbook           Playbook?           @relation(fields: [playbookId], references: [id], onDelete: SetNull)

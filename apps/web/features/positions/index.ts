@@ -5,5 +5,5 @@ export { useLogFill } from './hooks/useLogFill';
 export { useDeletePosition } from './hooks/useDeletePosition';
 export { useUpdatePosition } from './hooks/useUpdatePosition';
 export type { UpdatePositionMetricsBody } from './api';
-export type { Position, PositionDetail, PositionFill } from './schemas';
+export type { Position, PositionDetail, PositionFill, CheckState } from './schemas';
 export type { CreateFillBody } from './api';

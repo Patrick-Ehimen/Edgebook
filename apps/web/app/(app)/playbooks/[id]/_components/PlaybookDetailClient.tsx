@@ -203,7 +203,7 @@ export function PlaybookDetailClient({ id }: { id: string }) {
         {/* ── Page header ── */}
         <div
           style={{
-            background: 'linear-gradient(180deg,#141a24,#10151d)',
+            background: 'var(--eb-panel-2)',
             border: '1px solid var(--eb-border)',
             borderRadius: 14,
             padding: '16px 20px',
