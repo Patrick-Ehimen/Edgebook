@@ -1,6 +1,7 @@
 'use client';
 
 import { useAccounts } from '@/features/accounts';
+import { usePlaybooks } from '@/features/playbooks';
 import { positionsApi, type CreateFillBody, useLogFill } from '@/features/positions';
 import { AlertCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -155,7 +156,9 @@ const WARN_MOODS: Mood[] = ['Frustrated', 'Revenge', 'FOMO', 'Slept < 6.5h'];
 
 export function LogTradeDialog({ open, onOpenChange }: Props) {
   const { data: accounts } = useAccounts();
+  const { data: playbooks } = usePlaybooks();
   const [accountId, setAccountId] = useState('');
+  const [playbookId, setPlaybookId] = useState('');
   const logFill = useLogFill(accountId);
 
   // ── left-column state ─────────────────────────────────────────────────────
@@ -217,6 +220,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
     setThesis(''); setInvalidation(''); setNotes('');
     setConviction(0); setMoods(new Set());
     setScreenshots([]); setDragOver(false);
+    setPlaybookId('');
     setError('');
   }
 
@@ -573,28 +577,44 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
           <div>
             {/* Playbook */}
             <Field label="Playbook" helpText="Auto-loaded checklist + risk caps from this playbook.">
-              <select style={sel} defaultValue="">
-                <option value="" disabled>— select playbook —</option>
-                <option>Liquidity sweep · PF 2.31 · 84 trades</option>
-                <option>Range fade · PF 1.18 · 42 trades</option>
-                <option>Breakout retest · PF 1.84 · 61 trades</option>
-                <option>Funding squeeze · PF 0.82 (paused)</option>
-                <option>Trend pullback · PF 1.61 · 38 trades</option>
-                <option>+ New playbook…</option>
+              <select style={sel} value={playbookId} onChange={(e) => setPlaybookId(e.target.value)}>
+                <option value="">— select playbook —</option>
+                {playbooks?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.status === 'paused' ? ' (paused)' : ''}{p._count.positions > 0 ? ` · ${p._count.positions} trades` : ''}
+                  </option>
+                ))}
               </select>
             </Field>
 
             {/* Pre-trade checklist */}
-            <Field label={<>Pre-trade checklist <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--eb-muted)' }}>— select a playbook to load</span></>}>
-              <div style={{
-                padding: '10px 12px', borderRadius: 7,
-                border: '1px dashed var(--eb-border)',
-                background: 'var(--eb-input)',
-                color: 'var(--eb-muted)', fontSize: 12, textAlign: 'center',
-              }}>
-                No playbook selected
-              </div>
-            </Field>
+            {(() => {
+              const selected = playbooks?.find((p) => p.id === playbookId);
+              const items = selected?.checklists?.[0]?.itemsJson ?? [];
+              return (
+                <Field label={<>Pre-trade checklist {!playbookId && <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--eb-muted)' }}>— select a playbook to load</span>}</>}>
+                  {!playbookId || items.length === 0 ? (
+                    <div style={{
+                      padding: '10px 12px', borderRadius: 7,
+                      border: '1px dashed var(--eb-border)',
+                      background: 'var(--eb-input)',
+                      color: 'var(--eb-muted)', fontSize: 12, textAlign: 'center',
+                    }}>
+                      {playbookId ? 'No checklist items' : 'No playbook selected'}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {items.map((item, i) => (
+                        <label key={item.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--eb-border)', background: 'var(--eb-input)', cursor: 'pointer', fontSize: 12.5 }}>
+                          <input type="checkbox" style={{ accentColor: 'var(--green)', width: 14, height: 14, flexShrink: 0 }} />
+                          <span style={{ color: 'var(--eb-text)' }}>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </Field>
+              );
+            })()}
 
             {/* Conviction */}
             <Field

@@ -5,7 +5,6 @@ import { useLogTrade } from '@/providers/log-trade-provider';
 import { SearchPalette } from './SearchPalette';
 import {
   Bell,
-  Calendar,
   Check,
   ChevronDown,
   Moon,
@@ -19,16 +18,6 @@ import {
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
-
-const PRESETS = [
-  { label: 'Last 7 days', value: '7d' },
-  { label: 'Last 30 days', value: '30d' },
-  { label: 'Last 90 days', value: '90d' },
-  { label: 'Last 180 days', value: '180d' },
-  { label: 'Custom range…', value: 'custom' },
-] as const;
-
-type Period = (typeof PRESETS)[number]['value'];
 
 type Account = {
   id: string;
@@ -248,98 +237,6 @@ function AccountSelector() {
   );
 }
 
-function DateRangeFilter() {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Period>('30d');
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open]);
-
-  const label = PRESETS.find((p) => p.value === selected)?.label ?? 'Last 30 days';
-  const short = label.replace('Last ', '').replace(' days', 'D').replace('…', '');
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <Button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '6px 11px',
-          borderRadius: 7,
-          border: `1px solid ${open ? 'var(--eb-muted)' : 'var(--eb-border)'}`,
-          background: 'var(--eb-panel-2)',
-          color: 'var(--eb-text)',
-          fontSize: 12,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        <Calendar size={12} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
-        {selected === 'custom' ? 'Custom' : `Last ${short}`} ▾
-      </Button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            right: 0,
-            minWidth: 170,
-            background: 'var(--eb-panel)',
-            border: '1px solid var(--eb-border)',
-            borderRadius: 10,
-            boxShadow: '0 8px 24px rgba(0,0,0,.18)',
-            zIndex: 50,
-            padding: 4,
-            overflow: 'hidden',
-          }}
-        >
-          {PRESETS.map(({ label: optLabel, value }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => {
-                setSelected(value);
-                setOpen(false);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: 7,
-                border: 0,
-                background: selected === value ? 'var(--eb-panel-2)' : 'transparent',
-                color: selected === value ? 'var(--eb-text)' : 'var(--eb-muted-2)',
-                fontSize: 12.5,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left',
-              }}
-            >
-              {optLabel}
-              {selected === value && (
-                <Check size={12} style={{ color: 'var(--green)', flexShrink: 0 }} />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Topbar() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -418,9 +315,6 @@ export default function Topbar() {
 
       {/* Account selector */}
       <AccountSelector />
-
-      {/* Date range filter */}
-      <DateRangeFilter />
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

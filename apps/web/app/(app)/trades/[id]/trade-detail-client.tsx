@@ -2,11 +2,14 @@
 
 import { positionsApi, useDeletePosition, useLogFill, usePosition, useUpdatePosition } from '@/features/positions';
 import type { PositionDetail } from '@/features/positions';
+import type { CheckState } from '@/features/positions';
+import { usePlaybook } from '@/features/playbooks';
+import type { ChecklistItem } from '@/features/playbooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, Brain, Check, ClipboardList, Paperclip,
+  AlertTriangle, Brain, Check, CheckSquare, ClipboardList, Paperclip,
   Plus, NotebookPen, Star, Tag, Target, Trash2, X,
 } from 'lucide-react';
 
@@ -1037,6 +1040,29 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
 
+  // Playbook checklist
+  const { data: linkedPlaybook } = usePlaybook(position.playbookId ?? null);
+  const checklistItems: ChecklistItem[] = linkedPlaybook?.checklists?.[0]?.itemsJson ?? [];
+  const [checkStates, setCheckStates] = useState<Record<string, CheckState>>(
+    () => (position.checklistState as Record<string, CheckState> | null) ?? {},
+  );
+  const checklistSavedRef = useRef(true);
+
+  useEffect(() => {
+    if (checklistSavedRef.current) { checklistSavedRef.current = false; return; }
+    updateMetrics.mutate({ checklistState: checkStates });
+  }, [checkStates, updateMetrics]);
+
+  function cycleCheck(id: string) {
+    setCheckStates((prev) => {
+      const cur = prev[id] ?? 'none';
+      const next: CheckState = cur === 'none' ? 'done' : cur === 'done' ? 'miss' : 'none';
+      return { ...prev, [id]: next };
+    });
+  }
+
+  const passCount = checklistItems.filter((item) => (checkStates[item.id] ?? 'none') === 'done').length;
+
   // Tags state
   const [tags, setTags] = useState<string[]>(position.tags ?? []);
   const [tagInput, setTagInput] = useState('');
@@ -1851,6 +1877,89 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               </div>
             ) : (
               <EmptyHint text="No playbook tagged. Link one via Edit to track edge decay." />
+            )}
+          </div>
+
+          {/* Pre-trade checklist */}
+          <div style={panel}>
+            <PanelH3
+              left={<><CheckSquare size={13} /> Pre-trade checklist</>}
+              right={
+                checklistItems.length > 0 ? (
+                  <span style={{
+                    ...chip,
+                    color: passCount === checklistItems.length ? 'var(--green)' : passCount > 0 ? 'var(--yellow, #f5a524)' : 'var(--eb-muted-2)',
+                    borderColor: passCount === checklistItems.length ? 'rgba(0,214,143,.30)' : passCount > 0 ? 'rgba(245,165,36,.30)' : 'var(--eb-border)',
+                    background: passCount === checklistItems.length ? 'rgba(0,214,143,.08)' : passCount > 0 ? 'rgba(245,165,36,.08)' : 'var(--eb-panel-2)',
+                  }}>
+                    {passCount}/{checklistItems.length} passed
+                  </span>
+                ) : undefined
+              }
+            />
+            {!position.playbookId ? (
+              <EmptyHint text="Link a playbook to this trade to see the checklist." />
+            ) : checklistItems.length === 0 ? (
+              <EmptyHint text="This playbook has no checklist items." />
+            ) : (
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--eb-muted)' }}>
+                  Click to mark · ✓ pass · ✕ miss
+                </p>
+                {checklistItems.map((item, i) => {
+                  const state = checkStates[item.id] ?? 'none';
+                  const isDone = state === 'done';
+                  const isMiss = state === 'miss';
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => cycleCheck(item.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        width: '100%',
+                        padding: '7px 0',
+                        borderBottom: i < checklistItems.length - 1 ? '1px dashed var(--eb-border)' : 'none',
+                        background: 'transparent',
+                        border: 0,
+                        borderBottomStyle: i < checklistItems.length - 1 ? 'dashed' : undefined,
+                        borderBottomWidth: i < checklistItems.length - 1 ? 1 : 0,
+                        borderBottomColor: 'var(--eb-border)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 4,
+                        border: `1.5px solid ${isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'var(--eb-muted)'}`,
+                        background: isDone ? 'rgba(0,214,143,.18)' : isMiss ? 'rgba(255,91,108,.18)' : 'transparent',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        color: isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'transparent',
+                        flexShrink: 0,
+                        transition: 'background .1s, border-color .1s',
+                      }}>
+                        {isDone ? '✓' : isMiss ? '✕' : ''}
+                      </span>
+                      <span style={{
+                        fontSize: 12.5,
+                        color: isDone ? 'var(--eb-text)' : isMiss ? 'var(--eb-muted)' : 'var(--eb-text)',
+                        textDecoration: isMiss ? 'line-through' : 'none',
+                        lineHeight: 1.4,
+                      }}>
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 

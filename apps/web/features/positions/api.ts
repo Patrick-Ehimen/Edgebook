@@ -19,6 +19,7 @@ export interface UpdatePositionMetricsBody {
   outcomeScore?: string | undefined;
   tags?: string[] | undefined;
   images?: string[] | undefined;
+  checklistState?: Record<string, 'done' | 'miss' | 'none'> | undefined;
 }
 
 export interface CreateFillBody {
