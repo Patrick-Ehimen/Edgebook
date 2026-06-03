@@ -2,10 +2,13 @@
 
 import { useAccounts } from '@/features/accounts';
 import { useSignOut } from '@/features/auth';
+import { useNotes } from '@/features/notes';
+import { usePlaybooks } from '@/features/playbooks';
 import { usePositions } from '@/features/positions';
 import { useAuth } from '@/providers/auth-provider';
 import type { LucideIcon } from 'lucide-react';
 import {
+  BookMarked,
   BookOpen,
   Brain,
   CalendarDays,
@@ -52,6 +55,7 @@ const COACHING: {
   badgeText?: string;
 }[] = [
   { href: '/journal', Icon: NotebookPen, label: 'Daily journal' },
+  { href: '/notes', Icon: BookMarked, label: 'Library' },
   {
     href: '/ai-review',
     Icon: Inbox,
@@ -69,7 +73,11 @@ export default function SidebarNav() {
   const signOut = useSignOut();
   const { data: accounts } = useAccounts();
   const { data: positions } = usePositions(accounts?.[0]?.id ?? null);
+  const { data: playbooks } = usePlaybooks();
+  const { data: notes } = useNotes();
   const tradeCount = positions?.length ?? 0;
+  const playbookCount = playbooks?.length ?? 0;
+  const noteCount = notes?.length ?? 0;
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -179,6 +187,13 @@ export default function SidebarNav() {
                 'var(--eb-panel-2)',
                 'var(--eb-muted-2)',
               )}
+            {href === '/playbooks' &&
+              playbookCount > 0 &&
+              pill(
+                String(playbookCount),
+                'var(--eb-panel-2)',
+                'var(--eb-muted-2)',
+              )}
           </Link>
         ))}
       </nav>
@@ -222,7 +237,9 @@ export default function SidebarNav() {
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
             <Icon size={14} style={{ flexShrink: 0 }} />
             <span>{label}</span>
-            {badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
+            {href === '/notes' && noteCount > 0
+              ? pill(String(noteCount), 'rgba(0,214,143,.12)', '#00d68f')
+              : badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
           </Link>
         ))}
       </nav>

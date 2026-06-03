@@ -99,6 +99,7 @@ model User {
   goals          Goal[]
   alertRules     AlertRule[]
   aiReports      AiReport[]
+  libraryNotes   LibraryNote[]
 }
 
 model Session {
@@ -460,4 +461,24 @@ model AiReport {
 
   @@unique([userId, period, promptHash])
   @@index([userId])
+}
+
+// ─── Library / Notes ──────────────────────────────────────────────────────────
+
+model LibraryNote {
+  id        String   @id @default(cuid())
+  userId    String
+  folderId  String
+  name      String
+  iconId    String   @default("file")
+  bodyMd    String   @default("")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, folderId])
+  @@index([userId, pinned])
 }
