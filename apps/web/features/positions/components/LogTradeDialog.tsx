@@ -181,6 +181,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
   // ── right-column state ────────────────────────────────────────────────────
   const [conviction, setConviction] = useState(0);
   const [moods, setMoods] = useState<Set<Mood>>(new Set());
+  const [checkStates, setCheckStates] = useState<Record<string, boolean>>({});
 
   // Screenshots
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -220,7 +221,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
     setThesis(''); setInvalidation(''); setNotes('');
     setConviction(0); setMoods(new Set());
     setScreenshots([]); setDragOver(false);
-    setPlaybookId('');
+    setPlaybookId(''); setCheckStates({});
     setError('');
   }
 
@@ -264,15 +265,24 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
       };
       await logFill.mutateAsync(body);
 
-      // Persist screenshots to the resulting position
-      if (screenshots.length > 0) {
+      // Persist playbook, checklist state, and screenshots to the resulting position
+      if (playbookId || screenshots.length > 0) {
         const list = await positionsApi.list(accountId);
         const sym = body.symbol;
         const newPos = list
           .filter((p) => p.symbol === sym && p.status === 'open')
           .sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime())[0];
         if (newPos) {
-          await positionsApi.updateMetrics(accountId, newPos.id, { images: screenshots });
+          const selected = playbooks?.find((p) => p.id === playbookId);
+          const items = selected?.checklists?.[0]?.itemsJson ?? [];
+          const checklistState = items.length > 0
+            ? Object.fromEntries(items.map((item) => [item.id, checkStates[item.id] ? 'done' as const : 'miss' as const]))
+            : undefined;
+          await positionsApi.updateMetrics(accountId, newPos.id, {
+            ...(playbookId && { playbookId }),
+            ...(checklistState && { checklistState }),
+            ...(screenshots.length > 0 && { images: screenshots }),
+          });
         }
       }
 
@@ -577,7 +587,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
           <div>
             {/* Playbook */}
             <Field label="Playbook" helpText="Auto-loaded checklist + risk caps from this playbook.">
-              <select style={sel} value={playbookId} onChange={(e) => setPlaybookId(e.target.value)}>
+              <select style={sel} value={playbookId} onChange={(e) => { setPlaybookId(e.target.value); setCheckStates({}); }}>
                 <option value="">— select playbook —</option>
                 {playbooks?.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -605,8 +615,13 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {items.map((item, i) => (
-                        <label key={item.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--eb-border)', background: 'var(--eb-input)', cursor: 'pointer', fontSize: 12.5 }}>
-                          <input type="checkbox" style={{ accentColor: 'var(--green)', width: 14, height: 14, flexShrink: 0 }} />
+                        <label key={item.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, border: `1px solid ${checkStates[item.id] ? 'rgba(0,214,143,.30)' : 'var(--eb-border)'}`, background: checkStates[item.id] ? 'rgba(0,214,143,.06)' : 'var(--eb-input)', cursor: 'pointer', fontSize: 12.5, transition: 'border-color .1s, background .1s' }}>
+                          <input
+                            type="checkbox"
+                            style={{ accentColor: 'var(--green)', width: 14, height: 14, flexShrink: 0 }}
+                            checked={checkStates[item.id] ?? false}
+                            onChange={(e) => setCheckStates((prev) => ({ ...prev, [item.id]: e.target.checked }))}
+                          />
                           <span style={{ color: 'var(--eb-text)' }}>{item.label}</span>
                         </label>
                       ))}

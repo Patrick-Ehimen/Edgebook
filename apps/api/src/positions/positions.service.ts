@@ -196,6 +196,7 @@ export class PositionsService {
     const updated = await this.prisma.position.update({
       where: { id: positionId },
       data: {
+        ...(input.playbookId !== undefined && { playbookId: input.playbookId }),
         ...(input.rPlanned !== undefined && { rPlanned: input.rPlanned }),
         ...(input.rRealized !== undefined && { rRealized: input.rRealized }),
         ...(input.mfe !== undefined && { mfe: input.mfe }),

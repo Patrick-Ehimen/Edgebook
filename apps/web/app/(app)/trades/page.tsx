@@ -1,6 +1,7 @@
 'use client';
 
 import { AddAccountDialog, useAccounts, useTriggerSync } from '@/features/accounts';
+import { usePlaybooks } from '@/features/playbooks';
 import { usePositions } from '@/features/positions';
 import { useLogTrade } from '@/providers/log-trade-provider';
 import { TradeCalendar } from '../_components/TradeCalendar';
@@ -61,6 +62,7 @@ const tdStyle: React.CSSProperties = {
 export default function TradesPage() {
   const router = useRouter();
   const { data: accounts, isLoading: loadingAccounts } = useAccounts();
+  const { data: playbooks } = usePlaybooks();
   const logTrade = useLogTrade();
   const [accountId, setAccountId] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
@@ -420,18 +422,18 @@ export default function TradesPage() {
                           <td style={{ ...tdStyle, color: 'var(--eb-muted)' }}>
                             {holdTime(pos.openedAt, pos.closedAt)}
                           </td>
-                          <td style={{ ...tdStyle, maxWidth: 130 }}>
+                          <td style={{ ...tdStyle, maxWidth: 140 }}>
                             {pos.playbookId ? (
                               <span style={{
                                 display: 'inline-flex', alignItems: 'center',
                                 fontSize: 11, padding: '2px 8px', borderRadius: 99,
-                                color: '#a78bfa',
-                                background: 'rgba(139,92,246,.10)',
-                                border: '1px solid rgba(139,92,246,.25)',
-                                fontFamily: 'var(--font-mono, monospace)',
-                                maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis',
+                                color: '#ea580c',
+                                background: 'rgba(194,65,12,.10)',
+                                border: '1px solid rgba(194,65,12,.30)',
+                                maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                               }}>
-                                {pos.playbookId.slice(0, 10)}…
+                                {playbooks?.find((p) => p.id === pos.playbookId)?.name ?? `${pos.playbookId.slice(0, 10)}…`}
                               </span>
                             ) : (
                               <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>

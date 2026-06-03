@@ -1047,11 +1047,13 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
     () => (position.checklistState as Record<string, CheckState> | null) ?? {},
   );
   const checklistSavedRef = useRef(true);
+  const saveChecklistRef = useRef(updateMetrics.mutate);
+  saveChecklistRef.current = updateMetrics.mutate;
 
   useEffect(() => {
     if (checklistSavedRef.current) { checklistSavedRef.current = false; return; }
-    updateMetrics.mutate({ checklistState: checkStates });
-  }, [checkStates, updateMetrics]);
+    saveChecklistRef.current({ checklistState: checkStates });
+  }, [checkStates]);
 
   function cycleCheck(id: string) {
     setCheckStates((prev) => {
@@ -1869,11 +1871,11 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               }
             />
             {position.playbookId ? (
-              <div style={{ fontSize: 12, color: 'var(--eb-muted-2)' }}>
-                Playbook ID:{' '}
-                <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>
-                  {position.playbookId}
-                </span>
+              <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500 }}>
+                {linkedPlaybook ? linkedPlaybook.name : position.playbookId}
+                {linkedPlaybook?.status === 'paused' && (
+                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--eb-muted)', fontWeight: 400 }}>(paused)</span>
+                )}
               </div>
             ) : (
               <EmptyHint text="No playbook tagged. Link one via Edit to track edge decay." />

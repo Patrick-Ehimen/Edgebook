@@ -27,6 +27,7 @@ export const CreateFillInput = z.object({
 export type CreateFillInput = z.infer<typeof CreateFillInput>;
 
 export const UpdatePositionMetrics = z.object({
+  playbookId: z.string().optional(),
   rPlanned: decimalSigned('Planned R').optional(),
   rRealized: decimalSigned('Realized R').optional(),
   mfe: decimalSigned('MFE').optional(),

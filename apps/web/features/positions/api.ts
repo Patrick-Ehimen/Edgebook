@@ -7,6 +7,7 @@ const RecomputeResponse = z.object({ positionCount: z.number() });
 const DeleteResponse = z.object({ ok: z.literal(true) });
 
 export interface UpdatePositionMetricsBody {
+  playbookId?: string | undefined;
   rPlanned?: string | undefined;
   rRealized?: string | undefined;
   mfe?: string | undefined;
