@@ -10,9 +10,18 @@ export interface CreateNoteBody {
 
 const DeleteResponse = z.object({ deleted: z.literal(true) });
 
+export interface UpdateNoteBody {
+  name?: string;
+  bodyMd?: string;
+  tags?: string[];
+  playbookId?: string | null;
+}
+
 export const notesApi = {
   list: () => api.get('/notes', NoteListResponse),
   create: (body: CreateNoteBody) => api.post('/notes', NoteSchema, body),
+  update: (id: string, body: UpdateNoteBody) =>
+    api.patch(`/notes/${id}`, NoteSchema, body),
   move: (id: string, folderId: string) =>
     api.patch(`/notes/${id}/move`, NoteSchema, { folderId }),
   pin: (id: string, pinned: boolean) =>

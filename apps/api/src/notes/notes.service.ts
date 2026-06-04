@@ -8,6 +8,7 @@ export class NotesService {
   list(userId: string) {
     return this.prisma.libraryNote.findMany({
       where: { userId },
+      include: { playbook: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -31,6 +32,15 @@ export class NotesService {
     return this.prisma.libraryNote.update({
       where: { id: noteId },
       data: { pinned },
+    });
+  }
+
+  async update(userId: string, noteId: string, input: { name?: string; bodyMd?: string; tags?: string[]; playbookId?: string | null }) {
+    await this.assertOwnership(userId, noteId);
+    return this.prisma.libraryNote.update({
+      where: { id: noteId },
+      data: { ...input },
+      include: { playbook: { select: { id: true, name: true } } },
     });
   }
 

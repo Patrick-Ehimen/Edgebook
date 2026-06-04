@@ -53,6 +53,16 @@ export class NotesController {
     return this.notesService.pin(userId, id, body.pinned);
   }
 
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  update(
+    @Param('id') id: string,
+    @Body() body: { name?: string; bodyMd?: string; tags?: string[]; playbookId?: string | null },
+    @CurrentUserId() userId: string,
+  ) {
+    return this.notesService.update(userId, id, body);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string, @CurrentUserId() userId: string) {

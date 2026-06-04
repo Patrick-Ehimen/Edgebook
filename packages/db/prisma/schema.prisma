@@ -351,9 +351,10 @@ model Playbook {
   createdAt      DateTime       @default(now()) @db.Timestamptz
   updatedAt      DateTime       @updatedAt @db.Timestamptz
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  checklists Checklist[]
-  positions  Position[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklists   Checklist[]
+  positions    Position[]
+  libraryNotes LibraryNote[]
 
   @@index([userId])
 }
@@ -466,19 +467,23 @@ model AiReport {
 // ─── Library / Notes ──────────────────────────────────────────────────────────
 
 model LibraryNote {
-  id        String   @id @default(cuid())
-  userId    String
-  folderId  String
-  name      String
-  iconId    String   @default("file")
-  bodyMd    String   @default("")
-  pinned    Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
+  id         String   @id @default(cuid())
+  userId     String
+  folderId   String
+  name       String
+  iconId     String   @default("file")
+  bodyMd     String   @default("")
+  pinned     Boolean  @default(false)
+  tags       String[] @default([])
+  playbookId String?
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playbook Playbook? @relation(fields: [playbookId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, folderId])
   @@index([userId, pinned])
+  @@index([playbookId])
 }

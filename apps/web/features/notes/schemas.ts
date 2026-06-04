@@ -8,6 +8,9 @@ export const NoteSchema = z.object({
   iconId: z.string(),
   bodyMd: z.string(),
   pinned: z.boolean(),
+  tags: z.array(z.string()),
+  playbookId: z.string().nullable().optional(),
+  playbook: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
