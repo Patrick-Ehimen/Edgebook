@@ -42,10 +42,12 @@ function todayStr(): string {
 
 function holdTime(openedAt: string, closedAt: string | null): string {
   if (!closedAt) return 'live';
-  const ms = new Date(closedAt).getTime() - new Date(openedAt).getTime();
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const totalHours = (new Date(closedAt).getTime() - new Date(openedAt).getTime()) / 3_600_000;
+  if (totalHours < 1) return '<1h';
+  const d = Math.floor(totalHours / 24);
+  const h = Math.round(totalHours % 24);
+  if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  return `${Math.round(totalHours)}h`;
 }
 
 function greeting(): string {
@@ -266,6 +268,11 @@ function WeekStrip({ positions }: { positions: Position[] }) {
 
   const todayISO = today.toISOString().split('T')[0] ?? '';
 
+  const maxAbsPnl = Math.max(
+    1,
+    ...days.map((d) => Math.abs(dailyPnl.get(d.toISOString().split('T')[0] ?? '') ?? 0)),
+  );
+
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6 }}>
@@ -319,6 +326,70 @@ function WeekStrip({ positions }: { positions: Position[] }) {
         <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: pnlColor(weekTotal) }}>
           {fmtMoney(weekTotal)}
         </strong>
+      </div>
+
+      {/* ── Mood × P&L timeline ── */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-text)' }}>Mood × P&amp;L · last 7d</span>
+          <span style={{ fontSize: 9.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>mood from daily check-in</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            height: 42,
+            background: 'var(--eb-panel-2)',
+            borderRadius: 8,
+            overflow: 'hidden',
+            border: '1px solid var(--eb-border)',
+          }}
+        >
+          {days.map((d) => {
+            const k = d.toISOString().split('T')[0] ?? '';
+            const pnl = dailyPnl.get(k);
+            const isFuture = d > today && k !== todayISO;
+            const barH = pnl !== undefined
+              ? Math.max(2, Math.round((Math.abs(pnl) / maxAbsPnl) * 26))
+              : 2;
+            const [c1, c2] = pnl !== undefined && pnl >= 0
+              ? ['#00d68f', '#06b6d4']
+              : pnl !== undefined
+                ? ['#ff5b6c', '#f5a524']
+                : ['rgba(255,255,255,.08)', 'rgba(255,255,255,.08)'];
+            return (
+              <div
+                key={k}
+                title={pnl !== undefined ? fmtMoney(pnl) : 'no trades'}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  paddingBottom: 3,
+                  position: 'relative',
+                  opacity: isFuture ? 0.2 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 4,
+                    right: 4,
+                    bottom: 14,
+                    height: barH,
+                    background: `linear-gradient(180deg,${c1},${c2})`,
+                    borderRadius: 2,
+                    minHeight: 2,
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 9.5, color: 'var(--eb-muted)' }}>
+          <span>{days[0]?.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+          <span>{days[6]?.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+        </div>
       </div>
     </div>
   );
@@ -674,6 +745,28 @@ export default function DashboardClient() {
   // Session shape: { handle, email, userId, isOnboarded, ... }
   const userName = session?.handle?.split(' ')[0] ?? session?.email?.split('@')[0] ?? 'Trader';
 
+  // ── Daily context bar ──────────────────────────────────────────────────────
+  const dailyCtx = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.toISOString().slice(0, 7);
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const tradingDaysThisMonth = new Set(
+      stats.dailyPnl.filter((d) => d.date.startsWith(currentMonth)).map((d) => d.date),
+    ).size;
+    const sortedDays = [...stats.dailyPnl].sort((a, b) => a.date.localeCompare(b.date));
+    let streak = 0;
+    let streakSign: 'green' | 'red' = 'green';
+    if (sortedDays.length > 0) {
+      const lastSign = sortedDays[sortedDays.length - 1]!.pnl >= 0 ? 'green' : 'red';
+      streakSign = lastSign;
+      for (let i = sortedDays.length - 1; i >= 0; i--) {
+        if ((sortedDays[i]!.pnl >= 0 ? 'green' : 'red') === lastSign) streak++;
+        else break;
+      }
+    }
+    return { tradingDaysThisMonth, daysInMonth, streak, streakSign };
+  }, [stats.dailyPnl]);
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -697,339 +790,536 @@ export default function DashboardClient() {
       {/* ── Has accounts ── */}
       {!loading && hasAccounts && (
         <>
-          {/* ══ COCKPIT ROW ══ */}
+          {/* ══ GREETING ══ */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1.5fr 1fr 1fr 1fr',
-              gap: 12,
-              marginBottom: 14,
+              background: 'linear-gradient(135deg,rgba(0,214,143,.07),rgba(6,182,212,.03))',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 12,
+              padding: '16px 22px',
+              marginBottom: 12,
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 24,
             }}
           >
-            {/* Greeting card */}
             <div
               style={{
-                background: 'linear-gradient(135deg, rgba(0,214,143,.07), rgba(6,182,212,.03))',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 12,
-                padding: '18px 20px',
-                position: 'relative',
-                overflow: 'hidden',
+                position: 'absolute',
+                inset: 0,
+                background: 'radial-gradient(600px 180px at 80% 50%,rgba(0,214,143,.08),transparent 65%)',
+                pointerEvents: 'none',
               }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'radial-gradient(400px 200px at 90% 0%, rgba(0,214,143,.09), transparent 60%)',
-                  pointerEvents: 'none',
-                }}
-              />
+            />
+            {/* Left: greeting + context */}
+            <div style={{ position: 'relative' }}>
               <h1
                 style={{
-                  margin: '0 0 6px',
-                  fontSize: 19,
+                  margin: '0 0 4px',
+                  fontSize: 20,
                   fontWeight: 600,
                   letterSpacing: '-.01em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
                   color: 'var(--eb-text)',
                 }}
               >
                 {greeting()}, {userName}
               </h1>
-              <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
                 {stats.closed.length > 0 ? (
                   <>
-                    <strong style={{ color: 'var(--eb-text)' }}>{stats.closed.length}</strong> closed trades ·{' '}
-                    <strong style={{ color: 'var(--eb-text)' }}>{stats.open.length}</strong> open ·{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{stats.closed.length}</strong> closed ·{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{stats.open.length}</strong> open
                     {stats.todayTrades > 0 && (
-                      <>
-                        <strong style={{ color: 'var(--green)' }}>{stats.todayTrades}</strong> today
-                      </>
+                      <> · <strong style={{ color: 'var(--green)' }}>{stats.todayTrades}</strong> today</>
                     )}
                   </>
                 ) : (
                   'No trades yet — log your first position to get started'
                 )}
               </div>
-              <div
+              {stats.dailyPnl.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: 'var(--eb-muted)', flexWrap: 'wrap' }}>
+                  <span>
+                    Slept <strong style={{ color: 'var(--eb-muted-2)' }}>—</strong>
+                  </span>
+                  <span style={{ opacity: 0.35 }}>·</span>
+                  <span>
+                    energy <strong style={{ color: 'var(--eb-muted-2)' }}>—</strong>
+                  </span>
+                  <span style={{ opacity: 0.35 }}>·</span>
+                  <span>
+                    trading day{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{dailyCtx.tradingDaysThisMonth}</strong>
+                    {' '}of{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{dailyCtx.daysInMonth}</strong>
+                    {' '}this month
+                  </span>
+                  <span style={{ opacity: 0.35 }}>·</span>
+                  <span>
+                    streak{' '}
+                    <strong style={{ color: dailyCtx.streakSign === 'green' ? 'var(--green)' : 'var(--eb-red)' }}>
+                      {dailyCtx.streak} {dailyCtx.streakSign} day{dailyCtx.streak !== 1 ? 's' : ''}
+                    </strong>
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Right: quick links */}
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, position: 'relative' }}>
+              <button
+                type="button"
+                onClick={logTrade.open}
                 style={{
-                  padding: '10px 13px',
-                  borderRadius: 9,
-                  background: 'rgba(10,14,20,.35)',
-                  border: '1px solid var(--eb-border)',
-                  backdropFilter: 'blur(8px)',
+                  fontSize: 12,
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(0,214,143,.45)',
+                  background: 'rgba(0,214,143,.12)',
+                  color: 'var(--green)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontWeight: 600,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    textTransform: 'uppercase',
-                    letterSpacing: '.08em',
-                    color: 'var(--eb-muted)',
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
-                  Quick access
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={logTrade.open}
-                    style={{
-                      fontSize: 11.5,
-                      padding: '3px 10px',
-                      borderRadius: 7,
-                      border: '1px solid rgba(0,214,143,.4)',
-                      background: 'rgba(0,214,143,.1)',
-                      color: 'var(--green)',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    + Log trade
-                  </button>
-                  <Link
-                    href="/trades"
-                    style={{
-                      fontSize: 11.5,
-                      padding: '3px 10px',
-                      borderRadius: 7,
-                      border: '1px solid var(--eb-border)',
-                      background: 'transparent',
-                      color: 'var(--eb-muted-2)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    Trade log →
-                  </Link>
-                  <Link
-                    href="/playbooks"
-                    style={{
-                      fontSize: 11.5,
-                      padding: '3px 10px',
-                      borderRadius: 7,
-                      border: '1px solid var(--eb-border)',
-                      background: 'transparent',
-                      color: 'var(--eb-muted-2)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    Playbooks →
-                  </Link>
-                </div>
-              </div>
+                + Log trade
+              </button>
+              <Link
+                href="/trades"
+                style={{
+                  fontSize: 12,
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: '1px solid var(--eb-border)',
+                  background: 'rgba(255,255,255,.04)',
+                  color: 'var(--eb-muted-2)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                Trade log →
+              </Link>
+              <Link
+                href="/playbooks"
+                style={{
+                  fontSize: 12,
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: '1px solid var(--eb-border)',
+                  background: 'rgba(255,255,255,.04)',
+                  color: 'var(--eb-muted-2)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                Playbooks →
+              </Link>
             </div>
+          </div>
 
-            {/* Discipline ring (stub) */}
+          {/* ══ METRIC CARDS — 4-col grid ══ */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4,1fr)',
+              gap: 12,
+              marginBottom: 14,
+            }}
+          >
+            {/* ── Today's P&L + Net P&L (combined) ── */}
             <div
               style={{
                 background: 'var(--eb-panel)',
                 border: '1px solid var(--eb-border)',
                 borderRadius: 12,
-                padding: 14,
+                padding: 16,
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
+                gap: 0,
               }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.08em',
-                  color: 'var(--eb-muted)',
-                  fontWeight: 600,
-                  marginBottom: 10,
-                }}
-              >
-                Discipline score
+              {/* Today's P&L */}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                    Today's P&amp;L
+                  </div>
+                  {stats.todayTrades > 0 && (
+                    <Chip color={stats.todayWins / stats.todayTrades >= 0.5 ? 'green' : 'red'}>
+                      {stats.todayTrades}T · {Math.round((stats.todayWins / stats.todayTrades) * 100)}%
+                    </Chip>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    letterSpacing: '-.02em',
+                    color: stats.todayTrades > 0 ? pnlColor(stats.todayPnl) : 'var(--eb-muted)',
+                    margin: '6px 0 2px',
+                  }}
+                >
+                  {stats.todayTrades > 0 ? fmtMoney(stats.todayPnl) : '—'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--eb-muted)' }}>
+                  {stats.todayTrades > 0 ? `${stats.todayTrades} trade${stats.todayTrades !== 1 ? 's' : ''} today` : 'No trades today yet'}
+                </div>
               </div>
-              <div style={{ position: 'relative', width: 88, height: 88 }}>
-                <svg width={88} height={88} viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+
+              {/* Divider */}
+              <div style={{ height: 1, background: 'var(--eb-border)', margin: '14px 0' }} />
+
+              {/* Net P&L */}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                    Net P&amp;L
+                  </div>
+                  {(stats.wins + stats.losses) > 0 && (
+                    <Chip color={stats.winRate >= 50 ? 'green' : 'red'}>
+                      {stats.winRate.toFixed(0)}% WR
+                    </Chip>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    letterSpacing: '-.02em',
+                    color: (stats.wins + stats.losses) > 0 ? pnlColor(stats.totalPnl) : 'var(--eb-muted)',
+                    margin: '6px 0 2px',
+                  }}
+                >
+                  {(stats.wins + stats.losses) > 0 ? fmtMoney(stats.totalPnl) : '—'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--eb-muted)' }}>
+                  {(stats.wins + stats.losses) > 0
+                    ? `${stats.wins + stats.losses} trade${(stats.wins + stats.losses) !== 1 ? 's' : ''} · ${stats.wins}W ${stats.losses}L`
+                    : 'No closed trades yet'}
+                </div>
+                <div style={{ height: 3, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: stats.totalPnl > 0 ? `${Math.min(100, (stats.totalPnl / 2000) * 100)}%` : '0%',
+                      background: stats.totalPnl >= 0
+                        ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                        : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
+                      borderRadius: 99,
+                      transition: 'width .3s',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Win / Loss Ratio ── */}
+            {(() => {
+              const wlRatio = stats.losses > 0 ? stats.wins / stats.losses : stats.wins > 0 ? stats.wins : 0;
+              const wlColor = wlRatio >= 1.5 ? 'var(--green)' : wlRatio >= 1 ? 'var(--eb-cyan)' : 'var(--eb-red)';
+              const winPct = (stats.wins + stats.losses) > 0 ? (stats.wins / (stats.wins + stats.losses)) * 100 : 0;
+              return (
+                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                    Win / Loss Ratio
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.closed.length > 0 ? wlColor : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                      {stats.closed.length > 0
+                        ? stats.losses === 0
+                          ? `${stats.wins} : 0`
+                          : `${wlRatio.toFixed(1)} : 1`
+                        : '—'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                      {stats.closed.length > 0 ? `${stats.wins}W · ${stats.losses}L` : 'No closed trades yet'}
+                    </div>
+                  </div>
+                  {stats.closed.length > 0 && (
+                    <div style={{ marginTop: 14 }}>
+                      {/* W/L split bar */}
+                      <div style={{ display: 'flex', height: 4, borderRadius: 99, overflow: 'hidden', gap: 2 }}>
+                        <div style={{ flex: winPct, background: 'linear-gradient(90deg,#00d68f,#06b6d4)', borderRadius: '99px 0 0 99px', minWidth: winPct > 0 ? 4 : 0 }} />
+                        <div style={{ flex: 100 - winPct, background: 'linear-gradient(90deg,#ff5b6c,#f97316)', borderRadius: '0 99px 99px 0', minWidth: (100 - winPct) > 0 ? 4 : 0 }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+                          <span style={{ color: 'var(--eb-muted)' }}>Wins</span>
+                          <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--green)' }}>{winPct.toFixed(0)}%</strong>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-red)' }}>{(100 - winPct).toFixed(0)}%</strong>
+                          <span style={{ color: 'var(--eb-muted)' }}>Losses</span>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-red)', display: 'inline-block' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Max System Drawdown ── */}
+            {(() => {
+              const peakEquity = stats.cumulative.length > 0 ? Math.max(0, ...stats.cumulative.map((d) => d.cum)) : 0;
+              const ddPct = peakEquity > 0 ? (stats.maxDD / peakEquity) * 100 : 0;
+              const ddColor = stats.maxDD > 0 ? 'var(--eb-red)' : 'var(--green)';
+              const recoveryFactor = stats.maxDD > 0 ? stats.totalPnl / stats.maxDD : 0;
+              return (
+                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                    Max System Drawdown
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.maxDD > 0 ? ddColor : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                      {stats.maxDD > 0 ? `−$${stats.maxDD.toFixed(2)}` : '—'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                      {stats.maxDD > 0 ? `${ddPct.toFixed(1)}% from peak · recovery ${recoveryFactor > 0 ? `${recoveryFactor.toFixed(1)}×` : '—'}` : 'No drawdown recorded'}
+                    </div>
+                  </div>
+                  {stats.maxDD > 0 && (
+                    <div style={{ marginTop: 14 }}>
+                      {/* DD depth bar */}
+                      <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.min(100, ddPct * 2)}%`,
+                            background: 'linear-gradient(90deg,#f5a524,#ff5b6c)',
+                            borderRadius: 99,
+                            transition: 'width .3s',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10.5, color: 'var(--eb-muted)' }}>
+                        <span>0%</span>
+                        <span style={{ color: ddColor, fontWeight: 600 }}>{ddPct.toFixed(1)}% used</span>
+                        <span>50%+</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Avg Hold Horizon ── */}
+            {(() => {
+              const closed = stats.closed;
+              const scalps = closed.filter((p) => {
+                if (!p.closedAt) return false;
+                return (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 < 1;
+              });
+              const intraday = closed.filter((p) => {
+                if (!p.closedAt) return false;
+                const h = (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000;
+                return h >= 1 && h < 24;
+              });
+              const swing = closed.filter((p) => {
+                if (!p.closedAt) return false;
+                return (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 >= 24;
+              });
+              const total = closed.length;
+              const fmtHold = (min: number) => {
+                if (min < 60) return '<1h';
+                const totalH = min / 60;
+                const d = Math.floor(totalH / 24);
+                const h = Math.round(totalH % 24);
+                if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+                return `${Math.round(totalH)}h`;
+              };
+              const activeIdx = stats.avgHoldMin < 60 ? 0 : stats.avgHoldMin < 1440 ? 1 : 2;
+              const dotPct = activeIdx === 0 ? 16 : activeIdx === 1 ? 50 : 84;
+              const dotColor = activeIdx === 0 ? '#06b6d4' : activeIdx === 1 ? '#00d68f' : '#8b5cf6';
+              const dotGlow = activeIdx === 0 ? 'rgba(6,182,212,.28)' : activeIdx === 1 ? 'rgba(0,214,143,.28)' : 'rgba(139,92,246,.28)';
+              const zones = [
+                { label: 'Scalp', count: scalps.length, color: '#06b6d4' },
+                { label: 'Intraday', count: intraday.length, color: '#00d68f' },
+                { label: 'Swing', count: swing.length, color: '#8b5cf6' },
+              ];
+              return (
+                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                    Avg Hold Horizon
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.avgHoldMin > 0 ? 'var(--eb-text)' : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                      {stats.avgHoldMin > 0 ? fmtHold(stats.avgHoldMin) : '—'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                      {total > 0 ? `across ${total} trade${total !== 1 ? 's' : ''}` : 'No closed trades yet'}
+                    </div>
+                  </div>
+                  {total > 0 && (
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ position: 'relative', paddingBottom: 6 }}>
+                        <div style={{ height: 4, borderRadius: 99, background: 'linear-gradient(90deg,#06b6d4,#00d68f 50%,#8b5cf6)', opacity: 0.65 }} />
+                        <div style={{ position: 'absolute', top: '50%', left: `${dotPct}%`, transform: 'translate(-50%,-50%)', width: 11, height: 11, borderRadius: '50%', background: 'var(--eb-panel)', border: `2.5px solid ${dotColor}`, boxShadow: `0 0 0 3px ${dotGlow},0 0 8px ${dotColor}55` }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginTop: 8 }}>
+                        {zones.map((z, i) => (
+                          <div key={z.label} style={{ textAlign: i === 0 ? 'left' : i === 1 ? 'center' : 'right', opacity: activeIdx === i ? 1 : 0.4 }}>
+                            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, fontSize: 12.5, color: z.color }}>
+                              {Math.round((z.count / total) * 100)}%
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 1 }}>{z.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Discipline ring (stub) ── */}
+            <div
+              style={{
+                background: 'var(--eb-panel)',
+                border: '1px solid var(--eb-border)',
+                borderRadius: 12,
+                padding: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
+              <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                <svg width={72} height={72} viewBox="0 0 72 72" style={{ transform: 'rotate(-90deg)' }}>
                   <defs>
                     <linearGradient id="discGrad" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0" stopColor="#00d68f" />
                       <stop offset="1" stopColor="#06b6d4" />
                     </linearGradient>
                   </defs>
-                  <circle cx={44} cy={44} r={36} fill="none" strokeWidth={8} stroke="var(--eb-panel-2)" />
-                  <circle
-                    cx={44}
-                    cy={44}
-                    r={36}
-                    fill="none"
-                    strokeWidth={8}
-                    stroke="url(#discGrad)"
-                    strokeLinecap="round"
-                    strokeDasharray={226}
-                    strokeDashoffset={226}
-                  />
+                  <circle cx={36} cy={36} r={29} fill="none" strokeWidth={7} stroke="var(--eb-panel-2)" />
+                  <circle cx={36} cy={36} r={29} fill="none" strokeWidth={7} stroke="url(#discGrad)" strokeLinecap="round" strokeDasharray={182} strokeDashoffset={182} />
                 </svg>
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <span style={{ fontSize: 20, fontWeight: 600, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>—</span>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>—</span>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 8, lineHeight: 1.4 }}>
-                Tilt engine in V2
+              <div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600, marginBottom: 4 }}>
+                  Discipline Score
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>—</div>
+                <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 3 }}>Tilt engine in V2</div>
               </div>
             </div>
 
-            {/* Tilt watch (stub) */}
+            {/* ── Tilt watch (stub) ── */}
             <div
               style={{
                 background: 'var(--eb-panel)',
                 border: '1px solid var(--eb-border)',
                 borderRadius: 12,
-                padding: 14,
+                padding: 16,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
               }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.08em',
-                  color: 'var(--eb-muted)',
-                  fontWeight: 600,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                Tilt risk · live <Chip color="green">calm</Chip>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                  Tilt Risk · Live
+                </div>
+                <Chip color="green">calm</Chip>
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    letterSpacing: '-.02em',
-                    marginBottom: 4,
-                    color: 'var(--green)',
-                  }}
-                >
-                  0<span style={{ fontSize: 13, color: 'var(--eb-muted)', marginLeft: 3 }}>/ 100</span>
+                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--green)', margin: '8px 0 2px' }}>
+                  0<span style={{ fontSize: 13, color: 'var(--eb-muted)', marginLeft: 3, fontWeight: 400 }}>/ 100</span>
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)', marginBottom: 10 }}>
-                  No tilt signals detected
-                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>No signals detected</div>
               </div>
-              <div>
-                <div
-                  style={{
-                    height: 5,
-                    background: 'var(--eb-panel-2)',
-                    borderRadius: 99,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: '5%',
-                      background: 'linear-gradient(90deg,var(--green),var(--eb-cyan))',
-                      borderRadius: 99,
-                    }}
-                  />
+              <div style={{ marginTop: 10 }}>
+                <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: '4%', background: 'linear-gradient(90deg,var(--green),var(--eb-cyan))', borderRadius: 99 }} />
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: 9.5,
-                    color: 'var(--eb-muted)',
-                    marginTop: 3,
-                  }}
-                >
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--eb-muted)', marginTop: 4 }}>
                   <span>cool</span><span>watch</span><span>hot</span>
                 </div>
               </div>
             </div>
 
-            {/* Today P&L */}
+            {/* ── Profit Factor (stub) ── */}
             <div
               style={{
                 background: 'var(--eb-panel)',
                 border: '1px solid var(--eb-border)',
                 borderRadius: 12,
-                padding: 14,
+                padding: 16,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                position: 'relative',
-                overflow: 'hidden',
               }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.08em',
-                  color: 'var(--eb-muted)',
-                  fontWeight: 600,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                Today's P&L
-                {stats.todayTrades > 0 && (
-                  <Chip color={stats.todayWins / stats.todayTrades >= 0.5 ? 'green' : 'red'}>
-                    {stats.todayTrades}T · {Math.round((stats.todayWins / stats.todayTrades) * 100)}% WR
-                  </Chip>
-                )}
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                Profit Factor
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    letterSpacing: '-.02em',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: pnlColor(stats.todayPnl),
-                    margin: '6px 0 2px',
-                  }}
-                >
-                  {stats.todayTrades > 0 ? fmtMoney(stats.todayPnl) : '—'}
+                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.profitFactor > 0 ? (stats.profitFactor >= 1.5 ? 'var(--green)' : stats.profitFactor >= 1 ? 'var(--eb-cyan)' : 'var(--eb-red)') : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                  {stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'}
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                  {stats.todayTrades > 0
-                    ? `${stats.todayTrades} trade${stats.todayTrades !== 1 ? 's' : ''} today`
-                    : 'No trades today yet'}
+                  {stats.profitFactor >= 1.5 ? 'Strong edge' : stats.profitFactor >= 1 ? 'Marginal edge' : stats.profitFactor > 0 ? 'Below breakeven' : 'No closed trades'}
                 </div>
               </div>
-              {/* Goal bar (placeholder) */}
-              <div
-                style={{
-                  height: 4,
-                  background: 'var(--eb-panel-2)',
-                  borderRadius: 99,
-                  overflow: 'hidden',
-                  marginTop: 8,
-                }}
-              >
+              <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
                 <div
                   style={{
                     height: '100%',
-                    width: stats.todayPnl > 0 ? `${Math.min(100, (stats.todayPnl / 400) * 100)}%` : '0%',
-                    background: 'linear-gradient(90deg,var(--green),var(--eb-cyan))',
+                    width: stats.profitFactor > 0 ? `${Math.min(100, (stats.profitFactor / 3) * 100)}%` : '0%',
+                    background: stats.profitFactor >= 1.5
+                      ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                      : stats.profitFactor >= 1
+                        ? 'linear-gradient(90deg,var(--eb-cyan),#06b6d4)'
+                        : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
+                    borderRadius: 99,
+                    transition: 'width .3s',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* ── Expectancy ── */}
+            <div
+              style={{
+                background: 'var(--eb-panel)',
+                border: '1px solid var(--eb-border)',
+                borderRadius: 12,
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                Expectancy
+              </div>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: (stats.wins + stats.losses) > 0 ? pnlColor(stats.expectancy) : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                  {(stats.wins + stats.losses) > 0 ? fmtMoney(stats.expectancy) : '—'}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                  {(stats.wins + stats.losses) > 0 ? 'per trade' : 'No closed trades'}
+                </div>
+              </div>
+              <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: stats.expectancy > 0 ? `${Math.min(100, (stats.expectancy / 200) * 100)}%` : '0%',
+                    background: stats.expectancy >= 0
+                      ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                      : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
                     borderRadius: 99,
                     transition: 'width .3s',
                   }}
