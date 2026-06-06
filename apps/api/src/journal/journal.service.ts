@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -9,7 +10,6 @@ export class JournalService {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
 
-    // Fetch all entry dates for this user, newest first
     const entries = await this.prisma.journalEntry.findMany({
       where: { userId },
       select: { date: true },
@@ -18,7 +18,6 @@ export class JournalService {
 
     const dateSet = new Set(entries.map((e) => e.date.toISOString().slice(0, 10)));
 
-    // Walk backwards from today counting consecutive days with an entry
     let streak = 0;
     const cursor = new Date(today);
     while (true) {
@@ -28,7 +27,6 @@ export class JournalService {
       cursor.setUTCDate(cursor.getUTCDate() - 1);
     }
 
-    // Discipline avg: mean processScore from closed positions in last 30 days
     const since = new Date(today);
     since.setUTCDate(since.getUTCDate() - 30);
 
@@ -49,5 +47,33 @@ export class JournalService {
         : null;
 
     return { streak, disciplineAvg };
+  }
+
+  async getByDate(userId: string, dateStr: string) {
+    const date = new Date(dateStr);
+    return this.prisma.journalEntry.findUnique({
+      where: { userId_date: { userId, date } },
+    });
+  }
+
+  async upsert(userId: string, dateStr: string, data: Record<string, unknown>) {
+    const date = new Date(dateStr);
+    const { userId: _u, date: _d, ...fields } = data as Record<string, unknown> & { userId?: unknown; date?: unknown };
+    const createData = { userId, date, ...fields } as Prisma.JournalEntryUncheckedCreateInput;
+    const updateData = fields as Prisma.JournalEntryUncheckedUpdateInput;
+    return this.prisma.journalEntry.upsert({
+      where: { userId_date: { userId, date } },
+      create: createData,
+      update: updateData,
+    });
+  }
+
+  async listRecent(userId: string, limit = 10) {
+    return this.prisma.journalEntry.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: limit,
+      select: { id: true, date: true, bias: true, finalizedAt: true, lesson: true },
+    });
   }
 }

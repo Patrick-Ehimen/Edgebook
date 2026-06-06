@@ -387,14 +387,41 @@ model JournalEntry {
   id         String   @id @default(cuid())
   userId     String
   date       DateTime @db.Date
-  intentMd   String?
-  eodMd      String?
-  images     String[]
-  mood       Int?
+
+  intentMd      String?
+  bias          String?
+  conviction    Int?
+  maxRiskNote   String?
+  keyLevelsJson Json?
+  noTradeJson   Json?
+  watchlistJson Json?
+  focus         Int?
+  moodTagsJson  Json?
+  lockedAt      DateTime? @db.Timestamptz
+
+  sessionNotesMd String?
+
   sleepHours Decimal? @db.Decimal(4, 2)
   energy     Int?
-  createdAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt  DateTime @updatedAt @db.Timestamptz
+  mood       Int?
+
+  eodMd         String?
+  planAdherence Int?
+  processScore  Int?
+  outcomeScore  Int?
+  wentRightMd   String?
+  wentWrongMd   String?
+  lesson        String?
+  tomorrowMd    String?
+  tagsJson      Json?
+  energyEod     Int?
+  tiltRisk      Int?
+  confidenceEod Int?
+  finalizedAt   DateTime? @db.Timestamptz
+
+  images    String[]
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

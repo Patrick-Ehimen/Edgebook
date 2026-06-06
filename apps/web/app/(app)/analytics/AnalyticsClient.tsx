@@ -9,6 +9,7 @@ import { useQueries } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Lock, Plug, PenLine, Upload, TrendingUp } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ─── Types & helpers ──────────────────────────────────────────────────────────
 
@@ -511,8 +512,10 @@ function HeatmapPanel({ positions }: { positions: Position[] }) {
   const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0) as number[]);
   const filled = new Set<string>();
 
+  const now = new Date();
   for (const p of positions) {
     const dt = new Date(p.openedAt);
+    if (dt > now) continue;
     const rawDay = dt.getDay(); // 0=Sun
     const dow = rawDay === 0 ? 6 : rawDay - 1; // 0=Mon..6=Sun
     const hour = dt.getHours();
@@ -1139,6 +1142,54 @@ function EdgeDecayPanel({
   );
 }
 
+// ─── Equity curve ─────────────────────────────────────────────────────────────
+
+function EquityCurve({ data }: { data: { date: string; cum: number }[] }) {
+  if (data.length < 2) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>Not enough data to plot curve</span>
+      </div>
+    );
+  }
+  const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const lastCum = data[data.length - 1]?.cum ?? 0;
+  const strokeColor = lastCum >= 0 ? '#00d68f' : '#f87171';
+  const fillColor = lastCum >= 0 ? 'rgba(0,214,143,.40)' : 'rgba(248,113,113,.40)';
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="aFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={fillColor} />
+            <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} stroke="var(--eb-border)" strokeOpacity={0.6} />
+        <XAxis dataKey="date" tickFormatter={fmt} tick={{ fontSize: 10.5, fill: 'var(--eb-muted)', fontFamily: 'inherit' }} axisLine={false} tickLine={false} minTickGap={48} />
+        <YAxis tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`} tick={{ fontSize: 10.5, fill: 'var(--eb-muted)', fontFamily: 'inherit' }} axisLine={false} tickLine={false} width={52} />
+        <Tooltip
+          cursor={{ stroke: 'var(--eb-border)', strokeWidth: 1 }}
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const val = payload[0]?.value as number;
+            return (
+              <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(0,0,0,.3)' }}>
+                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(label)}</div>
+                <div style={{ fontWeight: 600, color: val >= 0 ? '#00d68f' : '#f87171' }}>
+                  {fmtMoney(val)} <span style={{ fontWeight: 400, color: 'var(--eb-muted)' }}>Cumulative P&L</span>
+                </div>
+              </div>
+            );
+          }}
+        />
+        <Area type="monotone" dataKey="cum" stroke={strokeColor} strokeWidth={2} fill="url(#aFill)" dot={false} activeDot={{ r: 4, fill: strokeColor, stroke: 'var(--eb-panel)', strokeWidth: 2 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ─── Main Analytics view ──────────────────────────────────────────────────────
 
 const RANGES: DayRange[] = ['7d', '30d', '90d', 'ytd', 'all'];
@@ -1173,6 +1224,60 @@ function AnalyticsData({
   const sumNeg = Math.abs(losses.reduce((s, p) => s + parsePnl(p.netPnl), 0));
   const profitFactor = sumNeg > 0 ? sumPos / sumNeg : sumPos > 0 ? 999 : 0;
 
+  // Max drawdown (peak-to-trough from cumulative equity)
+  const maxDrawdown = useMemo(() => {
+    const sorted = [...filtered].sort((a, b) => (a.closedAt ?? '') < (b.closedAt ?? '') ? -1 : 1);
+    let peak = 0, cum = 0, dd = 0;
+    for (const p of sorted) {
+      cum += parsePnl(p.netPnl);
+      if (cum > peak) peak = cum;
+      if (peak - cum > dd) dd = peak - cum;
+    }
+    return dd;
+  }, [filtered]);
+
+  // Avg hold time in ms
+  const avgHoldMs = useMemo(() => {
+    const times = filtered.filter(p => p.closedAt).map(p => new Date(p.closedAt!).getTime() - new Date(p.openedAt).getTime());
+    return times.length > 0 ? times.reduce((s, t) => s + t, 0) / times.length : 0;
+  }, [filtered]);
+
+  function fmtHold(ms: number): string {
+    if (ms < 60_000) return '<1m';
+    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+    if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)}h`;
+    return `${Math.round(ms / 86_400_000)}d`;
+  }
+
+  function holdProfile(ms: number): string {
+    if (ms < 5 * 60_000) return 'Scalper';
+    if (ms < 60 * 60_000) return 'Day trader';
+    if (ms < 24 * 3_600_000) return 'Swing intraday';
+    return 'Swing';
+  }
+
+  // Equity curve data
+  const equityData = useMemo(() => {
+    const dailyMap = new Map<string, number>();
+    for (const p of filtered) {
+      if (!p.closedAt) continue;
+      const d = p.closedAt.split('T')[0] ?? '';
+      dailyMap.set(d, (dailyMap.get(d) ?? 0) + parsePnl(p.netPnl));
+    }
+    let cum = 0;
+    return [...dailyMap.keys()].sort().map(date => {
+      cum += dailyMap.get(date) ?? 0;
+      return { date, cum };
+    });
+  }, [filtered]);
+
+  const expectancy = totalTrades > 0 ? totalPnl / totalTrades : 0;
+  const avgR = useMemo(() => {
+    const withR = filtered.filter(p => p.rRealized != null);
+    if (!withR.length) return null;
+    return withR.reduce((s, p) => s + Number.parseFloat(p.rRealized!), 0) / withR.length;
+  }, [filtered]);
+
   const rangeBtn = (r: DayRange) => ({
     padding: '4px 9px',
     borderRadius: 6,
@@ -1185,17 +1290,6 @@ function AnalyticsData({
     borderColor: range === r ? 'var(--eb-border)' : 'transparent',
     color: range === r ? 'var(--eb-text)' : 'var(--eb-muted)',
   } as React.CSSProperties);
-
-  const summaryPills: { label: string; value: string; valueColor?: string }[] = [
-    { label: 'Total trades', value: String(totalTrades) },
-    { label: 'Win rate', value: `${winRate.toFixed(1)}%`, valueColor: pnlColor(winRate - 50) },
-    { label: 'Total P&L', value: fmtMoney(totalPnl), valueColor: pnlColor(totalPnl) },
-    {
-      label: 'Profit factor',
-      value: profitFactor === 999 ? '∞' : profitFactor.toFixed(2),
-      valueColor: pnlColor(profitFactor - 1),
-    },
-  ];
 
   return (
     <div
@@ -1260,51 +1354,65 @@ function AnalyticsData({
         </div>
       </div>
 
-      {/* Summary strip */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          marginBottom: 14,
-          flexWrap: 'wrap',
-        }}
-      >
-        {summaryPills.map(({ label, value, valueColor }) => (
-          <div
-            key={label}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-              background: 'var(--eb-panel)',
-              border: '1px solid var(--eb-border)',
-              borderRadius: 8,
-              flex: '1 1 140px',
-            }}
-          >
-            <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>{label}</span>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: valueColor ?? 'var(--eb-text)',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontVariantNumeric: 'tabular-nums',
-                marginLeft: 'auto',
-              }}
-            >
-              {value}
-            </span>
+      {/* KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 14 }}>
+        {[
+          {
+            label: 'Net P&L',
+            value: fmtMoney(totalPnl),
+            valueColor: pnlColor(totalPnl),
+            sub: avgR != null ? `${avgR >= 0 ? '+' : ''}${avgR.toFixed(2)}R avg` : `${expectancy >= 0 ? '+' : ''}$${Math.abs(expectancy).toFixed(2)} exp.`,
+          },
+          {
+            label: 'Win rate',
+            value: `${winRate.toFixed(1)}%`,
+            valueColor: pnlColor(winRate - 50),
+            sub: `${wins.length}W · ${losses.length}L`,
+          },
+          {
+            label: 'Profit factor',
+            value: profitFactor === 999 ? '∞' : profitFactor.toFixed(2),
+            valueColor: pnlColor(profitFactor - 1),
+            sub: `Exp. ${expectancy >= 0 ? '+' : ''}$${Math.abs(expectancy).toFixed(2)}`,
+          },
+          {
+            label: 'Max drawdown',
+            value: maxDrawdown > 0 ? `−$${maxDrawdown.toFixed(2)}` : '—',
+            valueColor: maxDrawdown > 0 ? 'var(--eb-red)' : 'var(--eb-muted)',
+            sub: `${totalTrades} trades`,
+          },
+          {
+            label: 'Avg hold',
+            value: avgHoldMs > 0 ? fmtHold(avgHoldMs) : '—',
+            valueColor: 'var(--eb-text)',
+            sub: avgHoldMs > 0 ? holdProfile(avgHoldMs) : 'No data',
+          },
+        ].map(({ label, value, valueColor, sub }) => (
+          <div key={label} style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 10, padding: '12px 14px', minHeight: 78, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ color: 'var(--eb-muted)', fontSize: 11, letterSpacing: '.05em', textTransform: 'uppercase' as const }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.01em', color: valueColor, fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' as const }}>{value}</div>
+            <div style={{ fontSize: 11, color: 'var(--eb-muted)' }}>{sub}</div>
           </div>
         ))}
       </div>
+
+      {/* Equity curve */}
+      {equityData.length >= 2 && (
+        <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}>
+            Equity curve
+          </div>
+          <div style={{ height: 200 }}>
+            <EquityCurve data={equityData} />
+          </div>
+        </div>
+      )}
 
       {/* Row 1: Heatmap + Playbook perf */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
         <Panel>
           <div
-            style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}
           >
             P&L by hour × day
           </div>
@@ -1312,7 +1420,7 @@ function AnalyticsData({
         </Panel>
         <Panel>
           <div
-            style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}
           >
             Performance by Playbook
           </div>
@@ -1331,7 +1439,7 @@ function AnalyticsData({
       >
         <Panel>
           <div
-            style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}
           >
             Hold time distribution
           </div>
@@ -1339,7 +1447,7 @@ function AnalyticsData({
         </Panel>
         <Panel>
           <div
-            style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}
           >
             R-multiple distribution
           </div>
@@ -1347,7 +1455,7 @@ function AnalyticsData({
         </Panel>
         <Panel>
           <div
-            style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}
           >
             MFE vs Realized R
           </div>
@@ -1357,7 +1465,7 @@ function AnalyticsData({
 
       {/* Edge decay watch */}
       <Panel>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 12 }}>
           Edge decay watch
         </div>
         <EdgeDecayPanel allPositions={allPositions} playbooks={playbooks} />

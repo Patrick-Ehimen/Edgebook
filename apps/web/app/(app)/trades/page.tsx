@@ -9,6 +9,23 @@ import { CalendarDays, FileUp, LayoutList, Link2, PenLine, RefreshCw } from 'luc
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+const PLAYBOOK_PALETTE: { text: string; bg: string; border: string }[] = [
+  { text: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' },
+  { text: '#a78bfa', bg: 'rgba(139,92,246,.12)', border: 'rgba(139,92,246,.30)' },
+  { text: '#34d399', bg: 'rgba(16,185,129,.12)', border: 'rgba(16,185,129,.30)' },
+  { text: '#f472b6', bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)' },
+  { text: '#fb923c', bg: 'rgba(249,115,22,.12)', border: 'rgba(249,115,22,.30)' },
+  { text: '#facc15', bg: 'rgba(234,179,8,.12)',  border: 'rgba(234,179,8,.30)'  },
+  { text: '#22d3ee', bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)'  },
+  { text: '#f87171', bg: 'rgba(239,68,68,.12)',  border: 'rgba(239,68,68,.30)'  },
+];
+
+function playbookColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return PLAYBOOK_PALETTE[hash % PLAYBOOK_PALETTE.length];
+}
+
 const POLL_INTERVAL = 3_000;
 const POLL_TIMEOUT = 90_000;
 const PAGE_SIZE = 50;
@@ -368,7 +385,7 @@ export default function TradesPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Funding', 'Hold', 'Playbook', 'Rules', 'Status'].map((h) => (
+                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Funding', 'Hold', 'Playbook', 'Status'].map((h) => (
                         <th key={h} style={thStyle}>{h}</th>
                       ))}
                     </tr>
@@ -427,9 +444,9 @@ export default function TradesPage() {
                               <span style={{
                                 display: 'inline-flex', alignItems: 'center',
                                 fontSize: 11, padding: '2px 8px', borderRadius: 99,
-                                color: '#ea580c',
-                                background: 'rgba(194,65,12,.10)',
-                                border: '1px solid rgba(194,65,12,.30)',
+                                color: playbookColor(pos.playbookId).text,
+                                background: playbookColor(pos.playbookId).bg,
+                                border: `1px solid ${playbookColor(pos.playbookId).border}`,
                                 maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
                               }}>
@@ -438,9 +455,6 @@ export default function TradesPage() {
                             ) : (
                               <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>
                             )}
-                          </td>
-                          <td style={{ ...tdStyle, color: 'var(--eb-muted)', fontSize: 12 }}>
-                            —
                           </td>
                           <td style={tdStyle}>
                             <span

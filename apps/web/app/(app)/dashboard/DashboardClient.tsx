@@ -10,7 +10,16 @@ import { useQueries } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { Plug, PenLine, FileUp, TrendingUp, RefreshCw } from 'lucide-react';
+import { Plug, PenLine, FileUp, TrendingUp, RefreshCw, BarChart2, Brain, Zap } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,7 +114,8 @@ function computeStats(positions: Position[], range: DayRange): DashStats {
   const totalPnl = closed.reduce((s, p) => s + parsePnl(p.netPnl), 0);
   const wins = closed.filter((p) => parsePnl(p.netPnl) > 0);
   const losses = closed.filter((p) => parsePnl(p.netPnl) <= 0);
-  const winRate = wins.length + losses.length > 0 ? (wins.length / (wins.length + losses.length)) * 100 : 0;
+  const winRate =
+    wins.length + losses.length > 0 ? (wins.length / (wins.length + losses.length)) * 100 : 0;
 
   const sumPos = wins.reduce((s, p) => s + parsePnl(p.netPnl), 0);
   const sumNeg = Math.abs(losses.reduce((s, p) => s + parsePnl(p.netPnl), 0));
@@ -167,73 +177,97 @@ function computeStats(positions: Position[], range: DayRange): DashStats {
   };
 }
 
-// ─── Equity SVG ───────────────────────────────────────────────────────────────
+// ─── Equity curve (Recharts) ──────────────────────────────────────────────────
 
-function EquitySvg({ data }: { data: { date: string; cum: number }[] }) {
-  const W = 800;
-  const H = 200;
-  const PAD = 20;
-
+function EquityCurve({ data }: { data: { date: string; cum: number }[] }) {
   if (data.length < 2) {
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-        <line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke="var(--eb-border)" strokeWidth={1.5} strokeDasharray="4 4" />
-        <text x={W / 2} y={H / 2 - 10} fill="var(--eb-muted)" fontSize={11} textAnchor="middle">
+      <div
+        style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
           Not enough data to plot curve
-        </text>
-      </svg>
+        </span>
+      </div>
     );
   }
 
-  const values = data.map((d) => d.cum);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
-  const toY = (v: number) => H - PAD - ((v - min) / range) * (H - PAD * 2);
-  const toX = (i: number) => PAD + (i / (data.length - 1)) * (W - PAD * 2);
-
-  const pts = data.map((d, i) => `${toX(i)},${toY(d.cum)}`).join(' ');
-  const areaPath = `M${toX(0)},${toY(data[0]!.cum)} ${data
-    .slice(1)
-    .map((d, i) => `L${toX(i + 1)},${toY(d.cum)}`)
-    .join(' ')} L${toX(data.length - 1)},${H} L${toX(0)},${H} Z`;
-
-  const linePath = `M${toX(0)},${toY(data[0]!.cum)} ${data
-    .slice(1)
-    .map((d, i) => `L${toX(i + 1)},${toY(d.cum)}`)
-    .join(' ')}`;
-
-  const lastX = toX(data.length - 1);
-  const lastY = toY(data[data.length - 1]!.cum);
-  const lastCum = data[data.length - 1]!.cum;
+  const lastCum = data[data.length - 1]?.cum ?? 0;
+  const strokeColor = lastCum >= 0 ? '#00d68f' : '#f87171';
+  const fillStart = lastCum >= 0 ? 'rgba(0,214,143,.55)' : 'rgba(248,113,113,.55)';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-      <defs>
-        <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#00d68f" stopOpacity={0.22} />
-          <stop offset="1" stopColor="#00d68f" stopOpacity={0} />
-        </linearGradient>
-        <linearGradient id="eqStroke" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#00d68f" />
-          <stop offset="1" stopColor="#06b6d4" />
-        </linearGradient>
-      </defs>
-      {/* Grid lines */}
-      {[0.25, 0.5, 0.75].map((frac) => (
-        <line key={frac} x1={0} x2={W} y1={PAD + frac * (H - PAD * 2)} y2={PAD + frac * (H - PAD * 2)} stroke="var(--eb-border)" strokeWidth={1} />
-      ))}
-      {/* Area fill */}
-      <path d={areaPath} fill="url(#eqFill)" />
-      {/* Stroke */}
-      <polyline points={pts} stroke="url(#eqStroke)" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
-      {/* Current point */}
-      <circle cx={lastX} cy={lastY} r={5} fill="#00d68f" stroke="var(--eb-panel)" strokeWidth={2} />
-      <text x={Math.min(lastX + 8, W - 60)} y={Math.max(lastY - 6, 14)} fill="#00d68f" fontSize={10} fontFamily="monospace">
-        {fmtMoney(lastCum)}
-      </text>
-    </svg>
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={fillStart} />
+            <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          vertical={false}
+          stroke="var(--eb-border)"
+          strokeDasharray="0"
+          strokeOpacity={0.6}
+        />
+        <XAxis
+          dataKey="date"
+          tickFormatter={fmt}
+          tick={{ fontSize: 10.5, fill: 'var(--eb-muted)', fontFamily: 'inherit' }}
+          axisLine={false}
+          tickLine={false}
+          minTickGap={48}
+        />
+        <YAxis
+          tickFormatter={(v: number) =>
+            `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`
+          }
+          tick={{ fontSize: 10.5, fill: 'var(--eb-muted)', fontFamily: 'inherit' }}
+          axisLine={false}
+          tickLine={false}
+          width={52}
+        />
+        <Tooltip
+          cursor={{ stroke: 'var(--eb-border)', strokeWidth: 1 }}
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const val = payload[0]?.value as number;
+            return (
+              <div
+                style={{
+                  background: 'var(--eb-panel)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  fontFamily: 'inherit',
+                  boxShadow: '0 4px 16px rgba(0,0,0,.3)',
+                }}
+              >
+                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(label)}</div>
+                <div style={{ fontWeight: 600, color: val >= 0 ? '#00d68f' : '#f87171' }}>
+                  {fmtMoney(val)}{' '}
+                  <span style={{ fontWeight: 400, color: 'var(--eb-muted)' }}>Cumulative P&L</span>
+                </div>
+              </div>
+            );
+          }}
+        />
+        <Area
+          type="monotone"
+          dataKey="cum"
+          stroke={strokeColor}
+          strokeWidth={2}
+          fill="url(#eqFill)"
+          dot={false}
+          activeDot={{ r: 4, fill: strokeColor, stroke: 'var(--eb-panel)', strokeWidth: 2 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -321,7 +355,9 @@ function WeekStrip({ positions }: { positions: Position[] }) {
           );
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11.5 }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11.5 }}
+      >
         <span style={{ color: 'var(--eb-muted)' }}>Week total</span>
         <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: pnlColor(weekTotal) }}>
           {fmtMoney(weekTotal)}
@@ -330,9 +366,20 @@ function WeekStrip({ positions }: { positions: Position[] }) {
 
       {/* ── Mood × P&L timeline ── */}
       <div style={{ marginTop: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-text)' }}>Mood × P&amp;L · last 7d</span>
-          <span style={{ fontSize: 9.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>mood from daily check-in</span>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-text)' }}>
+            Mood × P&amp;L · last 7d
+          </span>
+          <span style={{ fontSize: 9.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>
+            mood from daily check-in
+          </span>
         </div>
         <div
           style={{
@@ -348,14 +395,14 @@ function WeekStrip({ positions }: { positions: Position[] }) {
             const k = d.toISOString().split('T')[0] ?? '';
             const pnl = dailyPnl.get(k);
             const isFuture = d > today && k !== todayISO;
-            const barH = pnl !== undefined
-              ? Math.max(2, Math.round((Math.abs(pnl) / maxAbsPnl) * 26))
-              : 2;
-            const [c1, c2] = pnl !== undefined && pnl >= 0
-              ? ['#00d68f', '#06b6d4']
-              : pnl !== undefined
-                ? ['#ff5b6c', '#f5a524']
-                : ['rgba(255,255,255,.08)', 'rgba(255,255,255,.08)'];
+            const barH =
+              pnl !== undefined ? Math.max(2, Math.round((Math.abs(pnl) / maxAbsPnl) * 26)) : 2;
+            const [c1, c2] =
+              pnl !== undefined && pnl >= 0
+                ? ['#00d68f', '#06b6d4']
+                : pnl !== undefined
+                  ? ['#ff5b6c', '#f5a524']
+                  : ['rgba(255,255,255,.08)', 'rgba(255,255,255,.08)'];
             return (
               <div
                 key={k}
@@ -386,7 +433,15 @@ function WeekStrip({ positions }: { positions: Position[] }) {
             );
           })}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 9.5, color: 'var(--eb-muted)' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: 3,
+            fontSize: 9.5,
+            color: 'var(--eb-muted)',
+          }}
+        >
           <span>{days[0]?.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
           <span>{days[6]?.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
         </div>
@@ -438,29 +493,77 @@ function DashboardSkeleton() {
     <>
       <style>{'@keyframes eb-pulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
       {/* Cockpit row skeleton */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.5fr 1fr 1fr 1fr',
+          gap: 12,
+          marginBottom: 14,
+        }}
+      >
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 18, height: 140 }}>
+          <div
+            key={i}
+            style={{
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 12,
+              padding: 18,
+              height: 140,
+            }}
+          >
             <Sk h={12} w={80} r={4} />
-            <div style={{ marginTop: 16 }}><Sk h={28} w={120} r={6} /></div>
-            <div style={{ marginTop: 10 }}><Sk h={10} w="80%" r={4} /></div>
+            <div style={{ marginTop: 16 }}>
+              <Sk h={28} w={120} r={6} />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Sk h={10} w="80%" r={4} />
+            </div>
           </div>
         ))}
       </div>
       {/* Spine skeleton */}
-      <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 11, padding: '12px 14px', marginBottom: 14 }}>
+      <div
+        style={{
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 11,
+          padding: '12px 14px',
+          marginBottom: 14,
+        }}
+      >
         <Sk h={10} w="100%" r={4} />
       </div>
       {/* Main grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
-        <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 11, padding: 14, height: 320 }}>
+        <div
+          style={{
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 11,
+            padding: 14,
+            height: 320,
+          }}
+        >
           <Sk h={12} w={160} r={4} />
-          <div style={{ marginTop: 16 }}><Sk h={220} r={8} /></div>
+          <div style={{ marginTop: 16 }}>
+            <Sk h={220} r={8} />
+          </div>
         </div>
-        <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 11, padding: 14, height: 320 }}>
+        <div
+          style={{
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 11,
+            padding: 14,
+            height: 320,
+          }}
+        >
           <Sk h={12} w={120} r={4} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
-            {[0, 1, 2].map((i) => <Sk key={i} h={40} r={8} />)}
+            {[0, 1, 2].map((i) => (
+              <Sk key={i} h={40} r={8} />
+            ))}
           </div>
         </div>
       </div>
@@ -470,10 +573,7 @@ function DashboardSkeleton() {
 
 // ─── Panel wrapper ────────────────────────────────────────────────────────────
 
-function Panel({
-  children,
-  style,
-}: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Panel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div
       style={{
@@ -489,10 +589,7 @@ function Panel({
   );
 }
 
-function PanelH3({
-  left,
-  right,
-}: { left: React.ReactNode; right?: React.ReactNode }) {
+function PanelH3({ left, right }: { left: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div
       style={{
@@ -522,11 +619,21 @@ function Chip({
   const colors: Record<string, { border: string; bg: string; text: string }> = {
     green: { border: 'rgba(0,214,143,.30)', bg: 'rgba(0,214,143,.08)', text: 'var(--green)' },
     red: { border: 'rgba(255,91,108,.30)', bg: 'rgba(255,91,108,.08)', text: 'var(--eb-red)' },
-    yellow: { border: 'rgba(245,165,36,.30)', bg: 'rgba(245,165,36,.08)', text: 'var(--eb-yellow)' },
-    purple: { border: 'rgba(139,92,246,.30)', bg: 'rgba(139,92,246,.08)', text: 'var(--eb-purple)' },
+    yellow: {
+      border: 'rgba(245,165,36,.30)',
+      bg: 'rgba(245,165,36,.08)',
+      text: 'var(--eb-yellow)',
+    },
+    purple: {
+      border: 'rgba(139,92,246,.30)',
+      bg: 'rgba(139,92,246,.08)',
+      text: 'var(--eb-purple)',
+    },
     cyan: { border: 'rgba(6,182,212,.30)', bg: 'rgba(6,182,212,.08)', text: 'var(--eb-cyan)' },
   };
-  const c = color ? colors[color] : { border: 'var(--eb-border)', bg: 'var(--eb-panel-2)', text: 'var(--eb-muted-2)' };
+  const c = color
+    ? colors[color]
+    : { border: 'var(--eb-border)', bg: 'var(--eb-panel-2)', text: 'var(--eb-muted-2)' };
   return (
     <span
       style={{
@@ -576,44 +683,167 @@ function BtnSm({ children, onClick }: { children: React.ReactNode; onClick?: () 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
 function EmptyState({ onLog }: { onLog: () => void }) {
+  const features = [
+    {
+      icon: <BarChart2 size={18} />,
+      title: 'Performance analytics',
+      desc: 'Equity curve, R-multiples, win rate, and edge-decay metrics across every playbook.',
+    },
+    {
+      icon: <Brain size={18} />,
+      title: 'Tilt detection',
+      desc: 'Real-time alerts when your behaviour deviates from your own historical baseline.',
+    },
+    {
+      icon: <Zap size={18} />,
+      title: 'Live sync',
+      desc: 'Connects read-only to your exchange and groups fills into positions automatically.',
+    },
+  ];
+
   return (
     <div
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
-        borderRadius: 13,
-        padding: '56px 28px',
+        borderRadius: 18,
+        padding: '96px 48px 72px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center',
+        minHeight: 540,
       }}
     >
-      <div style={{ fontSize: 52, marginBottom: 16, filter: 'drop-shadow(0 6px 14px rgba(0,214,143,.2))', color: 'var(--green)' }}>
-        <TrendingUp size={52} />
+      {/* subtle radial glow — toned down */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: -120,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 700,
+          height: 420,
+          borderRadius: '50%',
+          background: 'radial-gradient(ellipse at center, rgba(0,214,143,.05) 0%, transparent 65%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* icon */}
+      <div
+        style={{
+          position: 'relative',
+          marginBottom: 28,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 76,
+          height: 76,
+          borderRadius: 20,
+          background: 'linear-gradient(145deg, rgba(0,214,143,.08), rgba(0,182,122,.04))',
+          border: '1px solid rgba(0,214,143,.12)',
+          color: 'var(--green)',
+          boxShadow: '0 0 24px rgba(0,214,143,.08)',
+        }}
+      >
+        <TrendingUp size={32} strokeWidth={1.6} />
       </div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>
+
+      <h2
+        style={{
+          margin: '0 0 12px',
+          fontSize: 26,
+          fontWeight: 700,
+          letterSpacing: '-.025em',
+          color: 'var(--eb-text)',
+        }}
+      >
         Your edge starts with one trade
       </h2>
-      <p style={{ color: 'var(--eb-muted-2)', maxWidth: 460, margin: '0 0 24px', lineHeight: 1.6, fontSize: 13.5 }}>
-        Connect an exchange, upload a CSV, or log your first trade manually. Once you have data, this dashboard lights up.
+      <p
+        style={{
+          color: 'var(--eb-muted-2)',
+          maxWidth: 480,
+          margin: '0 0 48px',
+          lineHeight: 1.7,
+          fontSize: 15,
+        }}
+      >
+        Connect an exchange, import a CSV, or log manually. Once you have data, every panel below
+        comes alive.
       </p>
+
+      {/* feature cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14,
+          width: '100%',
+          maxWidth: 860,
+          marginBottom: 48,
+        }}
+      >
+        {features.map((f) => (
+          <div
+            key={f.title}
+            style={{
+              background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 14,
+              padding: '22px 20px',
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: 'rgba(255,255,255,.05)',
+                color: 'var(--eb-muted)',
+                marginBottom: 14,
+              }}
+            >
+              {f.icon}
+            </div>
+            <div
+              style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 6 }}
+            >
+              {f.title}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--eb-muted-2)', lineHeight: 1.6 }}>
+              {f.desc}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* actions */}
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Link
           href="/settings"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '9px 16px',
-            borderRadius: 9,
+            gap: 7,
+            padding: '10px 20px',
+            borderRadius: 10,
             border: '1px solid #00b67a',
             background: 'linear-gradient(180deg,#00e29a,#00b67a)',
             color: '#06140f',
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 700,
             textDecoration: 'none',
-            cursor: 'pointer',
+            letterSpacing: '-.01em',
+            boxShadow: '0 2px 12px rgba(0,214,143,.25)',
           }}
         >
           <Plug size={14} /> Connect exchange
@@ -624,15 +854,17 @@ function EmptyState({ onLog }: { onLog: () => void }) {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '9px 14px',
-            borderRadius: 9,
+            gap: 7,
+            padding: '10px 18px',
+            borderRadius: 10,
             border: '1px solid var(--eb-border)',
             background: 'var(--eb-panel-2)',
             color: 'var(--eb-text)',
             fontSize: 13,
+            fontWeight: 600,
             cursor: 'pointer',
             fontFamily: 'inherit',
+            letterSpacing: '-.01em',
           }}
         >
           <PenLine size={14} /> Log trade
@@ -643,16 +875,16 @@ function EmptyState({ onLog }: { onLog: () => void }) {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '9px 14px',
-            borderRadius: 9,
+            gap: 7,
+            padding: '10px 18px',
+            borderRadius: 10,
             border: '1px solid var(--eb-border)',
             background: 'var(--eb-panel-2)',
             color: 'var(--eb-muted)',
             fontSize: 13,
             cursor: 'not-allowed',
             fontFamily: 'inherit',
-            opacity: 0.6,
+            opacity: 0.45,
           }}
         >
           <FileUp size={14} /> Import CSV
@@ -729,12 +961,9 @@ export default function DashboardClient() {
         if (trades.length === 0) return null;
         const wins = trades.filter((p) => parsePnl(p.netPnl) > 0);
         const wr = (wins.length / trades.length) * 100;
-        const avgR =
-          trades.reduce((s, p) => s + parsePnl(p.rRealized), 0) / trades.length;
+        const avgR = trades.reduce((s, p) => s + parsePnl(p.rRealized), 0) / trades.length;
         // Sparkline: last 8 trades' P&L
-        const spark = trades
-          .slice(-8)
-          .map((p) => parsePnl(p.netPnl));
+        const spark = trades.slice(-8).map((p) => parsePnl(p.netPnl));
         return { id: pb.id, name: pb.name, count: trades.length, wr, avgR, spark };
       })
       .filter(Boolean)
@@ -743,7 +972,8 @@ export default function DashboardClient() {
   }, [allPositions, playbooks]);
 
   // Session shape: { handle, email, userId, isOnboarded, ... }
-  const userName = session?.handle?.split(' ')[0] ?? session?.email?.split('@')[0] ?? 'Trader';
+  const rawName = session?.handle?.split(' ')[0] ?? session?.email?.split('@')[0] ?? 'Trader';
+  const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
   // ── Daily context bar ──────────────────────────────────────────────────────
   const dailyCtx = useMemo(() => {
@@ -810,7 +1040,8 @@ export default function DashboardClient() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'radial-gradient(600px 180px at 80% 50%,rgba(0,214,143,.08),transparent 65%)',
+                background:
+                  'radial-gradient(600px 180px at 80% 50%,rgba(0,214,143,.08),transparent 65%)',
                 pointerEvents: 'none',
               }}
             />
@@ -825,15 +1056,20 @@ export default function DashboardClient() {
                   color: 'var(--eb-text)',
                 }}
               >
-                {greeting()}, {userName}
+                {greeting()}, Trader {userName}
               </h1>
               <div style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
                 {stats.closed.length > 0 ? (
                   <>
-                    <strong style={{ color: 'var(--eb-text)' }}>{stats.closed.length}</strong> closed ·{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{stats.closed.length}</strong>{' '}
+                    closed ·{' '}
                     <strong style={{ color: 'var(--eb-text)' }}>{stats.open.length}</strong> open
                     {stats.todayTrades > 0 && (
-                      <> · <strong style={{ color: 'var(--green)' }}>{stats.todayTrades}</strong> today</>
+                      <>
+                        {' '}
+                        · <strong style={{ color: 'var(--green)' }}>{stats.todayTrades}</strong>{' '}
+                        today
+                      </>
                     )}
                   </>
                 ) : (
@@ -841,7 +1077,17 @@ export default function DashboardClient() {
                 )}
               </div>
               {stats.dailyPnl.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: 'var(--eb-muted)', flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: 'var(--eb-muted)',
+                    flexWrap: 'wrap',
+                  }}
+                >
                   <span>
                     Slept <strong style={{ color: 'var(--eb-muted-2)' }}>—</strong>
                   </span>
@@ -852,15 +1098,20 @@ export default function DashboardClient() {
                   <span style={{ opacity: 0.35 }}>·</span>
                   <span>
                     trading day{' '}
-                    <strong style={{ color: 'var(--eb-text)' }}>{dailyCtx.tradingDaysThisMonth}</strong>
-                    {' '}of{' '}
-                    <strong style={{ color: 'var(--eb-text)' }}>{dailyCtx.daysInMonth}</strong>
-                    {' '}this month
+                    <strong style={{ color: 'var(--eb-text)' }}>
+                      {dailyCtx.tradingDaysThisMonth}
+                    </strong>{' '}
+                    of <strong style={{ color: 'var(--eb-text)' }}>{dailyCtx.daysInMonth}</strong>{' '}
+                    this month
                   </span>
                   <span style={{ opacity: 0.35 }}>·</span>
                   <span>
                     streak{' '}
-                    <strong style={{ color: dailyCtx.streakSign === 'green' ? 'var(--green)' : 'var(--eb-red)' }}>
+                    <strong
+                      style={{
+                        color: dailyCtx.streakSign === 'green' ? 'var(--green)' : 'var(--eb-red)',
+                      }}
+                    >
                       {dailyCtx.streak} {dailyCtx.streakSign} day{dailyCtx.streak !== 1 ? 's' : ''}
                     </strong>
                   </span>
@@ -944,13 +1195,24 @@ export default function DashboardClient() {
             >
               {/* Today's P&L */}
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.08em',
+                      color: 'var(--eb-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
                     Today's P&amp;L
                   </div>
                   {stats.todayTrades > 0 && (
                     <Chip color={stats.todayWins / stats.todayTrades >= 0.5 ? 'green' : 'red'}>
-                      {stats.todayTrades}T · {Math.round((stats.todayWins / stats.todayTrades) * 100)}%
+                      {stats.todayTrades}T ·{' '}
+                      {Math.round((stats.todayWins / stats.todayTrades) * 100)}%
                     </Chip>
                   )}
                 </div>
@@ -967,7 +1229,9 @@ export default function DashboardClient() {
                   {stats.todayTrades > 0 ? fmtMoney(stats.todayPnl) : '—'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--eb-muted)' }}>
-                  {stats.todayTrades > 0 ? `${stats.todayTrades} trade${stats.todayTrades !== 1 ? 's' : ''} today` : 'No trades today yet'}
+                  {stats.todayTrades > 0
+                    ? `${stats.todayTrades} trade${stats.todayTrades !== 1 ? 's' : ''} today`
+                    : 'No trades today yet'}
                 </div>
               </div>
 
@@ -976,11 +1240,21 @@ export default function DashboardClient() {
 
               {/* Net P&L */}
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.08em',
+                      color: 'var(--eb-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
                     Net P&amp;L
                   </div>
-                  {(stats.wins + stats.losses) > 0 && (
+                  {stats.wins + stats.losses > 0 && (
                     <Chip color={stats.winRate >= 50 ? 'green' : 'red'}>
                       {stats.winRate.toFixed(0)}% WR
                     </Chip>
@@ -992,25 +1266,38 @@ export default function DashboardClient() {
                     fontWeight: 700,
                     fontFamily: 'var(--font-mono, monospace)',
                     letterSpacing: '-.02em',
-                    color: (stats.wins + stats.losses) > 0 ? pnlColor(stats.totalPnl) : 'var(--eb-muted)',
+                    color:
+                      stats.wins + stats.losses > 0 ? pnlColor(stats.totalPnl) : 'var(--eb-muted)',
                     margin: '6px 0 2px',
                   }}
                 >
-                  {(stats.wins + stats.losses) > 0 ? fmtMoney(stats.totalPnl) : '—'}
+                  {stats.wins + stats.losses > 0 ? fmtMoney(stats.totalPnl) : '—'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--eb-muted)' }}>
-                  {(stats.wins + stats.losses) > 0
+                  {stats.wins + stats.losses > 0
                     ? `${stats.wins + stats.losses} trade${(stats.wins + stats.losses) !== 1 ? 's' : ''} · ${stats.wins}W ${stats.losses}L`
                     : 'No closed trades yet'}
                 </div>
-                <div style={{ height: 3, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+                <div
+                  style={{
+                    height: 3,
+                    background: 'var(--eb-panel-2)',
+                    borderRadius: 99,
+                    overflow: 'hidden',
+                    marginTop: 10,
+                  }}
+                >
                   <div
                     style={{
                       height: '100%',
-                      width: stats.totalPnl > 0 ? `${Math.min(100, (stats.totalPnl / 2000) * 100)}%` : '0%',
-                      background: stats.totalPnl >= 0
-                        ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
-                        : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
+                      width:
+                        stats.totalPnl > 0
+                          ? `${Math.min(100, (stats.totalPnl / 2000) * 100)}%`
+                          : '0%',
+                      background:
+                        stats.totalPnl >= 0
+                          ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                          : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
                       borderRadius: 99,
                       transition: 'width .3s',
                     }}
@@ -1021,16 +1308,48 @@ export default function DashboardClient() {
 
             {/* ── Win / Loss Ratio ── */}
             {(() => {
-              const wlRatio = stats.losses > 0 ? stats.wins / stats.losses : stats.wins > 0 ? stats.wins : 0;
-              const wlColor = wlRatio >= 1.5 ? 'var(--green)' : wlRatio >= 1 ? 'var(--eb-cyan)' : 'var(--eb-red)';
-              const winPct = (stats.wins + stats.losses) > 0 ? (stats.wins / (stats.wins + stats.losses)) * 100 : 0;
+              const wlRatio =
+                stats.losses > 0 ? stats.wins / stats.losses : stats.wins > 0 ? stats.wins : 0;
+              const wlColor =
+                wlRatio >= 1.5 ? 'var(--green)' : wlRatio >= 1 ? 'var(--eb-cyan)' : 'var(--eb-red)';
+              const winPct =
+                stats.wins + stats.losses > 0
+                  ? (stats.wins / (stats.wins + stats.losses)) * 100
+                  : 0;
               return (
-                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                <div
+                  style={{
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 12,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.08em',
+                      color: 'var(--eb-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
                     Win / Loss Ratio
                   </div>
                   <div>
-                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.closed.length > 0 ? wlColor : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        letterSpacing: '-.02em',
+                        color: stats.closed.length > 0 ? wlColor : 'var(--eb-muted)',
+                        margin: '8px 0 2px',
+                      }}
+                    >
                       {stats.closed.length > 0
                         ? stats.losses === 0
                           ? `${stats.wins} : 0`
@@ -1038,26 +1357,87 @@ export default function DashboardClient() {
                         : '—'}
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                      {stats.closed.length > 0 ? `${stats.wins}W · ${stats.losses}L` : 'No closed trades yet'}
+                      {stats.closed.length > 0
+                        ? `${stats.wins}W · ${stats.losses}L`
+                        : 'No closed trades yet'}
                     </div>
                   </div>
                   {stats.closed.length > 0 && (
                     <div style={{ marginTop: 14 }}>
                       {/* W/L split bar */}
-                      <div style={{ display: 'flex', height: 4, borderRadius: 99, overflow: 'hidden', gap: 2 }}>
-                        <div style={{ flex: winPct, background: 'linear-gradient(90deg,#00d68f,#06b6d4)', borderRadius: '99px 0 0 99px', minWidth: winPct > 0 ? 4 : 0 }} />
-                        <div style={{ flex: 100 - winPct, background: 'linear-gradient(90deg,#ff5b6c,#f97316)', borderRadius: '0 99px 99px 0', minWidth: (100 - winPct) > 0 ? 4 : 0 }} />
+                      <div
+                        style={{
+                          display: 'flex',
+                          height: 4,
+                          borderRadius: 99,
+                          overflow: 'hidden',
+                          gap: 2,
+                        }}
+                      >
+                        <div
+                          style={{
+                            flex: winPct,
+                            background: 'linear-gradient(90deg,#00d68f,#06b6d4)',
+                            borderRadius: '99px 0 0 99px',
+                            minWidth: winPct > 0 ? 4 : 0,
+                          }}
+                        />
+                        <div
+                          style={{
+                            flex: 100 - winPct,
+                            background: 'linear-gradient(90deg,#ff5b6c,#f97316)',
+                            borderRadius: '0 99px 99px 0',
+                            minWidth: 100 - winPct > 0 ? 4 : 0,
+                          }}
+                        />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginTop: 8,
+                          fontSize: 11,
+                        }}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: '50%',
+                              background: 'var(--green)',
+                              display: 'inline-block',
+                            }}
+                          />
                           <span style={{ color: 'var(--eb-muted)' }}>Wins</span>
-                          <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--green)' }}>{winPct.toFixed(0)}%</strong>
+                          <strong
+                            style={{
+                              fontFamily: 'var(--font-mono, monospace)',
+                              color: 'var(--green)',
+                            }}
+                          >
+                            {winPct.toFixed(0)}%
+                          </strong>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-red)' }}>{(100 - winPct).toFixed(0)}%</strong>
+                          <strong
+                            style={{
+                              fontFamily: 'var(--font-mono, monospace)',
+                              color: 'var(--eb-red)',
+                            }}
+                          >
+                            {(100 - winPct).toFixed(0)}%
+                          </strong>
                           <span style={{ color: 'var(--eb-muted)' }}>Losses</span>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-red)', display: 'inline-block' }} />
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: '50%',
+                              background: 'var(--eb-red)',
+                              display: 'inline-block',
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1068,27 +1448,66 @@ export default function DashboardClient() {
 
             {/* ── Max System Drawdown ── */}
             {(() => {
-              const peakEquity = stats.cumulative.length > 0 ? Math.max(0, ...stats.cumulative.map((d) => d.cum)) : 0;
+              const peakEquity =
+                stats.cumulative.length > 0
+                  ? Math.max(0, ...stats.cumulative.map((d) => d.cum))
+                  : 0;
               const ddPct = peakEquity > 0 ? (stats.maxDD / peakEquity) * 100 : 0;
               const ddColor = stats.maxDD > 0 ? 'var(--eb-red)' : 'var(--green)';
               const recoveryFactor = stats.maxDD > 0 ? stats.totalPnl / stats.maxDD : 0;
               return (
-                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                <div
+                  style={{
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 12,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.08em',
+                      color: 'var(--eb-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
                     Max System Drawdown
                   </div>
                   <div>
-                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.maxDD > 0 ? ddColor : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        letterSpacing: '-.02em',
+                        color: stats.maxDD > 0 ? ddColor : 'var(--eb-muted)',
+                        margin: '8px 0 2px',
+                      }}
+                    >
                       {stats.maxDD > 0 ? `−$${stats.maxDD.toFixed(2)}` : '—'}
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                      {stats.maxDD > 0 ? `${ddPct.toFixed(1)}% from peak · recovery ${recoveryFactor > 0 ? `${recoveryFactor.toFixed(1)}×` : '—'}` : 'No drawdown recorded'}
+                      {stats.maxDD > 0
+                        ? `${ddPct.toFixed(1)}% from peak · recovery ${recoveryFactor > 0 ? `${recoveryFactor.toFixed(1)}×` : '—'}`
+                        : 'No drawdown recorded'}
                     </div>
                   </div>
                   {stats.maxDD > 0 && (
                     <div style={{ marginTop: 14 }}>
                       {/* DD depth bar */}
-                      <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          height: 4,
+                          background: 'var(--eb-panel-2)',
+                          borderRadius: 99,
+                          overflow: 'hidden',
+                        }}
+                      >
                         <div
                           style={{
                             height: '100%',
@@ -1099,9 +1518,19 @@ export default function DashboardClient() {
                           }}
                         />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10.5, color: 'var(--eb-muted)' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginTop: 6,
+                          fontSize: 10.5,
+                          color: 'var(--eb-muted)',
+                        }}
+                      >
                         <span>0%</span>
-                        <span style={{ color: ddColor, fontWeight: 600 }}>{ddPct.toFixed(1)}% used</span>
+                        <span style={{ color: ddColor, fontWeight: 600 }}>
+                          {ddPct.toFixed(1)}% used
+                        </span>
                         <span>50%+</span>
                       </div>
                     </div>
@@ -1115,16 +1544,22 @@ export default function DashboardClient() {
               const closed = stats.closed;
               const scalps = closed.filter((p) => {
                 if (!p.closedAt) return false;
-                return (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 < 1;
+                return (
+                  (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 < 1
+                );
               });
               const intraday = closed.filter((p) => {
                 if (!p.closedAt) return false;
-                const h = (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000;
+                const h =
+                  (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000;
                 return h >= 1 && h < 24;
               });
               const swing = closed.filter((p) => {
                 if (!p.closedAt) return false;
-                return (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 >= 24;
+                return (
+                  (new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 3_600_000 >=
+                  24
+                );
               });
               const total = closed.length;
               const fmtHold = (min: number) => {
@@ -1137,39 +1572,115 @@ export default function DashboardClient() {
               };
               const activeIdx = stats.avgHoldMin < 60 ? 0 : stats.avgHoldMin < 1440 ? 1 : 2;
               const dotPct = activeIdx === 0 ? 16 : activeIdx === 1 ? 50 : 84;
-              const dotColor = activeIdx === 0 ? '#06b6d4' : activeIdx === 1 ? '#00d68f' : '#8b5cf6';
-              const dotGlow = activeIdx === 0 ? 'rgba(6,182,212,.28)' : activeIdx === 1 ? 'rgba(0,214,143,.28)' : 'rgba(139,92,246,.28)';
+              const dotColor =
+                activeIdx === 0 ? '#06b6d4' : activeIdx === 1 ? '#00d68f' : '#8b5cf6';
+              const dotGlow =
+                activeIdx === 0
+                  ? 'rgba(6,182,212,.28)'
+                  : activeIdx === 1
+                    ? 'rgba(0,214,143,.28)'
+                    : 'rgba(139,92,246,.28)';
               const zones = [
                 { label: 'Scalp', count: scalps.length, color: '#06b6d4' },
                 { label: 'Intraday', count: intraday.length, color: '#00d68f' },
                 { label: 'Swing', count: swing.length, color: '#8b5cf6' },
               ];
               return (
-                <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+                <div
+                  style={{
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 12,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.08em',
+                      color: 'var(--eb-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
                     Avg Hold Horizon
                   </div>
                   <div>
-                    <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.avgHoldMin > 0 ? 'var(--eb-text)' : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        letterSpacing: '-.02em',
+                        color: stats.avgHoldMin > 0 ? 'var(--eb-text)' : 'var(--eb-muted)',
+                        margin: '8px 0 2px',
+                      }}
+                    >
                       {stats.avgHoldMin > 0 ? fmtHold(stats.avgHoldMin) : '—'}
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                      {total > 0 ? `across ${total} trade${total !== 1 ? 's' : ''}` : 'No closed trades yet'}
+                      {total > 0
+                        ? `across ${total} trade${total !== 1 ? 's' : ''}`
+                        : 'No closed trades yet'}
                     </div>
                   </div>
                   {total > 0 && (
                     <div style={{ marginTop: 14 }}>
                       <div style={{ position: 'relative', paddingBottom: 6 }}>
-                        <div style={{ height: 4, borderRadius: 99, background: 'linear-gradient(90deg,#06b6d4,#00d68f 50%,#8b5cf6)', opacity: 0.65 }} />
-                        <div style={{ position: 'absolute', top: '50%', left: `${dotPct}%`, transform: 'translate(-50%,-50%)', width: 11, height: 11, borderRadius: '50%', background: 'var(--eb-panel)', border: `2.5px solid ${dotColor}`, boxShadow: `0 0 0 3px ${dotGlow},0 0 8px ${dotColor}55` }} />
+                        <div
+                          style={{
+                            height: 4,
+                            borderRadius: 99,
+                            background: 'linear-gradient(90deg,#06b6d4,#00d68f 50%,#8b5cf6)',
+                            opacity: 0.65,
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: `${dotPct}%`,
+                            transform: 'translate(-50%,-50%)',
+                            width: 11,
+                            height: 11,
+                            borderRadius: '50%',
+                            background: 'var(--eb-panel)',
+                            border: `2.5px solid ${dotColor}`,
+                            boxShadow: `0 0 0 3px ${dotGlow},0 0 8px ${dotColor}55`,
+                          }}
+                        />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginTop: 8 }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr',
+                          marginTop: 8,
+                        }}
+                      >
                         {zones.map((z, i) => (
-                          <div key={z.label} style={{ textAlign: i === 0 ? 'left' : i === 1 ? 'center' : 'right', opacity: activeIdx === i ? 1 : 0.4 }}>
-                            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, fontSize: 12.5, color: z.color }}>
+                          <div
+                            key={z.label}
+                            style={{
+                              textAlign: i === 0 ? 'left' : i === 1 ? 'center' : 'right',
+                              opacity: activeIdx === i ? 1 : 0.4,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontFamily: 'var(--font-mono, monospace)',
+                                fontWeight: 700,
+                                fontSize: 12.5,
+                                color: z.color,
+                              }}
+                            >
                               {Math.round((z.count / total) * 100)}%
                             </div>
-                            <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 1 }}>{z.label}</div>
+                            <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 1 }}>
+                              {z.label}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1192,26 +1703,85 @@ export default function DashboardClient() {
               }}
             >
               <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                <svg width={72} height={72} viewBox="0 0 72 72" style={{ transform: 'rotate(-90deg)' }}>
+                <svg
+                  width={72}
+                  height={72}
+                  viewBox="0 0 72 72"
+                  style={{ transform: 'rotate(-90deg)' }}
+                >
                   <defs>
                     <linearGradient id="discGrad" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0" stopColor="#00d68f" />
                       <stop offset="1" stopColor="#06b6d4" />
                     </linearGradient>
                   </defs>
-                  <circle cx={36} cy={36} r={29} fill="none" strokeWidth={7} stroke="var(--eb-panel-2)" />
-                  <circle cx={36} cy={36} r={29} fill="none" strokeWidth={7} stroke="url(#discGrad)" strokeLinecap="round" strokeDasharray={182} strokeDashoffset={182} />
+                  <circle
+                    cx={36}
+                    cy={36}
+                    r={29}
+                    fill="none"
+                    strokeWidth={7}
+                    stroke="var(--eb-panel-2)"
+                  />
+                  <circle
+                    cx={36}
+                    cy={36}
+                    r={29}
+                    fill="none"
+                    strokeWidth={7}
+                    stroke="url(#discGrad)"
+                    strokeLinecap="round"
+                    strokeDasharray={182}
+                    strokeDashoffset={182}
+                  />
                 </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>—</span>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      color: 'var(--eb-muted)',
+                    }}
+                  >
+                    —
+                  </span>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600, marginBottom: 4 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.08em',
+                    color: 'var(--eb-muted)',
+                    fontWeight: 600,
+                    marginBottom: 4,
+                  }}
+                >
                   Discipline Score
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>—</div>
-                <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 3 }}>Tilt engine in V2</div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    color: 'var(--eb-muted)',
+                  }}
+                >
+                  —
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 3 }}>
+                  Tilt engine in V2
+                </div>
               </div>
             </div>
 
@@ -1227,24 +1797,76 @@ export default function DashboardClient() {
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.08em',
+                    color: 'var(--eb-muted)',
+                    fontWeight: 600,
+                  }}
+                >
                   Tilt Risk · Live
                 </div>
                 <Chip color="green">calm</Chip>
               </div>
               <div>
-                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--green)', margin: '8px 0 2px' }}>
-                  0<span style={{ fontSize: 13, color: 'var(--eb-muted)', marginLeft: 3, fontWeight: 400 }}>/ 100</span>
+                <div
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    color: 'var(--green)',
+                    margin: '8px 0 2px',
+                  }}
+                >
+                  0
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--eb-muted)',
+                      marginLeft: 3,
+                      fontWeight: 400,
+                    }}
+                  >
+                    / 100
+                  </span>
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>No signals detected</div>
               </div>
               <div style={{ marginTop: 10 }}>
-                <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: '4%', background: 'linear-gradient(90deg,var(--green),var(--eb-cyan))', borderRadius: 99 }} />
+                <div
+                  style={{
+                    height: 4,
+                    background: 'var(--eb-panel-2)',
+                    borderRadius: 99,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      width: '4%',
+                      background: 'linear-gradient(90deg,var(--green),var(--eb-cyan))',
+                      borderRadius: 99,
+                    }}
+                  />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--eb-muted)', marginTop: 4 }}>
-                  <span>cool</span><span>watch</span><span>hot</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 9.5,
+                    color: 'var(--eb-muted)',
+                    marginTop: 4,
+                  }}
+                >
+                  <span>cool</span>
+                  <span>watch</span>
+                  <span>hot</span>
                 </div>
               </div>
             </div>
@@ -1261,27 +1883,69 @@ export default function DashboardClient() {
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.08em',
+                  color: 'var(--eb-muted)',
+                  fontWeight: 600,
+                }}
+              >
                 Profit Factor
               </div>
               <div>
-                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: stats.profitFactor > 0 ? (stats.profitFactor >= 1.5 ? 'var(--green)' : stats.profitFactor >= 1 ? 'var(--eb-cyan)' : 'var(--eb-red)') : 'var(--eb-muted)', margin: '8px 0 2px' }}>
+                <div
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    letterSpacing: '-.02em',
+                    color:
+                      stats.profitFactor > 0
+                        ? stats.profitFactor >= 1.5
+                          ? 'var(--green)'
+                          : stats.profitFactor >= 1
+                            ? 'var(--eb-cyan)'
+                            : 'var(--eb-red)'
+                        : 'var(--eb-muted)',
+                    margin: '8px 0 2px',
+                  }}
+                >
                   {stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'}
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                  {stats.profitFactor >= 1.5 ? 'Strong edge' : stats.profitFactor >= 1 ? 'Marginal edge' : stats.profitFactor > 0 ? 'Below breakeven' : 'No closed trades'}
+                  {stats.profitFactor >= 1.5
+                    ? 'Strong edge'
+                    : stats.profitFactor >= 1
+                      ? 'Marginal edge'
+                      : stats.profitFactor > 0
+                        ? 'Below breakeven'
+                        : 'No closed trades'}
                 </div>
               </div>
-              <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+              <div
+                style={{
+                  height: 4,
+                  background: 'var(--eb-panel-2)',
+                  borderRadius: 99,
+                  overflow: 'hidden',
+                  marginTop: 10,
+                }}
+              >
                 <div
                   style={{
                     height: '100%',
-                    width: stats.profitFactor > 0 ? `${Math.min(100, (stats.profitFactor / 3) * 100)}%` : '0%',
-                    background: stats.profitFactor >= 1.5
-                      ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
-                      : stats.profitFactor >= 1
-                        ? 'linear-gradient(90deg,var(--eb-cyan),#06b6d4)'
-                        : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
+                    width:
+                      stats.profitFactor > 0
+                        ? `${Math.min(100, (stats.profitFactor / 3) * 100)}%`
+                        : '0%',
+                    background:
+                      stats.profitFactor >= 1.5
+                        ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                        : stats.profitFactor >= 1
+                          ? 'linear-gradient(90deg,var(--eb-cyan),#06b6d4)'
+                          : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
                     borderRadius: 99,
                     transition: 'width .3s',
                   }}
@@ -1301,25 +1965,57 @@ export default function DashboardClient() {
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--eb-muted)', fontWeight: 600 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.08em',
+                  color: 'var(--eb-muted)',
+                  fontWeight: 600,
+                }}
+              >
                 Expectancy
               </div>
               <div>
-                <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-.02em', color: (stats.wins + stats.losses) > 0 ? pnlColor(stats.expectancy) : 'var(--eb-muted)', margin: '8px 0 2px' }}>
-                  {(stats.wins + stats.losses) > 0 ? fmtMoney(stats.expectancy) : '—'}
+                <div
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    letterSpacing: '-.02em',
+                    color:
+                      stats.wins + stats.losses > 0
+                        ? pnlColor(stats.expectancy)
+                        : 'var(--eb-muted)',
+                    margin: '8px 0 2px',
+                  }}
+                >
+                  {stats.wins + stats.losses > 0 ? fmtMoney(stats.expectancy) : '—'}
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
-                  {(stats.wins + stats.losses) > 0 ? 'per trade' : 'No closed trades'}
+                  {stats.wins + stats.losses > 0 ? 'per trade' : 'No closed trades'}
                 </div>
               </div>
-              <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+              <div
+                style={{
+                  height: 4,
+                  background: 'var(--eb-panel-2)',
+                  borderRadius: 99,
+                  overflow: 'hidden',
+                  marginTop: 10,
+                }}
+              >
                 <div
                   style={{
                     height: '100%',
-                    width: stats.expectancy > 0 ? `${Math.min(100, (stats.expectancy / 200) * 100)}%` : '0%',
-                    background: stats.expectancy >= 0
-                      ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
-                      : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
+                    width:
+                      stats.expectancy > 0
+                        ? `${Math.min(100, (stats.expectancy / 200) * 100)}%`
+                        : '0%',
+                    background:
+                      stats.expectancy >= 0
+                        ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                        : 'linear-gradient(90deg,var(--eb-red),#ff5b6c)',
                     borderRadius: 99,
                     transition: 'width .3s',
                   }}
@@ -1434,7 +2130,13 @@ export default function DashboardClient() {
                     }}
                   >
                     <span
-                      style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: dotColor,
+                        flexShrink: 0,
+                      }}
                     />
                     <span style={{ fontWeight: 500 }}>{a.label}</span>
                     {acctTodayPnl.has(a.id) && (
@@ -1456,9 +2158,26 @@ export default function DashboardClient() {
 
             {/* Aggregate stats */}
             {stats.closed.length > 0 && (
-              <div style={{ display: 'flex', gap: 16, fontSize: 11, marginLeft: 'auto', flexShrink: 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 16,
+                  fontSize: 11,
+                  marginLeft: 'auto',
+                  flexShrink: 0,
+                }}
+              >
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Net P&L</span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: 'var(--eb-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '.06em',
+                    }}
+                  >
+                    Net P&L
+                  </span>
                   <span
                     style={{
                       fontFamily: 'var(--font-mono, monospace)',
@@ -1471,14 +2190,44 @@ export default function DashboardClient() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Win rate</span>
-                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, fontSize: 14 }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: 'var(--eb-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '.06em',
+                    }}
+                  >
+                    Win rate
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
                     {stats.winRate.toFixed(0)}%
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Trades</span>
-                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, fontSize: 14 }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: 'var(--eb-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '.06em',
+                    }}
+                  >
+                    Trades
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
                     {stats.closed.length}
                   </span>
                 </div>
@@ -1493,14 +2242,25 @@ export default function DashboardClient() {
           {hasPositions && (
             <>
               {/* ══ EQUITY CURVE + LIVE POSITIONS ══ */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1fr',
+                  gap: 14,
+                  marginBottom: 14,
+                }}
+              >
                 {/* Equity curve */}
                 <Panel>
                   <PanelH3
                     left={
                       <>
                         Equity curve{' '}
-                        <Chip>{selectedAccountId === 'all' ? 'all accounts' : (accounts?.find((a) => a.id === selectedAccountId)?.label ?? '')}</Chip>
+                        <Chip>
+                          {selectedAccountId === 'all'
+                            ? 'all accounts'
+                            : (accounts?.find((a) => a.id === selectedAccountId)?.label ?? '')}
+                        </Chip>
                       </>
                     }
                     right={
@@ -1521,7 +2281,8 @@ export default function DashboardClient() {
                             className="dash-range-btn"
                             onClick={() => setEquityRange(r)}
                             style={{
-                              background: equityRange === r ? 'var(--eb-nav-active)' : 'transparent',
+                              background:
+                                equityRange === r ? 'var(--eb-nav-active)' : 'transparent',
                               border: 0,
                               color: equityRange === r ? 'var(--green)' : 'var(--eb-muted)',
                               padding: '4px 9px',
@@ -1538,60 +2299,85 @@ export default function DashboardClient() {
                       </div>
                     }
                   />
-                  <div style={{ height: 220 }}>
-                    <EquitySvg data={stats.cumulative} />
+                  <div style={{ height: 240 }}>
+                    <EquityCurve data={stats.cumulative} />
                   </div>
-                  {/* Date labels */}
-                  {stats.cumulative.length >= 2 && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginTop: 6,
-                        fontSize: 10.5,
-                        color: 'var(--eb-muted)',
-                      }}
-                    >
-                      <span>{new Date(stats.cumulative[0]!.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                      <span>{new Date(stats.cumulative[stats.cumulative.length - 1]!.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                    </div>
-                  )}
-                  <hr style={{ border: 0, borderTop: '1px solid var(--eb-border)', margin: '12px 0' }} />
+                  <hr
+                    style={{ border: 0, borderTop: '1px solid var(--eb-border)', margin: '12px 0' }}
+                  />
                   {/* Summary stats */}
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 16,
+                      flexWrap: 'wrap',
+                      fontSize: 11.5,
+                      color: 'var(--eb-muted)',
+                    }}
+                  >
                     <span>
                       Net{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: pnlColor(stats.totalPnl) }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: pnlColor(stats.totalPnl),
+                        }}
+                      >
                         {fmtMoney(stats.totalPnl)}
                       </strong>
                     </span>
                     <span>
                       Win rate{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-text)' }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: 'var(--eb-text)',
+                        }}
+                      >
                         {stats.winRate.toFixed(1)}%
                       </strong>
                     </span>
                     <span>
                       PF{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-text)' }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: 'var(--eb-text)',
+                        }}
+                      >
                         {stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'}
                       </strong>
                     </span>
                     <span>
                       Expectancy{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: pnlColor(stats.expectancy) }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: pnlColor(stats.expectancy),
+                        }}
+                      >
                         {stats.expectancy !== 0 ? fmtMoney(stats.expectancy) : '—'}
                       </strong>
                     </span>
                     <span>
                       Max DD{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-red)' }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: 'var(--eb-red)',
+                        }}
+                      >
                         {stats.maxDD > 0 ? `−$${stats.maxDD.toFixed(2)}` : '—'}
                       </strong>
                     </span>
                     <span>
                       Avg hold{' '}
-                      <strong style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-text)' }}>
+                      <strong
+                        style={{
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: 'var(--eb-text)',
+                        }}
+                      >
                         {stats.avgHoldMin > 0
                           ? stats.avgHoldMin >= 60
                             ? `${(stats.avgHoldMin / 60).toFixed(1)}h`
@@ -1621,14 +2407,14 @@ export default function DashboardClient() {
                           }}
                         />
                         Live positions{' '}
-                        {stats.open.length > 0
-                          ? <Chip color="green">{stats.open.length} open</Chip>
-                          : <Chip>{stats.open.length} open</Chip>}
+                        {stats.open.length > 0 ? (
+                          <Chip color="green">{stats.open.length} open</Chip>
+                        ) : (
+                          <Chip>{stats.open.length} open</Chip>
+                        )}
                       </>
                     }
-                    right={
-                      <BtnSm onClick={() => router.push('/trades')}>All →</BtnSm>
-                    }
+                    right={<BtnSm onClick={() => router.push('/trades')}>All →</BtnSm>}
                   />
 
                   {stats.open.length === 0 ? (
@@ -1678,7 +2464,8 @@ export default function DashboardClient() {
                           <div>
                             <strong>{pos.symbol}</strong>
                             <div style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>
-                              {holdTime(pos.openedAt, null)} · {Number.parseFloat(pos.avgEntry).toFixed(2)}
+                              {holdTime(pos.openedAt, null)} ·{' '}
+                              {Number.parseFloat(pos.avgEntry).toFixed(2)}
                             </div>
                           </div>
                           <span
@@ -1713,13 +2500,32 @@ export default function DashboardClient() {
 
                   {stats.open.length > 0 && (
                     <>
-                      <hr style={{ border: 0, borderTop: '1px dashed var(--eb-border)', margin: '10px 0' }} />
-                      <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginBottom: 6 }}>Open exposure</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span>Positions</span>
-                        <strong style={{ fontFamily: 'var(--font-mono, monospace)' }}>{stats.open.length}</strong>
+                      <hr
+                        style={{
+                          border: 0,
+                          borderTop: '1px dashed var(--eb-border)',
+                          margin: '10px 0',
+                        }}
+                      />
+                      <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginBottom: 6 }}>
+                        Open exposure
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 3 }}>
+                      <div
+                        style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}
+                      >
+                        <span>Positions</span>
+                        <strong style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+                          {stats.open.length}
+                        </strong>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: 12,
+                          marginTop: 3,
+                        }}
+                      >
                         <span>Symbols</span>
                         <strong style={{ fontFamily: 'var(--font-mono, monospace)' }}>
                           {new Set(stats.open.map((p) => p.symbol)).size}
@@ -1731,7 +2537,14 @@ export default function DashboardClient() {
               </div>
 
               {/* ══ RECENT TRADES + WEEK ══ */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1fr',
+                  gap: 14,
+                  marginBottom: 14,
+                }}
+              >
                 {/* Recent trades */}
                 <Panel>
                   <PanelH3
@@ -1765,7 +2578,10 @@ export default function DashboardClient() {
                       <tbody>
                         {stats.closed
                           .slice()
-                          .sort((a, b) => new Date(b.closedAt!).getTime() - new Date(a.closedAt!).getTime())
+                          .sort(
+                            (a, b) =>
+                              new Date(b.closedAt!).getTime() - new Date(a.closedAt!).getTime(),
+                          )
                           .slice(0, 10)
                           .map((pos) => {
                             const pnl = parsePnl(pos.netPnl);
@@ -1774,7 +2590,9 @@ export default function DashboardClient() {
                               <tr
                                 key={pos.id}
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => router.push(`/trades/${pos.id}?account=${pos.accountId}`)}
+                                onClick={() =>
+                                  router.push(`/trades/${pos.id}?account=${pos.accountId}`)
+                                }
                               >
                                 <td
                                   style={{
@@ -1786,13 +2604,27 @@ export default function DashboardClient() {
                                   }}
                                 >
                                   {pos.closedAt
-                                    ? new Date(pos.closedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                                    ? new Date(pos.closedAt).toLocaleTimeString('en-GB', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                     : '—'}
                                 </td>
-                                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--eb-border)', fontWeight: 600 }}>
+                                <td
+                                  style={{
+                                    padding: '7px 8px',
+                                    borderBottom: '1px solid var(--eb-border)',
+                                    fontWeight: 600,
+                                  }}
+                                >
                                   {pos.symbol}
                                 </td>
-                                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--eb-border)' }}>
+                                <td
+                                  style={{
+                                    padding: '7px 8px',
+                                    borderBottom: '1px solid var(--eb-border)',
+                                  }}
+                                >
                                   <span
                                     style={{
                                       fontSize: 10,
@@ -1817,7 +2649,9 @@ export default function DashboardClient() {
                                     fontFamily: 'var(--font-mono, monospace)',
                                     fontWeight: 600,
                                     color: pos.rRealized
-                                      ? parsePnl(pos.rRealized) >= 0 ? 'var(--green)' : 'var(--eb-red)'
+                                      ? parsePnl(pos.rRealized) >= 0
+                                        ? 'var(--green)'
+                                        : 'var(--eb-red)'
                                       : 'var(--eb-muted)',
                                   }}
                                 >
@@ -1834,7 +2668,12 @@ export default function DashboardClient() {
                                 >
                                   {fmtMoney(pnl)}
                                 </td>
-                                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--eb-border)' }}>
+                                <td
+                                  style={{
+                                    padding: '7px 8px',
+                                    borderBottom: '1px solid var(--eb-border)',
+                                  }}
+                                >
                                   {pb ? (
                                     <span
                                       style={{
@@ -1854,7 +2693,9 @@ export default function DashboardClient() {
                                       {pb.name}
                                     </span>
                                   ) : (
-                                    <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>
+                                    <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>
+                                      —
+                                    </span>
                                   )}
                                 </td>
                               </tr>
@@ -1876,7 +2717,14 @@ export default function DashboardClient() {
               </div>
 
               {/* ══ PLAYBOOK EDGE + GOALS + WIDGET ══ */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 14 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3,1fr)',
+                  gap: 14,
+                  marginBottom: 14,
+                }}
+              >
                 {/* Playbook edge decay */}
                 <Panel>
                   <PanelH3
@@ -1884,7 +2732,14 @@ export default function DashboardClient() {
                     right={<BtnSm onClick={() => router.push('/playbooks')}>All →</BtnSm>}
                   />
                   {playbookStats.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--eb-muted)', fontSize: 12.5 }}>
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: '28px 0',
+                        color: 'var(--eb-muted)',
+                        fontSize: 12.5,
+                      }}
+                    >
                       {playbooks?.length === 0
                         ? 'No playbooks yet'
                         : 'No trades tagged with playbooks yet'}
@@ -1893,7 +2748,11 @@ export default function DashboardClient() {
                     playbookStats.map((pb) => {
                       if (!pb) return null;
                       const sparkColor =
-                        pb.wr >= 55 ? 'var(--green)' : pb.wr >= 45 ? 'var(--eb-cyan)' : 'var(--eb-yellow)';
+                        pb.wr >= 55
+                          ? 'var(--green)'
+                          : pb.wr >= 45
+                            ? 'var(--eb-cyan)'
+                            : 'var(--eb-yellow)';
                       return (
                         <div
                           key={pb.id}
@@ -1906,7 +2765,15 @@ export default function DashboardClient() {
                             fontSize: 12.5,
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              flex: 1,
+                              minWidth: 0,
+                            }}
+                          >
                             <strong
                               style={{
                                 overflow: 'hidden',
@@ -1929,7 +2796,9 @@ export default function DashboardClient() {
                             }}
                           >
                             <span>
-                              <strong style={{ color: pb.wr >= 50 ? 'var(--green)' : 'var(--eb-red)' }}>
+                              <strong
+                                style={{ color: pb.wr >= 50 ? 'var(--green)' : 'var(--eb-red)' }}
+                              >
                                 {pb.wr.toFixed(0)}%
                               </strong>
                             </span>
@@ -1955,7 +2824,14 @@ export default function DashboardClient() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {/* Auto-computed "today trades" goal */}
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 12,
+                            marginBottom: 5,
+                          }}
+                        >
                           <span>Daily P&L</span>
                           <strong
                             style={{
@@ -1988,7 +2864,14 @@ export default function DashboardClient() {
                         </div>
                       </div>
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 12,
+                            marginBottom: 5,
+                          }}
+                        >
                           <span>Win rate (all time)</span>
                           <strong style={{ fontFamily: 'var(--font-mono, monospace)' }}>
                             {stats.winRate.toFixed(0)}%
@@ -2016,7 +2899,14 @@ export default function DashboardClient() {
                         </div>
                       </div>
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 12,
+                            marginBottom: 5,
+                          }}
+                        >
                           <span>Profit factor</span>
                           <strong style={{ fontFamily: 'var(--font-mono, monospace)' }}>
                             {stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'}
@@ -2045,7 +2935,14 @@ export default function DashboardClient() {
                       </div>
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--eb-muted)', fontSize: 12.5 }}>
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: '28px 0',
+                        color: 'var(--eb-muted)',
+                        fontSize: 12.5,
+                      }}
+                    >
                       No closed trades yet
                     </div>
                   )}
