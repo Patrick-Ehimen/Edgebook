@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Globe2, Globe, Earth } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,11 +30,16 @@ export interface SessionMapProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const SESSION_ICONS: Record<string, LucideIcon> = {
+  asia: Globe2,
+  eu: Globe,
+  us: Earth,
+};
+
 const SESSIONS = [
   {
     id: 'asia',
     label: 'Asia',
-    flag: '🌏',
     startHour: 0,
     endHour: 8,
     color: '#a78bfa',
@@ -47,7 +54,6 @@ const SESSIONS = [
   {
     id: 'eu',
     label: 'EU',
-    flag: '🌍',
     startHour: 8,
     endHour: 16,
     color: '#fbbf24',
@@ -62,7 +68,6 @@ const SESSIONS = [
   {
     id: 'us',
     label: 'US',
-    flag: '🌎',
     startHour: 16,
     endHour: 24,
     color: '#34d399',
@@ -98,6 +103,22 @@ function fmtUtc(h: number, m: number) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function useDarkMode() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    setDark(el.classList.contains('dark'));
+    const obs = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    obs.observe(el, { attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
+
+function labelColor(session: (typeof SESSIONS)[number], isDark: boolean) {
+  return session.id === 'eu' && !isDark ? '#0f172a' : session.color;
+}
+
 function getNextSession(utcHour: number, utcMinute: number) {
   const activeIdx = utcHour < 8 ? 0 : utcHour < 16 ? 1 : 2;
   const next = SESSIONS[(activeIdx + 1) % SESSIONS.length] ?? SESSIONS[0];
@@ -111,7 +132,7 @@ function getNextSession(utcHour: number, utcMinute: number) {
   return { next, opensAt, countdown };
 }
 
-function NextSessionChip({ utcH, utcM }: { utcH: number; utcM: number }) {
+function NextSessionChip({ utcH, utcM, isDark }: { utcH: number; utcM: number; isDark: boolean }) {
   const { next, opensAt, countdown } = getNextSession(utcH, utcM);
   return (
     <span
@@ -127,8 +148,9 @@ function NextSessionChip({ utcH, utcM }: { utcH: number; utcM: number }) {
         color: 'var(--eb-muted-2)',
       }}
     >
-      <span style={{ color: next.color, fontWeight: 700 }}>
-        {next.flag} {next.label}
+      <span style={{ color: labelColor(next, isDark), fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {(() => { const Icon = SESSION_ICONS[next.id]; return Icon ? <Icon size={12} /> : null; })()}
+        {next.label}
       </span>
       <span style={{ opacity: 0.45 }}>·</span>
       <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>
@@ -144,6 +166,7 @@ function NextSessionChip({ utcH, utcM }: { utcH: number; utcM: number }) {
 
 export function SessionMap({ events = [], noTradeWindows = [], compact = false }: SessionMapProps) {
   const [now, setNow] = useState<Date>(() => new Date());
+  const isDark = useDarkMode();
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -237,7 +260,7 @@ export function SessionMap({ events = [], noTradeWindows = [], compact = false }
               borderRadius: 99,
               border: `1px solid ${activeSess.borderActive}`,
               background: activeSess.colorDim,
-              color: activeSess.color,
+              color: labelColor(activeSess, isDark),
             }}
           >
             <span
@@ -252,14 +275,15 @@ export function SessionMap({ events = [], noTradeWindows = [], compact = false }
                 flexShrink: 0,
               }}
             />
-            {activeSess.flag} {activeSess.label} active
+            {(() => { const Icon = SESSION_ICONS[activeSess.id]; return Icon ? <Icon size={11} /> : null; })()}
+            {activeSess.label} active
           </span>
 
           {/* Separator */}
           <span style={{ fontSize: 11, color: 'var(--eb-muted)', opacity: 0.4 }}>→</span>
 
           {/* Next session */}
-          <NextSessionChip utcH={utcH} utcM={utcM} />
+          <NextSessionChip utcH={utcH} utcM={utcM} isDark={isDark} />
         </div>
       </div>
 
@@ -305,8 +329,9 @@ export function SessionMap({ events = [], noTradeWindows = [], compact = false }
                 }}
               >
                 {/* Session name — inherits session colour when active */}
-                <span style={{ fontSize: 13, color: isActive ? s.color : 'var(--eb-text)' }}>
-                  {s.flag}&nbsp;{s.label}
+                <span style={{ fontSize: 13, color: isActive ? labelColor(s, isDark) : 'var(--eb-text)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  {(() => { const Icon = SESSION_ICONS[s.id]; return Icon ? <Icon size={13} /> : null; })()}
+                  {s.label}
                 </span>
                 {/* Time range — always uses text var so amber/gold stays readable in light mode */}
                 <span
