@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { journalApi } from '@/features/journal';
 import type { JournalEntry, JournalStats, RecentEntry } from '@/features/journal';
-import { NotebookPen, Sunrise, Zap, Moon, Star } from 'lucide-react';
+import { NotebookPen, Sunrise, Zap, Moon, Star, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { PremarketModal } from './PremarketModal';
 import { SessionMap } from '@/components/SessionMap';
+import { JournalSidebar, DEFAULT_FILTERS } from './JournalSidebar';
+import type { SidebarFilters } from './JournalSidebar';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -409,117 +411,241 @@ function EmptyState({ onWrite, stats }: { onWrite: () => void; stats: JournalSta
 
 // ─── Journal browser ──────────────────────────────────────────────────────────
 
+function applyFilters(
+  entries: RecentEntry[],
+  today: string,
+  filters: SidebarFilters,
+): RecentEntry[] {
+  let result = entries;
+
+  switch (filters.quickView) {
+    case 'week': {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const cutoff = weekAgo.toISOString().slice(0, 10);
+      result = result.filter((e) => dateKey(e.date) >= cutoff);
+      break;
+    }
+    case 'month': {
+      const monthStart = `${today.slice(0, 7)}-01`;
+      result = result.filter((e) => dateKey(e.date) >= monthStart);
+      break;
+    }
+    case 'lessons':
+      result = result.filter((e) => e.lesson != null && e.lesson !== '');
+      break;
+    case 'green':
+      result = result.filter((e) => e.bias === 'LONG');
+      break;
+    case 'red':
+      result = result.filter((e) => e.bias === 'SHORT');
+      break;
+    case 'pinned':
+    case 'violations':
+    case 'low-sleep':
+    case 'missed':
+      break;
+  }
+
+  return result;
+}
+
 function JournalBrowser({
   todayEntry,
   recentEntries,
   stats,
   onWrite,
   today,
+  sidebarOpen,
+  onSidebarToggle,
+  filters,
+  onFiltersChange,
 }: {
   todayEntry: JournalEntry | null;
   recentEntries: RecentEntry[];
   stats: JournalStats | undefined;
   onWrite: () => void;
   today: string;
+  sidebarOpen: boolean;
+  onSidebarToggle: () => void;
+  filters: SidebarFilters;
+  onFiltersChange: (f: SidebarFilters) => void;
 }) {
+  const filtered = useMemo(
+    () => applyFilters(recentEntries, today, filters),
+    [recentEntries, today, filters],
+  );
+
   // deduplicate: don't show today in the recent list if we already have the full todayEntry
   const pastEntries = todayEntry
-    ? recentEntries.filter((r) => dateKey(r.date) !== today)
-    : recentEntries;
+    ? filtered.filter((r) => dateKey(r.date) !== today)
+    : filtered;
+
+  const entryDates = useMemo(
+    () => new Set(recentEntries.map((e) => dateKey(e.date))),
+    [recentEntries],
+  );
+
+  const hasActiveFilters =
+    filters.quickView !== 'all' ||
+    filters.moods.length > 0 ||
+    filters.tags.length > 0 ||
+    filters.discipline !== null;
 
   return (
-    <>
-      {/* Banner */}
-      {todayEntry && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '10px 14px',
-            borderRadius: 9,
-            background: 'linear-gradient(180deg,rgba(0,214,143,.08),rgba(0,214,143,.02))',
-            border: '1px solid rgba(0,214,143,.30)',
-            marginBottom: 14,
-            fontSize: 12,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>📓</span>
-          <span>
-            <b style={{ color: 'var(--eb-text)' }}>Today&apos;s entry</b> is in progress · pre-market intent saved · live session active
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Banner */}
+        {todayEntry && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 14px',
+              borderRadius: 9,
+              background: 'linear-gradient(180deg,rgba(0,214,143,.08),rgba(0,214,143,.02))',
+              border: '1px solid rgba(0,214,143,.30)',
+              marginBottom: 14,
+              fontSize: 12,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>📓</span>
+            <span>
+              <b style={{ color: 'var(--eb-text)' }}>Today&apos;s entry</b> is in progress · pre-market intent saved · live session active
+            </span>
+            <span style={{ marginLeft: 'auto' }} />
+            <button
+              type="button"
+              onClick={onWrite}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid #00b67a',
+                background: 'linear-gradient(180deg,#00d68f,#00b67a)',
+                color: '#06140f',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Update intent →
+            </button>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div style={{ marginBottom: 14 }}>
+          <StatsBar stats={stats} />
+        </div>
+
+        {/* Session map */}
+        <div style={{ marginBottom: 14 }}>
+          <SessionMap compact />
+        </div>
+
+        {/* Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
+            Showing <b style={{ color: 'var(--eb-text)' }}>
+              {todayEntry ? pastEntries.length + 1 : pastEntries.length}
+            </b>
+            {hasActiveFilters ? ' filtered' : ' recent'} entries
           </span>
           <span style={{ marginLeft: 'auto' }} />
+          {!todayEntry && (
+            <button
+              type="button"
+              onClick={onWrite}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 7,
+                border: '1px solid #00b67a',
+                background: 'linear-gradient(180deg,#00d68f,#00b67a)',
+                color: '#06140f',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <NotebookPen size={12} /> Write today&apos;s entry
+            </button>
+          )}
           <button
             type="button"
-            onClick={onWrite}
+            onClick={onSidebarToggle}
+            title={sidebarOpen ? 'Close filters' : 'Open filters & navigation'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              padding: '4px 10px',
-              borderRadius: 6,
-              border: '1px solid #00b67a',
-              background: 'linear-gradient(180deg,#00d68f,#00b67a)',
-              color: '#06140f',
-              fontSize: 11.5,
-              fontWeight: 600,
+              padding: '5px 10px',
+              borderRadius: 7,
+              border: sidebarOpen
+                ? '1px solid rgba(0,214,143,.40)'
+                : hasActiveFilters
+                  ? '1px solid rgba(0,214,143,.40)'
+                  : '1px solid var(--eb-border)',
+              background: sidebarOpen
+                ? 'rgba(0,214,143,.10)'
+                : hasActiveFilters
+                  ? 'rgba(0,214,143,.08)'
+                  : 'var(--eb-panel-2)',
+              color: sidebarOpen || hasActiveFilters ? 'var(--green)' : 'var(--eb-muted-2)',
+              fontSize: 12,
+              fontWeight: 500,
               cursor: 'pointer',
               fontFamily: 'inherit',
             }}
           >
-            Update intent →
+            <SlidersHorizontal size={13} />
+            Filters
+            {hasActiveFilters && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: 99,
+                  background: 'var(--green)',
+                  color: '#06140f',
+                  lineHeight: 1.4,
+                }}
+              >
+                {[filters.quickView !== 'all' ? 1 : 0, filters.moods.length, filters.tags.length, filters.discipline ? 1 : 0].reduce((a, b) => a + b, 0)}
+              </span>
+            )}
           </button>
         </div>
-      )}
 
-      {/* Stats */}
-      <div style={{ marginBottom: 14 }}>
-        <StatsBar stats={stats} />
+        {/* Cards grid — today always first */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+          {todayEntry && <EntryCard entry={todayEntry} isToday />}
+          {pastEntries.map((r) => (
+            <EntryCard key={r.id} entry={r as unknown as JournalEntry} isToday={false} />
+          ))}
+        </div>
       </div>
 
-      {/* Session map */}
-      <div style={{ marginBottom: 14 }}>
-        <SessionMap compact />
-      </div>
-
-      {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
-          Showing <b style={{ color: 'var(--eb-text)' }}>{recentEntries.length}</b> recent entries
-        </span>
-        <span style={{ marginLeft: 'auto' }} />
-        {!todayEntry && (
-          <button
-            type="button"
-            onClick={onWrite}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              borderRadius: 7,
-              border: '1px solid #00b67a',
-              background: 'linear-gradient(180deg,#00d68f,#00b67a)',
-              color: '#06140f',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            <NotebookPen size={12} /> Write today&apos;s entry
-          </button>
-        )}
-      </div>
-
-      {/* Cards grid — today always first */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
-        {todayEntry && <EntryCard entry={todayEntry} isToday />}
-        {pastEntries.map((r) => (
-          <EntryCard key={r.id} entry={r as unknown as JournalEntry} isToday={false} />
-        ))}
-      </div>
-    </>
+      {/* Right sidebar */}
+      <JournalSidebar
+        open={sidebarOpen}
+        onClose={onSidebarToggle}
+        filters={filters}
+        onChange={onFiltersChange}
+        entryDates={entryDates}
+        stats={stats}
+      />
+    </div>
   );
 }
 
@@ -528,6 +654,8 @@ function JournalBrowser({
 export function JournalClient() {
   const today = todayStr();
   const [modalOpen, setModalOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [filters, setFilters] = useState<SidebarFilters>(DEFAULT_FILTERS);
 
   const { data: stats } = useQuery({
     queryKey: ['journal-stats'],
@@ -600,6 +728,10 @@ export function JournalClient() {
             stats={stats}
             onWrite={() => setModalOpen(true)}
             today={today}
+            sidebarOpen={sidebarOpen}
+            onSidebarToggle={() => setSidebarOpen((v) => !v)}
+            filters={filters}
+            onFiltersChange={setFilters}
           />
         ) : (
           <EmptyState onWrite={() => setModalOpen(true)} stats={stats} />
