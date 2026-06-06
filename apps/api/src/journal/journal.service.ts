@@ -27,6 +27,10 @@ export class JournalService {
       cursor.setUTCDate(cursor.getUTCDate() - 1);
     }
 
+    const monthStart = new Date(today);
+    monthStart.setUTCDate(1);
+    const entriesThisMonth = entries.filter((e) => e.date >= monthStart).length;
+
     const since = new Date(today);
     since.setUTCDate(since.getUTCDate() - 30);
 
@@ -46,7 +50,7 @@ export class JournalService {
         ? Math.round(Number(result._avg.processScore))
         : null;
 
-    return { streak, disciplineAvg };
+    return { streak, disciplineAvg, entriesThisMonth };
   }
 
   async getByDate(userId: string, dateStr: string) {
