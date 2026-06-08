@@ -37,9 +37,29 @@ export interface JournalSidebarProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MOODS = ['Calm', 'Focused', 'Patient', 'Frustrated', 'Excited', 'Tired', 'Anxious', 'Confident'];
+type TagColor = { color: string; border: string; bg: string };
 
-const TAGS = ['EU session', 'US session', 'Asia', 'Liq sweep', 'News rev', 'Funding sqz', 'Rule violation', 'Revenge trade'];
+const MOODS: { label: string; c: TagColor }[] = [
+  { label: 'Calm',       c: { color: '#2dd4bf', border: 'rgba(45,212,191,.30)',  bg: 'rgba(45,212,191,.12)'  } },
+  { label: 'Focused',    c: { color: '#00d68f', border: 'rgba(0,214,143,.30)',   bg: 'rgba(0,214,143,.12)'   } },
+  { label: 'Patient',    c: { color: '#38bdf8', border: 'rgba(56,189,248,.30)',  bg: 'rgba(56,189,248,.12)'  } },
+  { label: 'Frustrated', c: { color: '#ff5b6c', border: 'rgba(255,91,108,.30)', bg: 'rgba(255,91,108,.12)'  } },
+  { label: 'Excited',    c: { color: '#f5a524', border: 'rgba(245,165,36,.30)',  bg: 'rgba(245,165,36,.12)'  } },
+  { label: 'Tired',      c: { color: '#94a3b8', border: 'rgba(148,163,184,.30)', bg: 'rgba(148,163,184,.12)' } },
+  { label: 'Anxious',    c: { color: '#fb923c', border: 'rgba(251,146,60,.30)',  bg: 'rgba(251,146,60,.12)'  } },
+  { label: 'Confident',  c: { color: '#a3e635', border: 'rgba(163,230,53,.30)',  bg: 'rgba(163,230,53,.12)'  } },
+];
+
+const TAGS: { label: string; c: TagColor }[] = [
+  { label: 'EU session',     c: { color: '#38bdf8', border: 'rgba(56,189,248,.30)',  bg: 'rgba(56,189,248,.12)'  } },
+  { label: 'US session',     c: { color: '#fbbf24', border: 'rgba(251,191,36,.30)',  bg: 'rgba(251,191,36,.12)'  } },
+  { label: 'Asia',           c: { color: '#a78bfa', border: 'rgba(167,139,250,.30)', bg: 'rgba(167,139,250,.12)' } },
+  { label: 'Liq sweep',      c: { color: '#22d3ee', border: 'rgba(34,211,238,.30)',  bg: 'rgba(34,211,238,.12)'  } },
+  { label: 'News rev',       c: { color: '#fb923c', border: 'rgba(251,146,60,.30)',  bg: 'rgba(251,146,60,.12)'  } },
+  { label: 'Funding sqz',    c: { color: '#f472b6', border: 'rgba(244,114,182,.30)', bg: 'rgba(244,114,182,.12)' } },
+  { label: 'Rule violation', c: { color: '#ff5b6c', border: 'rgba(255,91,108,.30)',  bg: 'rgba(255,91,108,.12)'  } },
+  { label: 'Revenge trade',  c: { color: '#f43f5e', border: 'rgba(244,63,94,.30)',   bg: 'rgba(244,63,94,.12)'   } },
+];
 
 const DISCIPLINE_RANGES = [
   { label: '≥ 90', value: '90+', color: 'var(--green)', borderColor: 'rgba(0,214,143,.30)', bg: 'rgba(0,214,143,.08)' },
@@ -225,20 +245,38 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
   }
 
   return (
-    <div
-      style={{
-        width: open ? 280 : 0,
-        minWidth: open ? 280 : 0,
-        overflow: 'hidden',
-        transition: 'width .2s ease, min-width .2s ease',
-        borderLeft: open ? '1px solid var(--eb-border)' : 'none',
-        flexShrink: 0,
-      }}
-    >
+    <>
+      {/* Backdrop */}
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-label="Close filters"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 49,
+          background: 'rgba(0,0,0,.45)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+          transition: 'opacity .2s ease',
+        }}
+      />
+
+      {/* Sliding panel */}
       <div
         style={{
-          width: 280,
-          height: '100%',
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 300,
+          zIndex: 50,
+          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform .22s ease',
+          background: 'var(--eb-bg, #0a0f0d)',
+          borderLeft: '1px solid var(--eb-border)',
           overflowY: 'auto',
           padding: '16px 14px 60px',
           display: 'flex',
@@ -331,28 +369,28 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
         <div>
           <SectionHeader icon={Smile} label="Filter by mood" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {MOODS.map((mood) => {
-              const isOn = filters.moods.includes(mood);
+            {MOODS.map(({ label, c }) => {
+              const isOn = filters.moods.includes(label);
               return (
                 <button
-                  key={mood}
+                  key={label}
                   type="button"
-                  onClick={() => toggleMood(mood)}
+                  onClick={() => toggleMood(label)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     fontSize: 11,
                     padding: '3px 9px',
                     borderRadius: 99,
-                    border: isOn ? '1px solid rgba(0,214,143,.30)' : '1px solid var(--eb-border)',
-                    background: isOn ? 'rgba(0,214,143,.14)' : 'var(--eb-panel-2)',
-                    color: isOn ? 'var(--green)' : 'var(--eb-muted-2)',
+                    border: isOn ? `1px solid ${c.border}` : '1px solid var(--eb-border)',
+                    background: isOn ? c.bg : 'var(--eb-panel-2)',
+                    color: isOn ? c.color : 'var(--eb-muted-2)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     transition: 'background .1s, color .1s',
                   }}
                 >
-                  {mood}
+                  {label}
                 </button>
               );
             })}
@@ -363,28 +401,28 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
         <div>
           <SectionHeader icon={Tag} label="Filter by tag" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {TAGS.map((tag) => {
-              const isOn = filters.tags.includes(tag);
+            {TAGS.map(({ label, c }) => {
+              const isOn = filters.tags.includes(label);
               return (
                 <button
-                  key={tag}
+                  key={label}
                   type="button"
-                  onClick={() => toggleTag(tag)}
+                  onClick={() => toggleTag(label)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     fontSize: 11,
                     padding: '3px 9px',
                     borderRadius: 99,
-                    border: isOn ? '1px solid rgba(139,92,246,.30)' : '1px solid var(--eb-border)',
-                    background: isOn ? 'rgba(139,92,246,.14)' : 'var(--eb-panel-2)',
-                    color: isOn ? 'var(--eb-purple)' : 'var(--eb-muted-2)',
+                    border: isOn ? `1px solid ${c.border}` : '1px solid var(--eb-border)',
+                    background: isOn ? c.bg : 'var(--eb-panel-2)',
+                    color: isOn ? c.color : 'var(--eb-muted-2)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     transition: 'background .1s, color .1s',
                   }}
                 >
-                  {tag}
+                  {label}
                 </button>
               );
             })}
@@ -449,6 +487,6 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
           </button>
         )}
       </div>
-    </div>
+    </>
   );
 }
