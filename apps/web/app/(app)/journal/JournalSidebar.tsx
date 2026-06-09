@@ -64,8 +64,8 @@ const TAGS: { label: string; c: TagColor }[] = [
 const DISCIPLINE_RANGES = [
   { label: '≥ 90', value: '90+', color: 'var(--green)', borderColor: 'rgba(0,214,143,.30)', bg: 'rgba(0,214,143,.08)' },
   { label: '70–89', value: '70-89', color: 'var(--eb-text)', borderColor: 'var(--eb-border)', bg: 'transparent' },
-  { label: '50–69', value: '50-69', color: 'var(--eb-yellow)', borderColor: 'rgba(245,165,36,.30)', bg: 'rgba(245,165,36,.08)' },
-  { label: '< 50', value: '<50', color: 'var(--eb-red)', borderColor: 'rgba(255,91,108,.30)', bg: 'rgba(255,91,108,.08)' },
+  { label: '40–69', value: '40-69', color: 'var(--eb-yellow)', borderColor: 'rgba(245,165,36,.30)', bg: 'rgba(245,165,36,.08)' },
+  { label: '< 40', value: '<40', color: 'var(--eb-red)', borderColor: 'rgba(255,91,108,.30)', bg: 'rgba(255,91,108,.08)' },
 ];
 
 const QUICK_VIEWS: { id: string; label: string; Icon: LucideIcon }[] = [
@@ -211,6 +211,13 @@ function SectionHeader({ icon: Icon, label }: { icon: LucideIcon; label: string 
   );
 }
 
+// ─── DiscAvg inline ─────────────────────────────────────────────────────────────
+
+function DiscAvg({ value }: { value: number }) {
+  const color = value >= 70 ? 'var(--eb-text)' : value >= 40 ? 'var(--eb-yellow)' : 'var(--eb-red)';
+  return <span style={{ color }}>Avg D {value}</span>;
+}
+
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
 
 export function JournalSidebar({ open, onClose, filters, onChange, entryDates, stats }: JournalSidebarProps) {
@@ -314,7 +321,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
             </div>
             <div style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
               <span>{stats.entriesThisMonth ?? 0} entries this month</span>
-              {stats.disciplineAvg != null && <span>Avg D {stats.disciplineAvg}</span>}
+              {stats.disciplineAvg != null && <DiscAvg value={stats.disciplineAvg} />}
             </div>
           </div>
         )}

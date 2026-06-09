@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { journalApi } from '@/features/journal';
-import type { JournalEntry } from '@/features/journal';
+import type { JournalEntry, JournalStats } from '@/features/journal';
 import { useAccounts } from '@/features/accounts';
 import { usePositions } from '@/features/positions';
 import type { Position } from '@/features/positions';
@@ -29,14 +29,20 @@ import {
   Trash2,
   BookOpen,
   Check,
+  Save,
   Radio,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { useLogTrade } from '@/providers/log-trade-provider';
 import { SessionMap } from '@/components/SessionMap';
+import { JournalContextPanel } from '../JournalContextPanel';
 import {
   MOOD_TAGS,
   getMoodTag,
   getPlaybookColor,
+  getTagColor,
   TRADING_SESSIONS,
   tokenBaseLabel,
   type TradingSession,
@@ -245,136 +251,300 @@ function ScoreBadge({
   );
 }
 
+// ─── Tag input component ────────────────────────────────────────────────────────
+
+function TagInput({
+  tags,
+  onAdd,
+  onRemove,
+  placeholder,
+}: {
+  tags: string[];
+  onAdd: (tag: string) => void;
+  onRemove: (tag: string) => void;
+  placeholder?: string;
+}) {
+  const [input, setInput] = useState('');
+
+  const commit = () => {
+    const t = input.trim();
+    if (t && !tags.includes(t)) {
+      onAdd(t);
+    }
+    setInput('');
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 6,
+        padding: 6,
+        border: '1px solid var(--eb-border)',
+        borderRadius: 8,
+        background: 'var(--eb-panel-2)',
+        minHeight: 36,
+        alignItems: 'center',
+      }}
+    >
+      {tags.map((tag) => {
+        const tc = getTagColor(tag);
+        return (
+        <span
+          key={tag}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11.5,
+            padding: '3px 9px',
+            borderRadius: 99,
+            border: `1px solid ${tc.border}`,
+            background: tc.bg,
+            color: tc.color,
+          }}
+        >
+          {tag}
+          <span
+            onClick={() => onRemove(tag)}
+            style={{
+              color: 'var(--eb-muted)',
+              cursor: 'pointer',
+              fontSize: 13,
+              lineHeight: 1,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--eb-red)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--eb-muted)')}
+          >
+            ×
+          </span>
+        </span>
+      );
+    })}
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        onBlur={commit}
+        placeholder={placeholder ?? 'Type to add tag…'}
+        style={{
+          flex: 1,
+          minWidth: 120,
+          background: 'transparent',
+          border: 0,
+          color: 'var(--eb-text)',
+          outline: 'none',
+          fontSize: 12.5,
+          fontFamily: 'inherit',
+        }}
+      />
+    </div>
+  );
+}
+
 // ─── Editable EOD section ─────────────────────────────────────────────────────
 
-function EodEditor({ entry, dateStr }: { entry: JournalEntry; dateStr: string }) {
+function SliderField({
+  label,
+  value,
+  set,
+  min = 0,
+  max = 10,
+  display,
+}: {
+  label: string;
+  value: number;
+  set: (v: number) => void;
+  min?: number;
+  max?: number;
+  display?: string;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ flex: '0 0 100px', fontSize: 12, color: 'var(--eb-muted)' }}>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => set(Number(e.target.value))}
+        style={{ flex: 1, accentColor: 'var(--green)', height: 4 }}
+      />
+      <span
+        style={{
+          flex: '0 0 50px',
+          textAlign: 'right',
+          fontSize: 12.5,
+          fontFamily: 'monospace',
+          fontWeight: 500,
+        }}
+      >
+        {display ?? value}
+      </span>
+    </div>
+  );
+}
+
+function TextareaField({
+  label,
+  value,
+  set,
+  placeholder,
+  minHeight = 72,
+}: {
+  label: string;
+  value: string;
+  set: (v: string) => void;
+  placeholder?: string;
+  minHeight?: number;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        value={value}
+        onChange={(e) => set(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          minHeight,
+          background: 'var(--eb-panel-2)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 8,
+          padding: '8px 11px',
+          color: 'var(--eb-text)',
+          fontSize: 13,
+          fontFamily: 'inherit',
+          outline: 'none',
+          resize: 'vertical',
+          boxSizing: 'border-box',
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'var(--green)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = 'var(--eb-border)';
+        }}
+      />
+    </div>
+  );
+}
+
+function EodEditor({
+  entry,
+  dateStr,
+  locked,
+}: { entry: JournalEntry; dateStr: string; locked: boolean }) {
   const qc = useQueryClient();
-  const [wentRight, setWentRight] = useState(entry.wentRightMd ?? '');
-  const [wentWrong, setWentWrongMd] = useState(entry.wentWrongMd ?? '');
-  const [lesson, setLesson] = useState(entry.lesson ?? '');
-  const [planAdherence, setPlanAdherence] = useState(entry.planAdherence ?? 5);
+  const [planAdherence, setPlanAdherence] = useState(entry.planAdherence ?? 50);
   const [processScore, setProcessScore] = useState(entry.processScore ?? 5);
+  const [outcomeScore, setOutcomeScore] = useState(entry.outcomeScore ?? 5);
+  const [wentRight, setWentRight] = useState(entry.wentRightMd ?? '');
+  const [wentWrong, setWentWrong] = useState(entry.wentWrongMd ?? '');
+  const [lesson, setLesson] = useState(entry.lesson ?? '');
+  const [tomorrowMd, setTomorrowMd] = useState(entry.tomorrowMd ?? '');
+  const [tags, setTags] = useState<string[]>(() => {
+    if (!entry.tagsJson) return [];
+    if (Array.isArray(entry.tagsJson)) return entry.tagsJson as string[];
+    return [];
+  });
+
 
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
       journalApi.upsertEntry(dateStr, {
+        planAdherence,
+        processScore,
+        outcomeScore,
         wentRightMd: wentRight,
         wentWrongMd: wentWrong,
         lesson,
-        planAdherence,
-        processScore,
+        tomorrowMd,
+        tagsJson: tags.length > 0 ? tags : null,
+        finalizedAt: new Date().toISOString(),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['journal-entry', dateStr] });
       qc.invalidateQueries({ queryKey: ['journal-recent'] });
-      toast.success('EOD review saved');
+      toast.success('EOD review saved and finalized');
     },
     onError: () => toast.error('Failed to save'),
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <ScoreBadge value={planAdherence} max={10} label="Plan adherence" />
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 18,
+        opacity: locked ? 0.6 : 1,
+        pointerEvents: locked ? 'none' : 'auto',
+      }}
+    >
+      {/* Score badges */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+        <ScoreBadge value={planAdherence} max={100} label="Plan adherence" />
         <ScoreBadge value={processScore} max={10} label="Process score" />
+        <ScoreBadge value={outcomeScore} max={10} label="Outcome score" />
       </div>
 
+      {/* Score sliders */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+        <SliderField
+          label="Did I follow my plan?"
+          value={planAdherence}
+          set={setPlanAdherence}
+          min={0}
+          max={100}
+          display={`${planAdherence}%`}
+        />
+        <SliderField label="Process score" value={processScore} set={setProcessScore} />
+        <SliderField label="Outcome score" value={outcomeScore} set={setOutcomeScore} />
+      </div>
+
+      <hr style={{ border: 0, borderTop: '1px solid var(--eb-border)', margin: 0 }} />
+
+      {/* What went right / wrong */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {[
-          { label: 'Plan adherence', value: planAdherence, set: setPlanAdherence },
-          { label: 'Process score', value: processScore, set: setProcessScore },
-        ].map(({ label, value, set }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ flex: '0 0 120px', fontSize: 12, color: 'var(--eb-muted)' }}>
-              {label}
-            </span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={value}
-              onChange={(e) => set(Number(e.target.value))}
-              style={{ flex: 1, accentColor: 'var(--green)', height: 4 }}
-            />
-            <span
-              style={{
-                flex: '0 0 28px',
-                textAlign: 'right',
-                fontSize: 12.5,
-                fontFamily: 'monospace',
-                fontWeight: 500,
-              }}
-            >
-              {value}
-            </span>
-          </div>
-        ))}
+        <TextareaField
+          label="What went right"
+          value={wentRight}
+          set={setWentRight}
+          placeholder="Two or three bullet points — what should I repeat?"
+          minHeight={80}
+        />
+        <TextareaField
+          label="What went wrong"
+          value={wentWrong}
+          set={setWentWrong}
+          placeholder="Be specific. Process problems, not outcomes."
+          minHeight={80}
+        />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {[
-          {
-            label: 'What went right',
-            value: wentRight,
-            set: setWentRight,
-            placeholder: 'What worked today?',
-          },
-          {
-            label: 'What went wrong',
-            value: wentWrong,
-            set: setWentWrongMd,
-            placeholder: 'What would you change?',
-          },
-        ].map(({ label, value, set, placeholder }) => (
-          <div key={label}>
-            <FieldLabel>{label}</FieldLabel>
-            <textarea
-              value={value}
-              onChange={(e) => set(e.target.value)}
-              placeholder={placeholder}
-              style={{
-                width: '100%',
-                minHeight: 72,
-                background: 'var(--eb-panel-2)',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 8,
-                padding: '8px 11px',
-                color: 'var(--eb-text)',
-                fontSize: 13,
-                fontFamily: 'inherit',
-                outline: 'none',
-                resize: 'vertical',
-                boxSizing: 'border-box',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--green)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--eb-border)';
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
+      {/* Lesson */}
       <div>
-        <FieldLabel>Lesson captured</FieldLabel>
-        <textarea
+        <FieldLabel>Lesson · one sentence</FieldLabel>
+        <input
           value={lesson}
           onChange={(e) => setLesson(e.target.value)}
-          placeholder="The one thing you'll carry into tomorrow..."
+          placeholder="The one thing future-you will read tomorrow before market open."
           style={{
             width: '100%',
-            minHeight: 60,
             background: 'var(--eb-panel-2)',
             border: '1px solid var(--eb-border)',
             borderRadius: 8,
-            padding: '8px 11px',
+            padding: '9px 11px',
             color: 'var(--eb-text)',
             fontSize: 13,
             fontFamily: 'inherit',
             outline: 'none',
-            resize: 'vertical',
             boxSizing: 'border-box',
           }}
           onFocus={(e) => {
@@ -386,30 +556,53 @@ function EodEditor({ entry, dateStr }: { entry: JournalEntry; dateStr: string })
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          onClick={() => mutate()}
-          disabled={isPending}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '7px 16px',
-            borderRadius: 7,
-            border: '1px solid #00b67a',
-            background: 'linear-gradient(180deg,#00d68f,#00b67a)',
-            color: '#06140f',
-            fontSize: 12.5,
-            fontWeight: 600,
-            cursor: isPending ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit',
-            opacity: isPending ? 0.6 : 1,
-          }}
-        >
-          {isPending ? 'Saving…' : '💾 Save EOD review'}
-        </button>
+      {/* Tomorrow's prep */}
+      <TextareaField
+        label="Tomorrow's prep"
+        value={tomorrowMd}
+        set={setTomorrowMd}
+        placeholder="Levels to mark, news to check, no-trade windows."
+        minHeight={60}
+      />
+
+      {/* Tags */}
+      <div>
+        <FieldLabel>Tags &amp; tomorrow's flags</FieldLabel>
+        <TagInput
+          tags={tags}
+          onAdd={(t) => setTags([...tags, t])}
+          onRemove={(t) => setTags(tags.filter((x) => x !== t))}
+          placeholder="Type to add tag…"
+        />
       </div>
+
+      {/* Save */}
+      {!locked && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={() => mutate()}
+            disabled={isPending}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 16px',
+              borderRadius: 7,
+              border: '1px solid #00b67a',
+              background: 'linear-gradient(180deg,#00d68f,#00b67a)',
+              color: '#06140f',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              opacity: isPending ? 0.6 : 1,
+            }}
+          >
+            {isPending ? 'Saving…' : <><Save size={14} /> Save EOD review</>}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -850,7 +1043,11 @@ function tokenAvatar(symbol: string): { grad: string; text: string } {
   return FALLBACK_GRADS[sum % FALLBACK_GRADS.length]!;
 }
 
-function WatchlistEditor({ entry, dateStr }: { entry: JournalEntry; dateStr: string }) {
+function WatchlistEditor({
+  entry,
+  dateStr,
+  locked,
+}: { entry: JournalEntry; dateStr: string; locked: boolean }) {
   const qc = useQueryClient();
   const [tokens, setTokens] = useState<string[]>(
     Array.isArray((entry as any).watchlistJson) ? ((entry as any).watchlistJson as string[]) : [],
@@ -891,7 +1088,7 @@ function WatchlistEditor({ entry, dateStr }: { entry: JournalEntry; dateStr: str
   };
 
   return (
-    <Panel>
+    <Panel style={{ opacity: locked ? 0.6 : 1, pointerEvents: locked ? 'none' : 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ color: 'var(--eb-cyan)' }}>
           <Eye size={16} />
@@ -966,84 +1163,88 @@ function WatchlistEditor({ entry, dateStr }: { entry: JournalEntry; dateStr: str
                 {t[0]}
               </div>
               {t}
-              <button
-                type="button"
-                onClick={() => remove(t)}
-                style={{
-                  background: 'transparent',
-                  border: 0,
-                  padding: '0 2px',
-                  cursor: 'pointer',
-                  color: 'var(--eb-muted)',
-                  lineHeight: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title={`Remove ${t}`}
-              >
-                <X size={11} />
-              </button>
+              {!locked && (
+                <button
+                  type="button"
+                  onClick={() => remove(t)}
+                  style={{
+                    background: 'transparent',
+                    border: 0,
+                    padding: '0 2px',
+                    cursor: 'pointer',
+                    color: 'var(--eb-muted)',
+                    lineHeight: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={`Remove ${t}`}
+                >
+                  <X size={11} />
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
       {/* Add input */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--eb-panel-2)',
-            border: '1px solid var(--eb-border)',
-            borderRadius: 8,
-            padding: '6px 10px',
-          }}
-        >
-          <Plus size={12} style={{ color: 'var(--eb-muted)', flexShrink: 0 }} />
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') add();
-            }}
-            placeholder="Add token, e.g. ETHUSDT"
+      {!locked && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          <div
             style={{
               flex: 1,
-              background: 'transparent',
-              border: 0,
-              outline: 'none',
-              color: 'var(--eb-text)',
-              fontSize: 12.5,
-              fontFamily: 'var(--font-mono, monospace)',
-              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 8,
+              padding: '6px 10px',
             }}
-          />
+          >
+            <Plus size={12} style={{ color: 'var(--eb-muted)', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') add();
+              }}
+              placeholder="Add token, e.g. ETHUSDT"
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 0,
+                outline: 'none',
+                color: 'var(--eb-text)',
+                fontSize: 12.5,
+                fontFamily: 'var(--font-mono, monospace)',
+                textTransform: 'uppercase',
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={add}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 12px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              border: '1px solid rgba(6,182,212,.40)',
+              background: 'rgba(6,182,212,.08)',
+              color: 'var(--eb-cyan)',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+            }}
+          >
+            Add
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={add}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '6px 12px',
-            borderRadius: 8,
-            cursor: 'pointer',
-            border: '1px solid rgba(6,182,212,.40)',
-            background: 'rgba(6,182,212,.08)',
-            color: 'var(--eb-cyan)',
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: 'inherit',
-          }}
-        >
-          Add
-        </button>
-      </div>
+      )}
     </Panel>
   );
 }
@@ -1076,7 +1277,12 @@ interface DayPosition {
   id: string;
   symbol: string;
   side: 'long' | 'short';
+  status: 'open' | 'closed';
+  openedAt: string;
+  netPnl: string | null;
   rPlanned: string | null;
+  rRealized: string | null;
+  playbookId: string | null;
 }
 
 function playbookColorKey(name: string, playbooks: { id: string; name: string }[]) {
@@ -2424,15 +2630,552 @@ function PremarketIntentEditor({
   );
 }
 
+// ─── Live Session ────────────────────────────────────────────────────────────
+
+function LiveSession({
+  entry,
+  dateStr,
+  dayPositions,
+  stats,
+  accountId,
+  locked,
+}: {
+  entry: JournalEntry;
+  dateStr: string;
+  dayPositions: DayPosition[];
+  stats: JournalStats | null | undefined;
+  accountId: string | null;
+  locked: boolean;
+}) {
+  const router = useRouter();
+  const logTrade = useLogTrade();
+  const { data: playbooks } = useQuery({
+    queryKey: ['playbooks'],
+    queryFn: () => api.get('/playbooks', z.array(z.object({ id: z.string(), name: z.string() }))),
+  });
+  const qc = useQueryClient();
+  const [note, setNote] = useState(entry.sessionNotesMd ?? '');
+  const session = getActiveSession();
+
+  useEffect(() => {
+    setNote(entry.sessionNotesMd ?? '');
+  }, [entry.sessionNotesMd]);
+
+  const { mutate: saveNote } = useMutation({
+    mutationFn: (val: string) => journalApi.upsertEntry(dateStr, { sessionNotesMd: val }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journal-entry', dateStr] });
+    },
+  });
+
+  const openCount = dayPositions.filter((p) => p.status === 'open').length;
+  const closedCount = dayPositions.filter((p) => p.status === 'closed').length;
+  const wins = dayPositions.filter((p) => p.netPnl && Number(p.netPnl) > 0).length;
+  const losses = dayPositions.filter((p) => p.netPnl && Number(p.netPnl) < 0).length;
+  const totalPnl = dayPositions.reduce((sum, p) => sum + (p.netPnl ? Number(p.netPnl) : 0), 0);
+  const maxTrades = Number((entry as any).maxTrades) || 0;
+  const isOverPlan = maxTrades > 0 && dayPositions.length > maxTrades;
+
+  const discipline = stats?.disciplineAvg ?? null;
+
+  const thStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '9px 12px',
+    borderBottom: '1px solid var(--eb-border)',
+    fontSize: 10.5,
+    color: 'var(--eb-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '.05em',
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    background: 'var(--eb-panel)',
+  };
+  const tdStyle: React.CSSProperties = {
+    padding: '9px 12px',
+    borderBottom: '1px solid var(--eb-border)',
+    fontSize: 12,
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <Panel>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <span style={{ color: 'var(--green)' }}>
+          <Zap size={16} />
+        </span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--eb-text)' }}>Live session</span>
+        <Chip
+          style={{
+            color: session.color,
+            borderColor: `${session.color}40`,
+            background: `${session.color}15`,
+            fontSize: 10.5,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: session.color,
+              display: 'inline-block',
+              marginRight: 4,
+            }}
+          />
+          {session.label}
+        </Chip>
+        <span style={{ marginLeft: 'auto' }}>
+          <button
+            type="button"
+            onClick={logTrade.open}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 12px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              border: '1px solid rgba(0,214,143,.40)',
+              background: 'rgba(0,214,143,.08)',
+              color: 'var(--green)',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+            }}
+          >
+            <Plus size={13} /> Log trade
+          </button>
+        </span>
+      </div>
+
+      {/* KPIs row */}
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}
+      >
+        <div
+          style={{
+            background: 'var(--eb-panel-2)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              color: 'var(--eb-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.06em',
+            }}
+          >
+            Trades taken
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--eb-text)',
+              marginTop: 2,
+            }}
+          >
+            {dayPositions.length}
+            {maxTrades > 0 ? (
+              <span style={{ color: 'var(--eb-muted)', fontWeight: 400, fontSize: 14 }}>
+                {' '}
+                / {maxTrades}
+              </span>
+            ) : (
+              ''
+            )}
+          </div>
+          {isOverPlan && (
+            <div style={{ fontSize: 11, color: 'var(--eb-yellow)', marginTop: 2 }}>
+              ⚠ Over plan by {dayPositions.length - maxTrades}
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            background: 'var(--eb-panel-2)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              color: 'var(--eb-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.06em',
+            }}
+          >
+            Open positions
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: openCount > 0 ? 'var(--green)' : 'var(--eb-muted)',
+              marginTop: 2,
+            }}
+          >
+            {openCount}
+          </div>
+          {openCount > 0 && (
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted-2)',
+                marginTop: 2,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {dayPositions
+                .filter((p) => p.status === 'open')
+                .map((p) => p.symbol)
+                .join(', ')}
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            background: 'var(--eb-panel-2)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              color: 'var(--eb-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.06em',
+            }}
+          >
+            W / L
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono, monospace)',
+              marginTop: 2,
+            }}
+          >
+            <span style={{ color: 'var(--green)' }}>{wins}W</span>
+            {' / '}
+            <span style={{ color: 'var(--eb-red)' }}>{losses}L</span>
+          </div>
+          {wins + losses > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--eb-muted-2)', marginTop: 2 }}>
+              {((wins / (wins + losses)) * 100).toFixed(0)}% win rate
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            background: 'var(--eb-panel-2)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              color: 'var(--eb-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.06em',
+            }}
+          >
+            Discipline today
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono, monospace)',
+              color:
+                discipline != null
+                  ? discipline >= 80
+                    ? 'var(--green)'
+                    : discipline >= 50
+                      ? 'var(--eb-yellow)'
+                      : 'var(--eb-red)'
+                  : 'var(--eb-muted)',
+              marginTop: 2,
+            }}
+          >
+            {discipline != null ? `${discipline}/100` : '—'}
+          </div>
+          {dayPositions.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--eb-muted-2)', marginTop: 2 }}>
+              Net P&L{' '}
+              <span
+                style={{ color: totalPnl >= 0 ? 'var(--green)' : 'var(--eb-red)', fontWeight: 600 }}
+              >
+                {totalPnl >= 0 ? '+' : ''}
+                {totalPnl.toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Trades table */}
+      {dayPositions.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              fontSize: 10.5,
+              color: 'var(--eb-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.05em',
+              fontWeight: 600,
+              marginBottom: 8,
+            }}
+          >
+            Trades today
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Time', 'Symbol', 'Side', 'R', 'Net P&L', 'Status'].map((h) => (
+                    <th key={h} style={thStyle}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dayPositions.map((pos) => {
+                  const pnlColor =
+                    pos.status === 'open'
+                      ? 'var(--eb-muted)'
+                      : pos.netPnl && Number(pos.netPnl) >= 0
+                        ? 'var(--green)'
+                        : 'var(--eb-red)';
+                  const rVal =
+                    pos.rRealized && !Number.isNaN(Number(pos.rRealized))
+                      ? `${Number(pos.rRealized) >= 0 ? '+' : ''}${Number(pos.rRealized).toFixed(2)}R`
+                      : '—';
+                  return (
+                    <tr
+                      key={pos.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => router.push(`/trades/${pos.id}?account=${accountId}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ')
+                          router.push(`/trades/${pos.id}?account=${accountId}`);
+                      }}
+                      tabIndex={0}
+                    >
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: 'var(--eb-muted)',
+                          fontSize: 11,
+                        }}
+                      >
+                        {new Date(pos.openedAt).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{pos.symbol}</td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: pos.side === 'long' ? 'var(--green)' : 'var(--eb-red)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {pos.side.toUpperCase()}
+                      </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          fontWeight: 600,
+                          color: (() => {
+                            const v = Number(pos.rRealized ?? '');
+                            return pos.rRealized && !Number.isNaN(v)
+                              ? v >= 0
+                                ? 'var(--green)'
+                                : 'var(--eb-red)'
+                              : 'var(--eb-muted)';
+                          })(),
+                        }}
+                      >
+                        {rVal}
+                      </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          fontWeight: 600,
+                          color: pnlColor,
+                        }}
+                      >
+                        {pos.status === 'open'
+                          ? '—'
+                          : `${pos.netPnl && Number(pos.netPnl) >= 0 ? '+' : ''}${pos.netPnl ? Number(pos.netPnl).toFixed(2) : '—'}`}
+                      </td>
+                      <td style={tdStyle}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            fontSize: 10.5,
+                            padding: '1px 7px',
+                            borderRadius: 99,
+                            color: pos.status === 'open' ? 'var(--eb-purple)' : 'var(--eb-muted)',
+                            background:
+                              pos.status === 'open' ? 'rgba(139,92,246,.12)' : 'var(--eb-panel-2)',
+                            border: `1px solid ${pos.status === 'open' ? 'rgba(139,92,246,.30)' : 'var(--eb-border)'}`,
+                          }}
+                        >
+                          {pos.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {dayPositions.length > 1 && (
+            <div
+              style={{ marginTop: 8, fontSize: 11, color: 'var(--eb-muted)', textAlign: 'right' }}
+            >
+              {dayPositions.length} trade{dayPositions.length !== 1 ? 's' : ''} today ·{' '}
+              <span style={{ color: 'var(--green)' }}>{closedCount} closed</span>
+              {openCount > 0 && (
+                <span>
+                  , <span style={{ color: 'var(--eb-purple)' }}>{openCount} open</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {dayPositions.length === 0 && (
+        <div
+          style={{
+            padding: '24px 0',
+            textAlign: 'center',
+            color: 'var(--eb-muted)',
+            fontSize: 13,
+            borderTop: '1px solid var(--eb-border)',
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+          <div style={{ fontWeight: 500, color: 'var(--eb-muted-2)' }}>No trades logged today</div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>
+            Click{' '}
+            <button
+              type="button"
+              onClick={logTrade.open}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                font: 'inherit',
+                fontWeight: 700,
+                color: 'var(--green)',
+                cursor: 'pointer',
+              }}
+            >
+              Log trade
+            </button>{' '}
+            to record your first trade.
+          </div>
+        </div>
+      )}
+
+      {/* Mid-session note */}
+      <hr style={{ border: 0, borderTop: '1px solid var(--eb-border)', margin: '0 0 14px' }} />
+      <h4
+        style={{
+          margin: '0 0 8px',
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--eb-muted-2)',
+          letterSpacing: '.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Mid-session note
+      </h4>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={(e) => {
+          const val = e.target.value;
+          if (val !== entry.sessionNotesMd) saveNote(val);
+          e.currentTarget.style.borderColor = 'var(--eb-border)';
+        }}
+        placeholder="Quick note while you trade — what's the tape doing, why did you take that trade, etc."
+        rows={4}
+        style={{
+          width: '100%',
+          minHeight: 74,
+          background: 'var(--eb-panel-2)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 8,
+          padding: '9px 11px',
+          color: 'var(--eb-text)',
+          fontSize: 13,
+          fontFamily: 'inherit',
+          outline: 'none',
+          resize: 'vertical',
+          boxSizing: 'border-box',
+          lineHeight: 1.6,
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'var(--green)';
+        }}
+      />
+    </Panel>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function JournalDetailClient({ date: dateStr }: { date: string }) {
   const today = isToday(dateStr);
   const qc = useQueryClient();
+  const router = useRouter();
+  const [contextOpen, setContextOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => journalApi.deleteEntry(dateStr),
+    onSuccess: () => {
+      toast.success('Journal entry deleted');
+      qc.invalidateQueries({ queryKey: ['journal-recent'] });
+      qc.invalidateQueries({ queryKey: ['journal-stats'] });
+      router.push('/journal');
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete entry');
+    },
+  });
 
   const { data: stats } = useQuery({
-    queryKey: ['journal-stats'],
-    queryFn: () => journalApi.getStats(),
+    queryKey: ['journal-stats', dateStr],
+    queryFn: () => journalApi.getStats(dateStr),
   });
 
   const { data: entry, isPending } = useQuery({
@@ -2447,7 +3190,17 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
     () =>
       (positions ?? [])
         .filter((p) => p.openedAt.startsWith(dateStr))
-        .map((p) => ({ id: p.id, symbol: p.symbol, side: p.side, rPlanned: p.rPlanned })),
+        .map((p) => ({
+          id: p.id,
+          symbol: p.symbol,
+          side: p.side,
+          status: p.status,
+          openedAt: p.openedAt,
+          netPnl: p.netPnl,
+          rPlanned: p.rPlanned,
+          rRealized: p.rRealized,
+          playbookId: p.playbookId,
+        })),
     [positions, dateStr],
   );
 
@@ -2682,21 +3435,54 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
 
   return (
     <div style={{ padding: '22px 26px 80px', maxWidth: 1400, width: '100%', alignSelf: 'center' }}>
-      {/* Breadcrumb */}
-      <Link
-        href="/journal"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 12.5,
-          color: 'var(--eb-muted)',
-          marginBottom: 20,
-          textDecoration: 'none',
-        }}
-      >
-        <ArrowLeft size={14} /> Back to journal
-      </Link>
+      {/* Breadcrumb + context toggle + delete */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <Link
+          href="/journal"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12.5,
+            color: 'var(--eb-muted)',
+            textDecoration: 'none',
+          }}
+        >
+          <ArrowLeft size={14} /> Back to journal
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '5px 10px', borderRadius: 7,
+              border: '1px solid rgba(239,68,68,.25)',
+              background: 'rgba(239,68,68,.08)',
+              color: '#ef4444',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={() => setContextOpen(v => !v)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '5px 10px', borderRadius: 7,
+              border: contextOpen ? '1px solid rgba(6,182,212,.40)' : '1px solid var(--eb-border)',
+              background: contextOpen ? 'rgba(6,182,212,.10)' : 'var(--eb-panel-2)',
+              color: contextOpen ? 'var(--eb-cyan)' : 'var(--eb-muted-2)',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Zap size={13} />
+            Context
+          </button>
+        </div>
+      </div>
 
       <Hero entry={full} dateStr={dateStr} isToday={today} stats={stats} />
 
@@ -2754,12 +3540,12 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
             <Eye size={14} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <WatchlistEditor entry={full} dateStr={dateStr} />
+            <WatchlistEditor entry={full} dateStr={dateStr} locked={!!full.finalizedAt} />
           </div>
-        </div>
+          </div>
 
-        {/* ── STEP 2: Live session ── */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          {/* ── STEP 2: Live session ── */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <div
             style={{
               flex: '0 0 28px',
@@ -2780,49 +3566,151 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
             <Radio size={13} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
+            <LiveSession
+              entry={full}
+              dateStr={dateStr}
+              dayPositions={dayPositions}
+              stats={stats}
+              accountId={accountId}
+              locked={!!full.finalizedAt}
+            />
+          </div>
+          </div>
+
+          {/* ── STEP 3: End-of-day review ── */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div
+            style={{
+              flex: '0 0 28px',
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: full.finalizedAt ? 'rgba(0,214,143,.20)' : 'var(--panel-2)',
+              border: full.finalizedAt
+                ? '1px solid rgba(0,214,143,.50)'
+                : '1px solid var(--eb-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              color: full.finalizedAt ? 'var(--green)' : 'var(--eb-muted)',
+              fontWeight: 600,
+              fontFamily: 'inherit',
+            }}
+          >
+            <Moon size={13} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <Panel>
-              <SectionHeader icon={<Zap size={16} />} title="Live session" />
-              <div>
-                <FieldLabel>Session notes</FieldLabel>
-                <ReadonlyTextarea value={full.sessionNotesMd} placeholder="No session notes yet." />
-              </div>
+              <SectionHeader
+                icon={<Moon size={16} />}
+                title="End-of-day review"
+                chip={
+                  full.finalizedAt ? (
+                    <Chip
+                      style={{
+                        color: 'var(--green)',
+                        borderColor: 'rgba(0,214,143,.3)',
+                        background: 'rgba(0,214,143,.08)',
+                        fontSize: 10.5,
+                      }}
+                    >
+                      ✓ Finalized
+                    </Chip>
+                  ) : (
+                    <Chip style={{ fontSize: 10.5 }}>Draft</Chip>
+                  )
+                }
+              />
+
+              {full.eodMd && (
+                <div style={{ marginBottom: 16 }}>
+                  <FieldLabel>Closing note</FieldLabel>
+                  <ReadonlyTextarea value={full.eodMd} placeholder="" />
+                </div>
+              )}
+
+              <EodEditor entry={full} dateStr={dateStr} locked={!!full.finalizedAt} />
+
             </Panel>
           </div>
         </div>
-
-        {/* ── EOD review ── */}
-        <Panel>
-          <SectionHeader
-            icon={<Moon size={16} />}
-            title="End-of-day review"
-            chip={
-              full.finalizedAt ? (
-                <Chip
-                  style={{
-                    color: 'var(--green)',
-                    borderColor: 'rgba(0,214,143,.3)',
-                    background: 'rgba(0,214,143,.08)',
-                    fontSize: 10.5,
-                  }}
-                >
-                  ✓ Finalized
-                </Chip>
-              ) : (
-                <Chip style={{ fontSize: 10.5 }}>Draft</Chip>
-              )
-            }
-          />
-
-          {full.eodMd && (
-            <div style={{ marginBottom: 16 }}>
-              <FieldLabel>Closing note</FieldLabel>
-              <ReadonlyTextarea value={full.eodMd} placeholder="" />
-            </div>
-          )}
-
-          <EodEditor entry={full} dateStr={dateStr} />
-        </Panel>
       </div>
+
+      <JournalContextPanel
+        open={contextOpen}
+        onClose={() => setContextOpen(false)}
+        stats={stats}
+      />
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirm && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 60 }}
+            onClick={() => setDeleteConfirm(false)}
+            onKeyDown={(e) => e.key === 'Escape' && setDeleteConfirm(false)}
+            role="button"
+            tabIndex={-1}
+            aria-label="Cancel"
+          />
+          <dialog
+            open
+            style={{
+              position: 'fixed',
+              top: '50%', left: '50%',
+              transform: 'translate(-50%,-50%)',
+              zIndex: 61,
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 12,
+              padding: '22px 24px',
+              width: 380,
+              maxWidth: 'calc(100vw - 32px)',
+              boxShadow: '0 20px 60px rgba(0,0,0,.55)',
+              display: 'flex', flexDirection: 'column', gap: 14,
+              margin: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--eb-text)' }}>Delete journal entry?</div>
+                <div style={{ fontSize: 12, color: 'var(--eb-muted)', marginTop: 2 }}>This can&apos;t be undone.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(false)}
+                disabled={deleteMutation.isPending}
+                style={{
+                  padding: '7px 14px', borderRadius: 7, border: '1px solid var(--eb-border)',
+                  background: 'var(--eb-panel-2)', color: 'var(--eb-text)',
+                  fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                style={{
+                  padding: '7px 14px', borderRadius: 7, border: 'none',
+                  background: deleteMutation.isPending ? 'rgba(239,68,68,.5)' : '#ef4444',
+                  color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  opacity: deleteMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </dialog>
+        </>
+      )}
     </div>
   );
 }

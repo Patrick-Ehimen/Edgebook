@@ -113,6 +113,88 @@ function biasChip(bias: string | null | undefined): React.CSSProperties {
   return { color: 'var(--eb-muted)', borderColor: 'var(--eb-border)', background: 'var(--eb-panel-2)' };
 }
 
+// ─── Skeleton ──────────────────────────────────────────────────────────────────
+
+function Sk({ w, h, r = 5 }: { w?: number | string; h: number; r?: number }) {
+  return (
+    <div
+      style={{
+        width: w ?? '100%',
+        height: h,
+        borderRadius: r,
+        background: 'var(--eb-panel-2)',
+        backgroundImage: 'linear-gradient(90deg,var(--eb-panel-2) 25%,var(--eb-border) 50%,var(--eb-panel-2) 75%)',
+        backgroundSize: '200% 100%',
+        animation: 'sk-shimmer 1.4s ease infinite',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function JournalSkeleton() {
+  return (
+    <>
+      <style>{'@keyframes sk-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'}</style>
+      {/* Stats bar skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 10, padding: '12px 14px' }}>
+            <Sk h={10} w={80} r={4} />
+            <div style={{ marginTop: 10 }}><Sk h={22} w={60} r={6} /></div>
+            <div style={{ marginTop: 8 }}><Sk h={10} w={120} r={4} /></div>
+          </div>
+        ))}
+      </div>
+      {/* Session map skeleton */}
+      <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+        <Sk h={28} r={6} />
+      </div>
+      {/* Toolbar skeleton */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 10 }}>
+        <Sk h={28} w={240} r={8} />
+        <Sk h={14} w={90} r={4} />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <Sk h={28} w={60} r={5} />
+          <Sk h={28} w={70} r={5} />
+        </div>
+      </div>
+      {/* Card grid skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 11, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 52px', gap: 4 }}>
+                <Sk h={10} w={28} r={3} />
+                <Sk h={24} w={32} r={4} />
+                <Sk h={10} w={28} r={3} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <Sk h={18} w={48} r={99} />
+                </div>
+                <Sk h={10} w={120} r={4} />
+                <div style={{ marginTop: 6 }}><Sk h={10} w={80} r={4} /></div>
+              </div>
+            </div>
+            <div style={{ padding: '0 14px 12px' }}>
+              <Sk h={10} w={100} r={4} />
+              <div style={{ marginTop: 6 }}><Sk h={10} r={4} /></div>
+              <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
+                <Sk h={18} w={50} r={99} />
+                <Sk h={18} w={60} r={99} />
+              </div>
+            </div>
+            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)', marginTop: 'auto' }}>
+              <Sk h={11} w={80} r={4} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ─── Chip ─────────────────────────────────────────────────────────────────────
 
 function Chip({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -132,6 +214,7 @@ function Chip({ children, style }: { children: React.ReactNode; style?: React.CS
 
 function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isToday: boolean }) {
   const full = entry as JournalEntry;
+  const recent = 'tradeCount' in entry ? (entry as RecentEntry) : null;
   const { dow, day, mon } = fmtDate(entry.date);
   const moods: string[] = Array.isArray(full.moodTagsJson) ? (full.moodTagsJson as string[]) : [];
   const borderLeft = entry.bias === 'LONG' ? '3px solid var(--green)' : entry.bias === 'SHORT' ? '3px solid #ef4444' : '3px solid var(--eb-muted)';
@@ -141,6 +224,13 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
   const todayColor = entry.bias === 'LONG' ? '0,214,143' : entry.bias === 'SHORT' ? '239,68,68' : '122,131,149';
   const todayBorder = isToday ? `rgba(${todayColor},.55)` : 'var(--eb-border)';
   const todayGlow = isToday ? `0 0 0 3px rgba(${todayColor},.10)` : undefined;
+
+  const discipline = recent?.discipline ?? null;
+  const dRingColor = discipline != null
+    ? discipline >= 70 ? '#00d68f' : discipline >= 40 ? '#f5a524' : '#ff5b6c'
+    : 'var(--eb-muted)';
+  const dCirc = 94;
+  const dOffset = discipline != null ? dCirc - (discipline / 100) * dCirc : dCirc;
 
   return (
     <Link href={`/journal/${dk}`} style={{
@@ -160,6 +250,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 }}>
             {entry.bias && <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>}
+            {recent?.tradeCount != null && recent.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {recent.tradeCount} trade{recent.tradeCount !== 1 ? 's' : ''}</Chip>}
             {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● Today · in progress</Chip>}
           </div>
           <div style={{ fontSize: 11, color: 'var(--eb-muted)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -173,18 +264,23 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
             {full.sleepHours != null && <span>Sleep {Number(full.sleepHours).toFixed(1)}h</span>}
           </div>
         </div>
+        {discipline != null && (
+          <div style={{ position: 'relative', width: 38, height: 38, flex: '0 0 38px' }}>
+            <svg width="38" height="38" viewBox="0 0 38 38" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="19" cy="19" r="15" fill="none" stroke="var(--eb-panel-2)" strokeWidth="4.5" strokeLinecap="round" />
+              <circle cx="19" cy="19" r="15" fill="none" stroke={dRingColor} strokeWidth="4.5" strokeLinecap="round" strokeDasharray={dCirc} strokeDashoffset={dOffset} />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono, monospace)', color: dRingColor }}>
+              {discipline}
+            </div>
+          </div>
+        )}
       </div>
       <div style={{ padding: '0 14px 12px', fontSize: 12, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
         {full.intentMd && (
           <>
             <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--eb-muted)', fontWeight: 600, marginBottom: 3 }}>Pre-market intent</div>
             <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{full.intentMd}</div>
-          </>
-        )}
-        {entry.lesson && (
-          <>
-            <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--eb-muted)', fontWeight: 600, marginTop: 8, marginBottom: 3 }}>Lesson</div>
-            <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.lesson}</div>
           </>
         )}
         {moods.length > 0 && (
@@ -219,49 +315,60 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
   const dk = entry.date.slice(0, 10);
   const { dow, day, mon } = fmtDate(entry.date);
   const dotColor = entry.bias === 'LONG' ? 'var(--green)' : entry.bias === 'SHORT' ? '#ef4444' : 'var(--eb-muted)';
-  const excerpt = full.intentMd || entry.lesson || null;
+  const excerpt = full.intentMd || null;
 
   // Dynamic background for "Today" based on bias
   const todayBgColor = entry.bias === 'LONG' ? '0,214,143' : entry.bias === 'SHORT' ? '239,68,68' : '122,131,149';
   const background = isToday ? `linear-gradient(90deg,rgba(${todayBgColor},.07),transparent)` : 'var(--eb-panel)';
 
+  const disc = entry.discipline;
+  const discColor = disc != null
+    ? disc >= 70 ? 'var(--eb-text)' : disc >= 40 ? 'var(--eb-yellow)' : 'var(--eb-red)'
+    : 'var(--eb-muted)';
+
   return (
     <Link href={`/journal/${dk}`} style={{
-      display: 'grid',
-      gridTemplateColumns: '10px 84px 1fr auto 18px',
-      gap: 14, alignItems: 'center',
-      padding: '11px 16px',
-      background,
-      textDecoration: 'none', color: 'inherit', cursor: 'pointer',
-      transition: 'background .1s',
-      borderBottom: '1px solid var(--eb-border)',
-    }}>
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
-      <div style={{ fontFamily: 'var(--font-mono, monospace)' }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>{mon} {day}</div>
-        <div style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>{dow}{isToday ? ' · today' : ''}</div>
-      </div>
-      <div style={{ minWidth: 0 }}>
-        {excerpt
-          ? <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{excerpt}</div>
-          : <div style={{ fontSize: 12.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>No entry yet</div>
+        display: 'grid',
+        gridTemplateColumns: '10px 84px 1fr 40px auto 18px',
+        gap: 14, alignItems: 'center',
+        padding: '11px 16px',
+        background,
+        textDecoration: 'none', color: 'inherit', cursor: 'pointer',
+        transition: 'background .1s',
+        borderBottom: '1px solid var(--eb-border)',
+      }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+        <div style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>{mon} {day}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>{dow}{isToday ? ' · today' : ''}</div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          {excerpt
+            ? <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{excerpt}</div>
+            : <div style={{ fontSize: 12.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>No entry yet</div>
+          }
+          {full.sleepHours != null && (
+            <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>😴 {Number(full.sleepHours).toFixed(1)}h sleep</div>
+          )}
+          {entry.tradeCount > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>⏱ {entry.tradeCount} trade{entry.tradeCount !== 1 ? 's' : ''}</div>
+          )}
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: discColor, textAlign: 'right' }}>
+          {disc != null ? `D ${disc}` : '—'}
+        </div>
+        {entry.bias
+          ? <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>
+          : <span />
         }
-        {full.sleepHours != null && (
-          <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>😴 {Number(full.sleepHours).toFixed(1)}h sleep</div>
-        )}
-      </div>
-      {entry.bias
-        ? <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>
-        : <span />
-      }
-      <ChevronRight size={13} style={{ color: 'var(--eb-border)' }} />
-    </Link>
-  );
-}
+        <ChevronRight size={13} style={{ color: 'var(--eb-border)' }} />
+      </Link>
+    );
+  }
 
-function ListView({ entries, todayEntry, today }: { entries: RecentEntry[]; todayEntry: JournalEntry | null; today: string }) {
+function ListView({ entries, todayEntry, today }: { entries: RecentEntry[]; todayEntry: RecentEntry | null; today: string }) {
   const rows = todayEntry
-    ? [todayEntry as unknown as RecentEntry, ...entries.filter(e => e.date.slice(0, 10) !== today)]
+    ? [todayEntry, ...entries.filter(e => e.date.slice(0, 10) !== today)]
     : entries;
 
   if (rows.length === 0) {
@@ -316,7 +423,7 @@ function CalendarView({ entries, today }: { entries: RecentEntry[]; today: strin
     const isLoss = entry?.bias === 'SHORT';
     const isNeutral = entry?.bias === 'NEUTRAL';
     const full = entry as unknown as JournalEntry | undefined;
-    const excerpt = full?.intentMd || entry?.lesson;
+    const excerpt = full?.intentMd || null;
 
     // Dynamic colors for "Today" highlight based on bias
     const todayColor = entry?.bias === 'LONG' ? 'var(--green)' : entry?.bias === 'SHORT' ? 'var(--eb-red)' : 'var(--eb-muted)';
@@ -361,7 +468,6 @@ function CalendarView({ entries, today }: { entries: RecentEntry[]; today: strin
           {entry && (
             <div style={{ display: 'flex', gap: 2, paddingTop: 2 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--eb-cyan)', display: 'block' }} />
-              {entry.lesson && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--eb-purple)', display: 'block' }} />}
             </div>
           )}
         </div>
@@ -418,10 +524,10 @@ function CalendarView({ entries, today }: { entries: RecentEntry[]; today: strin
 
 // ─── Timeline view ────────────────────────────────────────────────────────────
 
-function TimelineView({ entries, todayEntry, today }: { entries: RecentEntry[]; todayEntry: JournalEntry | null; today: string }) {
+function TimelineView({ entries, todayEntry, today }: { entries: RecentEntry[]; todayEntry: RecentEntry | null; today: string }) {
   const all = useMemo(() => {
     return todayEntry
-      ? [todayEntry as unknown as RecentEntry, ...entries.filter(e => e.date.slice(0, 10) !== today)]
+      ? [todayEntry, ...entries.filter(e => e.date.slice(0, 10) !== today)]
       : [...entries];
   }, [entries, todayEntry, today]);
 
@@ -456,7 +562,7 @@ function TimelineView({ entries, todayEntry, today }: { entries: RecentEntry[]; 
               ? (e.bias === 'LONG' ? 'linear-gradient(135deg,var(--green),var(--eb-cyan))' : e.bias === 'SHORT' ? 'linear-gradient(135deg,#ef4444,#b91c1c)' : 'linear-gradient(135deg,var(--eb-muted),var(--eb-border))')
               : isWin ? 'var(--green)' : isLoss ? '#ef4444' : 'var(--eb-muted)';
             const todayGlow = e.bias === 'LONG' ? 'rgba(0,214,143,.18)' : e.bias === 'SHORT' ? 'rgba(239,68,68,.18)' : 'rgba(122,131,149,.18)';
-            const excerpt = full.intentMd || e.lesson;
+            const excerpt = full.intentMd || null;
             const moods: string[] = Array.isArray(full.moodTagsJson) ? (full.moodTagsJson as string[]) : [];
             const { dow, day, mon } = fmtDate(dk);
 
@@ -479,6 +585,14 @@ function TimelineView({ entries, todayEntry, today }: { entries: RecentEntry[]; 
                 }}>
                   <b style={{ display: 'block', fontSize: 13, color: 'var(--eb-text)', fontWeight: 700 }}>{dow} {day}</b>
                   {mon}
+                  {e.discipline != null && (
+                    <div style={{
+                      fontSize: 10, marginTop: 2,
+                      color: e.discipline >= 70 ? 'var(--eb-muted-2)' : e.discipline >= 40 ? 'var(--eb-yellow)' : 'var(--eb-red)',
+                    }}>
+                      D {e.discipline}
+                    </div>
+                  )}
                 </div>
                 <div style={{
                   flex: 1, minWidth: 0,
@@ -489,6 +603,7 @@ function TimelineView({ entries, todayEntry, today }: { entries: RecentEntry[]; 
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: excerpt ? 6 : 0 }}>
                     {e.bias && <Chip style={biasChip(e.bias)}>{e.bias}</Chip>}
+                    {e.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {e.tradeCount} trade{e.tradeCount !== 1 ? 's' : ''}</Chip>}
                     {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● live</Chip>}
                     {full.sleepHours != null && <span style={{ fontSize: 11, color: 'var(--eb-muted)' }}>😴 {Number(full.sleepHours).toFixed(1)}h</span>}
                   </div>
@@ -622,17 +737,24 @@ function JournalBrowser({
 
   const entryDates = useMemo(() => new Set(recentEntries.map(e => dateKey(e.date))), [recentEntries]);
 
+  const todayEntryForDisplay: RecentEntry | null = useMemo(() => {
+    if (!todayEntry) return null;
+    const fromRecent = recentEntries.find(r => dateKey(r.date) === today);
+    if (fromRecent) return fromRecent;
+    return { ...todayEntry, tradeCount: 0, discipline: null } as RecentEntry;
+  }, [todayEntry, recentEntries, today]);
+
   const filtered = useMemo(() => {
     let r = applyFilters(recentEntries, today, filters);
     if (search.trim()) r = applySearch(r, search.trim());
     return r;
   }, [recentEntries, today, filters, search]);
 
-  const pastEntries = todayEntry
+  const pastEntries = todayEntryForDisplay
     ? filtered.filter(r => dateKey(r.date) !== today)
     : filtered;
 
-  const displayCount = todayEntry ? pastEntries.length + 1 : pastEntries.length;
+  const displayCount = todayEntryForDisplay ? pastEntries.length + 1 : pastEntries.length;
 
   const hasActiveFilters =
     filters.quickView !== 'all' || filters.moods.length > 0 ||
@@ -784,19 +906,20 @@ function JournalBrowser({
             </span>
           )}
         </button>
+
       </div>
 
       {/* ── Active view ──────────────────────────────────────────────────────── */}
       {view === 'cards' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
-          {todayEntry && <EntryCard entry={todayEntry} isToday />}
-          {pastEntries.length === 0 && !todayEntry && <EmptyResults />}
+          {todayEntryForDisplay && <EntryCard entry={todayEntryForDisplay} isToday />}
+          {pastEntries.length === 0 && !todayEntryForDisplay && <EmptyResults />}
           {pastEntries.map(r => <EntryCard key={r.id} entry={r as unknown as JournalEntry} isToday={false} />)}
         </div>
       )}
 
       {view === 'list' && (
-        <ListView entries={pastEntries} todayEntry={todayEntry} today={today} />
+        <ListView entries={pastEntries} todayEntry={todayEntryForDisplay} today={today} />
       )}
 
       {view === 'calendar' && (
@@ -804,7 +927,7 @@ function JournalBrowser({
       )}
 
       {view === 'timeline' && (
-        <TimelineView entries={pastEntries} todayEntry={todayEntry} today={today} />
+        <TimelineView entries={pastEntries} todayEntry={todayEntryForDisplay} today={today} />
       )}
 
       {/* Sidebar overlay */}
@@ -850,7 +973,7 @@ export function JournalClient() {
           )}
         </div>
 
-        {recentPending ? null : hasEntries ? (
+        {recentPending ? <JournalSkeleton /> : hasEntries ? (
           <JournalBrowser
             todayEntry={todayEntry as JournalEntry | null}
             recentEntries={recentEntries}

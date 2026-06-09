@@ -1,9 +1,23 @@
 import { z } from 'zod';
 
+export const DisciplineComponentSchema = z.object({
+  score: z.number(),
+  delta: z.number(),
+});
+
 export const JournalStatsSchema = z.object({
   streak: z.number(),
+  longestStreak: z.number(),
   disciplineAvg: z.number().nullable(),
   entriesThisMonth: z.number(),
+  discipline: z.object({
+    score: z.number(),
+    delta: z.number(),
+    planAdherence: DisciplineComponentSchema,
+    ruleViolations: DisciplineComponentSchema,
+    journalCompletion: DisciplineComponentSchema,
+    riskDiscipline: DisciplineComponentSchema,
+  }).optional(),
 });
 
 export const JournalEntrySchema = z.object({
@@ -29,7 +43,11 @@ export const JournalEntrySchema = z.object({
   wentRightMd: z.string().nullable().optional(),
   wentWrongMd: z.string().nullable().optional(),
   lesson: z.string().nullable().optional(),
+  tomorrowMd: z.string().nullable().optional(),
+  tagsJson: z.unknown().nullable().optional(),
+  energyEod: z.number().nullable().optional(),
   tiltRisk: z.number().nullable().optional(),
+  confidenceEod: z.number().nullable().optional(),
   finalizedAt: z.string().nullable().optional(),
   lockedAt: z.string().nullable().optional(),
   createdAt: z.string(),
@@ -44,9 +62,19 @@ export const RecentEntrySchema = z.object({
   bias: z.string().nullable().optional(),
   finalizedAt: z.string().nullable().optional(),
   lesson: z.string().nullable().optional(),
+  moodTagsJson: z.unknown().nullable().optional(),
+  conviction: z.number().nullable().optional(),
+  sleepHours: z.union([z.string(), z.number()]).nullable().optional(),
+  intentMd: z.string().nullable().optional(),
+  tradeCount: z.number(),
+  discipline: z.number().nullable().optional(),
 });
 
 export const RecentEntriesSchema = z.array(RecentEntrySchema);
+
+export const DeleteEntryResponseSchema = z.object({
+  id: z.string(),
+});
 
 export type JournalStats = z.infer<typeof JournalStatsSchema>;
 export type JournalEntry = z.infer<typeof JournalEntrySchema>;
