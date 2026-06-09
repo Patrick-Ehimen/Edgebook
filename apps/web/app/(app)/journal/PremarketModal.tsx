@@ -1,34 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { journalApi } from '@/features/journal';
+import type { JournalEntry } from '@/features/journal';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Sunrise } from 'lucide-react';
+import { Compass, Save } from 'lucide-react';
 import { toast } from 'sonner';
-
-const MOODS = ['Calm', 'Patient', 'Focused', 'Confident', 'Excited', 'Tired', 'Anxious', 'Frustrated'];
+import { MOOD_TAGS } from './journal-constants';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   todayStr: string;
+  existingEntry?: JournalEntry | null;
 }
 
-export function PremarketModal({ open, onClose, todayStr }: Props) {
+export function PremarketModal({ open, onClose, todayStr, existingEntry }: Props) {
   const qc = useQueryClient();
-  const [bias, setBias] = useState<'LONG' | 'NEUTRAL' | 'SHORT'>('NEUTRAL');
-  const [conviction, setConviction] = useState(3);
-  const [intentMd, setIntentMd] = useState('');
-  const [sleepHours, setSleepHours] = useState(7);
-  const [energy, setEnergy] = useState(7);
-  const [focus, setFocus] = useState(7);
-  const [moods, setMoods] = useState<string[]>([]);
+  const [bias, setBias] = useState<'LONG' | 'NEUTRAL' | 'SHORT'>(existingEntry?.bias as any ?? 'NEUTRAL');
+  const [conviction, setConviction] = useState(existingEntry?.conviction ?? 3);
+  const [intentMd, setIntentMd] = useState(existingEntry?.intentMd ?? '');
+  const [sleepHours, setSleepHours] = useState(Number(existingEntry?.sleepHours) || 7);
+  const [energy, setEnergy] = useState(existingEntry?.energy ?? 7);
+  const [focus, setFocus] = useState(existingEntry?.focus ?? 7);
+  const [moods, setMoods] = useState<string[]>(
+    Array.isArray(existingEntry?.moodTagsJson) ? (existingEntry.moodTagsJson as string[]) : []
+  );
+
+  // Re-seed when the modal opens with fresh entry data
+  useEffect(() => {
+    if (open) {
+      setBias((existingEntry?.bias as any) ?? 'NEUTRAL');
+      setConviction(existingEntry?.conviction ?? 3);
+      setIntentMd(existingEntry?.intentMd ?? '');
+      setSleepHours(Number(existingEntry?.sleepHours) || 7);
+      setEnergy(existingEntry?.energy ?? 7);
+      setFocus(existingEntry?.focus ?? 7);
+      setMoods(Array.isArray(existingEntry?.moodTagsJson) ? (existingEntry.moodTagsJson as string[]) : []);
+    }
+  }, [open, existingEntry]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
@@ -76,7 +92,7 @@ export function PremarketModal({ open, onClose, todayStr }: Props) {
         >
           <DialogHeader>
             <DialogTitle style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 600, color: 'var(--eb-text)' }}>
-              <Sunrise size={17} style={{ color: 'var(--green)' }} />
+              <Compass size={17} style={{ color: 'var(--green)' }} />
               Pre-market intent · {new Date(todayStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </DialogTitle>
           </DialogHeader>
@@ -99,9 +115,9 @@ export function PremarketModal({ open, onClose, todayStr }: Props) {
                     onClick={() => setBias(s)}
                     style={{
                       background: bias === s
-                        ? s === 'LONG' ? 'rgba(0,214,143,.18)' : s === 'SHORT' ? 'rgba(255,91,108,.18)' : '#1a2433'
+                        ? s === 'LONG' ? 'rgba(0,214,143,.18)' : s === 'SHORT' ? 'rgba(255,91,108,.18)' : 'var(--eb-panel-2)'
                         : 'transparent',
-                      border: 0,
+                      border: bias === s && s === 'NEUTRAL' ? '1px solid var(--eb-border)' : 0,
                       color: bias === s
                         ? s === 'LONG' ? 'var(--green)' : s === 'SHORT' ? 'var(--eb-red)' : 'var(--eb-text)'
                         : 'var(--eb-muted)',
@@ -201,25 +217,29 @@ export function PremarketModal({ open, onClose, todayStr }: Props) {
           <div>
             <Label>Mood tags</Label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {MOODS.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleMood(m)}
-                  style={{
-                    fontSize: 11.5,
-                    padding: '3px 10px',
-                    borderRadius: 99,
-                    border: `1px solid ${moods.includes(m) ? 'rgba(139,92,246,.4)' : 'var(--eb-border)'}`,
-                    background: moods.includes(m) ? 'rgba(139,92,246,.14)' : 'var(--eb-panel-2)',
-                    color: moods.includes(m) ? '#c4b5fd' : 'var(--eb-muted-2)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {m}
-                </button>
-              ))}
+              {MOOD_TAGS.map(({ label, color, bg, border }) => {
+                const active = moods.includes(label);
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => toggleMood(label)}
+                    style={{
+                      fontSize: 11.5,
+                      padding: '3px 10px',
+                      borderRadius: 99,
+                      border: `1px solid ${active ? border : 'var(--eb-border)'}`,
+                      background: active ? bg : 'var(--eb-panel-2)',
+                      color: active ? color : 'var(--eb-muted-2)',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'background .12s, color .12s, border-color .12s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -247,6 +267,9 @@ export function PremarketModal({ open, onClose, todayStr }: Props) {
             onClick={() => mutate()}
             disabled={isPending || !intentMd.trim()}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
               background: 'linear-gradient(180deg,#00d68f,#00b67a)',
               border: '1px solid #00b67a',
               color: '#06140f',
@@ -259,7 +282,7 @@ export function PremarketModal({ open, onClose, todayStr }: Props) {
               opacity: isPending || !intentMd.trim() ? 0.6 : 1,
             }}
           >
-            {isPending ? 'Saving…' : '🔒 Save & lock intent →'}
+            {isPending ? 'Saving…' : <><Save size={12} /> Save intent</>}
           </button>
         </div>
       </DialogContent>

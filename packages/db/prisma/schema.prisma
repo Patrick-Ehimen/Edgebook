@@ -391,6 +391,8 @@ model JournalEntry {
   intentMd      String?
   bias          String?
   conviction    Int?
+  riskCap       Decimal? @db.Decimal(5, 2)
+  maxTrades     Int?
   maxRiskNote   String?
   keyLevelsJson Json?
   noTradeJson   Json?
