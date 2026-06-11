@@ -16,10 +16,9 @@ import {
   CalendarDays,
   ChevronUp,
   ClipboardList,
-  DollarSign,
-  FlaskConical,
   Inbox,
   LayoutDashboard,
+  Link2,
   LogOut,
   NotebookPen,
   Settings,
@@ -44,8 +43,6 @@ const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
 const PROP: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/prop/accounts', Icon: Users, label: 'Prop accounts' },
   { href: '/prop/rules', Icon: ClipboardList, label: 'Rule library' },
-  { href: '/prop/backtest', Icon: FlaskConical, label: 'Backtest' },
-  { href: '/prop/payouts', Icon: DollarSign, label: 'Payouts' },
 ];
 
 const COACHING: {
@@ -209,21 +206,31 @@ export default function SidebarNav() {
       {/* Accounts nav */}
       <div style={sectionLabel}>Accounts</div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {(accounts ?? []).map((account) => {
+          const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
+          return (
+            <Link key={account.id} href="/accounts" style={linkStyle(isActive('/accounts'))}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
+                flexShrink: 0,
+                display: 'inline-block',
+              }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{account.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, marginLeft: 'auto', flexShrink: 0 }}>
+                {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
+              </span>
+            </Link>
+          );
+        })}
         <Link
-          href="/settings/connections"
-          style={{ ...linkStyle(false), color: 'var(--eb-muted)', fontSize: 12.5 }}
+          href="/accounts"
+          style={{ ...linkStyle(isActive('/accounts') && (accounts?.length ?? 0) === 0), color: 'var(--eb-muted)', fontSize: 12.5 }}
         >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: 'var(--eb-muted)',
-              flexShrink: 0,
-              display: 'inline-block',
-            }}
-          />
-          <span>+ Connect account</span>
+          <Link2 size={13} style={{ flexShrink: 0 }} />
+          <span>Connect account</span>
         </Link>
       </nav>
 

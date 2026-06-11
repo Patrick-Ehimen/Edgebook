@@ -6,10 +6,14 @@ export type Venue = z.infer<typeof VenueSchema>;
 export const AccountTypeSchema = z.enum(['futures', 'spot', 'margin']);
 export type AccountType = z.infer<typeof AccountTypeSchema>;
 
+export const AccountCategorySchema = z.enum(['live', 'demo', 'prop']);
+export type AccountCategory = z.infer<typeof AccountCategorySchema>;
+
 export const CreateAccountInput = z.object({
   venue: VenueSchema,
   label: z.string().trim().min(1, 'Label is required.').max(64, 'Label too long.'),
   accountType: AccountTypeSchema,
+  category: AccountCategorySchema.default('live'),
   baseCurrency: z
     .string()
     .trim()
@@ -41,6 +45,7 @@ export const AccountSchema = z.object({
   venue: VenueSchema,
   label: z.string(),
   accountType: AccountTypeSchema,
+  category: AccountCategorySchema,
   baseCurrency: z.string(),
   createdAt: z.string(),
   keyCount: z.number().int(),

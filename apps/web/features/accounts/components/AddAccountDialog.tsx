@@ -12,7 +12,7 @@ import { AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
 import { accountsApi } from '../api';
-import type { Venue } from '../schemas';
+import type { AccountCategory, Venue } from '../schemas';
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--eb-panel-2)',
@@ -27,9 +27,43 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-const VENUES: { id: Venue; label: string; logo: string; logoDark?: string }[] = [
+const VENUES: { id: Venue; label: string; logo: string }[] = [
   { id: 'binance', label: 'Binance', logo: '/assets/binance-logo.svg' },
-  { id: 'bybit', label: 'Bybit', logo: '/assets/bybit-logo.svg', logoDark: '/assets/bybit-logo-dark.svg' },
+  { id: 'bybit',   label: 'Bybit',   logo: '/assets/bybit-logo.svg'   },
+];
+
+const CATEGORIES: {
+  id: AccountCategory;
+  label: string;
+  desc: string;
+  color: string;
+  border: string;
+  bg: string;
+}[] = [
+  {
+    id: 'live',
+    label: 'Live',
+    desc: 'Real money account',
+    color: 'var(--green)',
+    border: 'rgba(0,214,143,.4)',
+    bg: 'rgba(0,214,143,.07)',
+  },
+  {
+    id: 'demo',
+    label: 'Demo',
+    desc: 'Paper / testnet account',
+    color: 'var(--eb-cyan)',
+    border: 'rgba(6,182,212,.4)',
+    bg: 'rgba(6,182,212,.07)',
+  },
+  {
+    id: 'prop',
+    label: 'Prop',
+    desc: 'Funded / prop firm account',
+    color: 'var(--eb-purple)',
+    border: 'rgba(139,92,246,.4)',
+    bg: 'rgba(139,92,246,.07)',
+  },
 ];
 
 interface Props {
@@ -41,6 +75,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const [step, setStep] = useState<1 | 2>(1);
   const [venue, setVenue] = useState<Venue>('binance');
+  const [category, setCategory] = useState<AccountCategory>('live');
   const [label, setLabel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [secret, setSecret] = useState('');
@@ -51,6 +86,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
   function reset() {
     setStep(1);
     setVenue('binance');
+    setCategory('live');
     setLabel('');
     setApiKey('');
     setSecret('');
@@ -72,16 +108,17 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
     setLoading(true);
     setError('');
     try {
+      const venueLabel = venue.charAt(0).toUpperCase() + venue.slice(1);
       const account = await accountsApi.create({
         venue,
-        label: label.trim() || `${venue.charAt(0).toUpperCase() + venue.slice(1)} Main`,
+        label: label.trim() || `${venueLabel} ${category.charAt(0).toUpperCase() + category.slice(1)}`,
         accountType: 'futures',
+        category,
         baseCurrency: 'USDT',
       });
       await accountsApi.addApiKey(account.id, { apiKey: apiKey.trim(), secret: secret.trim() });
       await qc.invalidateQueries({ queryKey: ['accounts'] });
       handleOpenChange(false);
-      // sync is kicked off server-side automatically when the key is saved
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.status === 409 ? 'Key has withdrawal permissions — use a read-only key.' : e.message);
@@ -98,7 +135,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
       <DialogContent className="sm:max-w-md" style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)' }}>
         <DialogHeader>
           <DialogTitle style={{ color: 'var(--eb-text)', fontSize: 15 }}>
-            {step === 1 ? 'Add exchange account' : 'Connect API key'}
+            {step === 1 ? 'Add subaccount' : 'Connect API key'}
           </DialogTitle>
         </DialogHeader>
 
@@ -106,6 +143,8 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
           <Step1
             venue={venue}
             setVenue={setVenue}
+            category={category}
+            setCategory={setCategory}
             label={label}
             setLabel={setLabel}
             onContinue={() => { setError(''); setStep(2); }}
@@ -132,18 +171,59 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
 function Step1({
   venue,
   setVenue,
+  category,
+  setCategory,
   label,
   setLabel,
   onContinue,
 }: {
   venue: Venue;
   setVenue: (v: Venue) => void;
+  category: AccountCategory;
+  setCategory: (c: AccountCategory) => void;
   label: string;
   setLabel: (v: string) => void;
   onContinue: () => void;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Category picker */}
+      <div>
+        <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 8 }}>
+          Account type
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          {CATEGORIES.map(({ id, label: name, desc, color, border, bg }) => {
+            const active = category === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setCategory(id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '10px 8px',
+                  border: `1.5px solid ${active ? border : 'var(--eb-border)'}`,
+                  borderRadius: 10,
+                  background: active ? bg : 'var(--eb-panel-2)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'border-color .15s, background .15s',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 700, color: active ? color : 'var(--eb-text)' }}>{name}</span>
+                <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Exchange picker */}
       <div>
         <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 8 }}>
           Exchange
@@ -173,13 +253,14 @@ function Step1({
         </div>
       </div>
 
+      {/* Label */}
       <div>
         <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 6 }}>
           Label
         </div>
         <input
           style={inputStyle}
-          placeholder="e.g. Binance Main"
+          placeholder="e.g. Bybit Demo 10k, HydroTrader Prop 25k"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           autoFocus
@@ -263,7 +344,6 @@ function Step2({
           placeholder="Paste your API key"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          autoFocus
           autoComplete="off"
         />
       </div>

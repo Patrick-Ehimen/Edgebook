@@ -30,6 +30,7 @@ export class AccountsService {
         venue: input.venue,
         label: input.label,
         accountType: input.accountType,
+        category: input.category ?? 'live',
         baseCurrency: input.baseCurrency,
       },
     });
@@ -145,6 +146,7 @@ export class AccountsService {
       venue: string;
       label: string;
       accountType: string;
+      category?: string;
       baseCurrency: string;
       createdAt: Date;
     },
@@ -156,6 +158,7 @@ export class AccountsService {
       venue: account.venue,
       label: account.label,
       accountType: account.accountType,
+      category: account.category ?? 'live',
       baseCurrency: account.baseCurrency,
       createdAt: account.createdAt.toISOString(),
       keyCount,

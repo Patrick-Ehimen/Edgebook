@@ -2,11 +2,12 @@
 
 import { positionsApi } from '@/features/positions/api';
 import type { Position } from '@/features/positions/schemas';
+import { journalApi } from '@/features/journal';
 import { useAccounts } from '@/features/accounts';
 import { usePlaybooks } from '@/features/playbooks';
 import { useSession } from '@/features/auth';
 import { useLogTrade } from '@/providers/log-trade-provider';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -64,6 +65,23 @@ function greeting(): string {
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+const PLAYBOOK_PALETTE: { color: string; bg: string; border: string }[] = [
+  { color: '#a78bfa', bg: 'rgba(139,92,246,.12)', border: 'rgba(139,92,246,.30)' },
+  { color: '#22d3ee', bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)'  },
+  { color: '#00d68f', bg: 'rgba(0,214,143,.12)',  border: 'rgba(0,214,143,.30)'  },
+  { color: '#ea580c', bg: 'rgba(194,65,12,.12)',  border: 'rgba(194,65,12,.30)'  },
+  { color: '#f472b6', bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)' },
+  { color: '#f5a524', bg: 'rgba(245,165,36,.12)', border: 'rgba(245,165,36,.30)' },
+  { color: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' },
+  { color: '#2dd4bf', bg: 'rgba(20,184,166,.12)', border: 'rgba(20,184,166,.30)' },
+];
+
+function playbookColor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PLAYBOOK_PALETTE[h % PLAYBOOK_PALETTE.length]!;
 }
 
 type DayRange = '7d' | '30d' | '90d' | 'ytd' | 'all';
@@ -937,6 +955,14 @@ export default function DashboardClient() {
   // Compute stats for selected view
   const stats = useMemo(() => computeStats(positions, equityRange), [positions, equityRange]);
 
+  // Discipline score from journal stats
+  const { data: journalStats } = useQuery({
+    queryKey: ['journal-stats'],
+    queryFn: () => journalApi.getStats(),
+    staleTime: 5 * 60_000,
+  });
+  const discipline = journalStats?.discipline;
+
   // Per-account today P&L for the spine
   const todayKey = todayStr();
   const acctTodayPnl = useMemo(() => {
@@ -1690,100 +1716,128 @@ export default function DashboardClient() {
               );
             })()}
 
-            {/* ── Discipline ring (stub) ── */}
-            <div
-              style={{
-                background: 'var(--eb-panel)',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 12,
-                padding: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-              }}
-            >
-              <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                <svg
-                  width={72}
-                  height={72}
-                  viewBox="0 0 72 72"
-                  style={{ transform: 'rotate(-90deg)' }}
-                >
-                  <defs>
-                    <linearGradient id="discGrad" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stopColor="#00d68f" />
-                      <stop offset="1" stopColor="#06b6d4" />
-                    </linearGradient>
-                  </defs>
-                  <circle
-                    cx={36}
-                    cy={36}
-                    r={29}
-                    fill="none"
-                    strokeWidth={7}
-                    stroke="var(--eb-panel-2)"
-                  />
-                  <circle
-                    cx={36}
-                    cy={36}
-                    r={29}
-                    fill="none"
-                    strokeWidth={7}
-                    stroke="url(#discGrad)"
-                    strokeLinecap="round"
-                    strokeDasharray={182}
-                    strokeDashoffset={182}
-                  />
-                </svg>
+            {/* ── Discipline Score ── */}
+            {(() => {
+              const score = discipline?.score ?? null;
+              const delta = discipline?.delta ?? 0;
+              const scoreColor = score == null
+                ? 'var(--eb-muted)'
+                : score >= 70 ? 'var(--green)' : score >= 50 ? '#f5a524' : '#ff5b6c';
+              const components = discipline ? [
+                { label: 'Plan adherence', score: discipline.planAdherence.score },
+                { label: 'Rule violations', score: discipline.ruleViolations.score },
+                { label: 'Journal', score: discipline.journalCompletion.score },
+                { label: 'Risk', score: discipline.riskDiscipline.score },
+              ] : [];
+              return (
                 <div
                   style={{
-                    position: 'absolute',
-                    inset: 0,
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 12,
+                    padding: 16,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-mono, monospace)',
-                      color: 'var(--eb-muted)',
-                    }}
-                  >
-                    —
-                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        letterSpacing: '.08em',
+                        color: 'var(--eb-muted)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Discipline Score
+                    </div>
+                    {score != null && delta !== 0 && (
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: delta > 0 ? 'var(--green)' : '#ff5b6c',
+                        background: delta > 0 ? 'rgba(0,214,143,.10)' : 'rgba(255,91,108,.10)',
+                        border: `1px solid ${delta > 0 ? 'rgba(0,214,143,.25)' : 'rgba(255,91,108,.25)'}`,
+                        borderRadius: 99,
+                        padding: '1px 6px',
+                      }}>
+                        {delta > 0 ? '+' : ''}{delta}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        letterSpacing: '-.02em',
+                        color: scoreColor,
+                        margin: '8px 0 2px',
+                      }}
+                    >
+                      {score != null ? score : '—'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
+                      {score == null
+                        ? 'No journal data'
+                        : score >= 70 ? 'Strong discipline'
+                        : score >= 50 ? 'Needs improvement'
+                        : 'Critical — review habits'}
+                    </div>
+                  </div>
+                  {score != null && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${score}%`,
+                          background: score >= 70
+                            ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                            : score >= 50
+                              ? 'linear-gradient(90deg,#f5a524,#f97316)'
+                              : 'linear-gradient(90deg,#ff5b6c,#f97316)',
+                          borderRadius: 99,
+                          transition: 'width .3s',
+                        }} />
+                      </div>
+                      {components.length > 0 && (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '6px 10px',
+                          marginTop: 10,
+                        }}>
+                          {components.map(({ label, score: s }) => (
+                            <div key={label} style={{ fontSize: 10, color: 'var(--eb-muted)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                <span>{label}</span>
+                                <span style={{
+                                  fontFamily: 'var(--font-mono, monospace)',
+                                  color: s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
+                                  fontWeight: 600,
+                                }}>{s}</span>
+                              </div>
+                              <div style={{ height: 2, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${s}%`,
+                                  background: s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
+                                  borderRadius: 99,
+                                  transition: 'width .3s',
+                                }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    textTransform: 'uppercase',
-                    letterSpacing: '.08em',
-                    color: 'var(--eb-muted)',
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
-                  Discipline Score
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: 'var(--eb-muted)',
-                  }}
-                >
-                  —
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 3 }}>
-                  Tilt engine in V2
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* ── Tilt watch (stub) ── */}
             <div
@@ -2022,6 +2076,7 @@ export default function DashboardClient() {
                 />
               </div>
             </div>
+
           </div>
 
           {/* ══ ACCOUNTS SPINE ══ */}
@@ -2680,9 +2735,9 @@ export default function DashboardClient() {
                                         fontSize: 10.5,
                                         padding: '2px 8px',
                                         borderRadius: 99,
-                                        color: '#ea580c',
-                                        background: 'rgba(194,65,12,.10)',
-                                        border: '1px solid rgba(194,65,12,.30)',
+                                        color: playbookColor(pb.id).color,
+                                        background: playbookColor(pb.id).bg,
+                                        border: `1px solid ${playbookColor(pb.id).border}`,
                                         maxWidth: 110,
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',

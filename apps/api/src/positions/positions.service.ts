@@ -1,22 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { AccountForbiddenError, AccountNotFoundError } from '@edgebook/shared/accounts';
 import { type CreateFillInput, type FillSide, type UpdatePositionMetricsType, computePositions } from '@edgebook/shared/positions';
-import { QUEUE_RECOMPUTE, type RecomputeJobData } from '@edgebook/shared/queues';
-import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PositionsService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QUEUE_RECOMPUTE) private readonly recomputeQueue: Queue<RecomputeJobData>,
   ) {}
 
   // ─── Fills ──────────────────────────────────────────────────────────────────
 
   async createFill(userId: string, accountId: string, input: CreateFillInput) {
+    console.log('[createFill] start', { accountId, symbol: input.symbol });
     const account = await this.assertOwnership(userId, accountId);
 
     const fill = await this.prisma.fill.create({
@@ -42,12 +39,7 @@ export class PositionsService {
       },
     });
 
-    await this.recomputeQueue.add(
-      'recompute',
-      { accountId, userId },
-      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
-    );
-
+    console.log('[createFill] done', { fillId: fill.id.toString() });
     return this.toFillShape(fill);
   }
 
@@ -65,6 +57,7 @@ export class PositionsService {
   // ─── Recompute ──────────────────────────────────────────────────────────────
 
   async recompute(userId: string, accountId: string) {
+    console.log('[recompute] start', { accountId });
     await this.assertOwnership(userId, accountId);
 
     const dbFills = await this.prisma.fill.findMany({
@@ -93,15 +86,33 @@ export class PositionsService {
     const existingByHash = new Map(existing.map((p) => [p.sourceHash, p.id]));
     const newHashes = new Set(computed.map((p) => p.sourceHash));
 
-    await this.prisma.$transaction(async (tx) => {
-      const staleIds = existing.filter((p) => !newHashes.has(p.sourceHash)).map((p) => p.id);
+    // Load metadata from stale positions before they are deleted so it can be
+    // inherited by the replacement position (e.g. open→closed transition keeps
+    // the same entry fills, so the predecessor is identifiable by fill subset).
+    const staleRows = existing.filter((p) => !newHashes.has(p.sourceHash));
+    const staleIds = staleRows.map((p) => p.id);
 
+    const staleMeta = staleIds.length > 0
+      ? await this.prisma.position.findMany({
+          where: { id: { in: staleIds } },
+          include: { tags: true, notes: { select: { images: true } } },
+        })
+      : [];
+
+    await this.prisma.$transaction(async (tx) => {
       if (staleIds.length > 0) {
         await tx.position.deleteMany({ where: { id: { in: staleIds } } });
       }
 
       for (const pos of computed) {
         if (existingByHash.has(pos.sourceHash)) continue;
+
+        // Find a stale position whose fills are a subset of this position's fills.
+        // That makes it the direct predecessor (e.g. the open version of a now-closed trade).
+        const newFillIds = new Set(pos.fills.map((f) => f.fillId.toString()));
+        const predecessor = staleMeta.find((s) =>
+          s.sourceHash.split(',').every((id) => newFillIds.has(id)),
+        ) ?? null;
 
         const created = await tx.position.create({
           data: {
@@ -118,10 +129,18 @@ export class PositionsService {
             fees: pos.fees,
             funding: pos.funding,
             netPnl: pos.netPnl,
-            rPlanned: null,
-            rRealized: null,
-            mfe: null,
-            mae: null,
+            playbookId: predecessor?.playbookId ?? null,
+            rPlanned: predecessor?.rPlanned ?? null,
+            rRealized: predecessor?.rRealized ?? null,
+            mfe: predecessor?.mfe ?? null,
+            mae: predecessor?.mae ?? null,
+            wentRight: predecessor?.wentRight ?? null,
+            wentWrong: predecessor?.wentWrong ?? null,
+            lesson: predecessor?.lesson ?? null,
+            planAdherence: predecessor?.planAdherence ?? null,
+            processScore: predecessor?.processScore ?? null,
+            outcomeScore: predecessor?.outcomeScore ?? null,
+            checklistState: predecessor?.checklistState ?? null,
             sourceHash: pos.sourceHash,
           },
         });
@@ -133,6 +152,19 @@ export class PositionsService {
               fillId: f.fillId,
               role: f.role,
             })),
+          });
+        }
+
+        if (predecessor?.tags.length) {
+          await tx.positionTag.createMany({
+            data: predecessor.tags.map((t) => ({ positionId: created.id, tag: t.tag })),
+            skipDuplicates: true,
+          });
+        }
+
+        if (predecessor?.notes?.images?.length) {
+          await tx.positionNote.create({
+            data: { positionId: created.id, bodyMd: '', images: predecessor.notes.images },
           });
         }
       }

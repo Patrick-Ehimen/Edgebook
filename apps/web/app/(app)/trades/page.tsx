@@ -385,7 +385,7 @@ export default function TradesPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Funding', 'Hold', 'Playbook', 'Status'].map((h) => (
+                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Hold', 'Playbook', 'Status'].map((h) => (
                         <th key={h} style={thStyle}>{h}</th>
                       ))}
                     </tr>
@@ -432,9 +432,6 @@ export default function TradesPage() {
                           </td>
                           <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: pos.status === 'open' ? 'var(--eb-muted)' : pnl.color }}>
                             {pos.status === 'open' ? '—' : pnl.text}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>
-                            {fmt(pos.funding)}
                           </td>
                           <td style={{ ...tdStyle, color: 'var(--eb-muted)' }}>
                             {holdTime(pos.openedAt, pos.closedAt)}

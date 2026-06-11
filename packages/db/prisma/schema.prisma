@@ -42,6 +42,12 @@ enum AccountType {
   margin
 }
 
+enum AccountCategory {
+  live
+  demo
+  prop
+}
+
 enum FillSide {
   buy
   sell
@@ -100,6 +106,7 @@ model User {
   alertRules     AlertRule[]
   aiReports      AiReport[]
   libraryNotes   LibraryNote[]
+  propAccounts   PropAccount[]
 }
 
 model Session {
@@ -194,13 +201,14 @@ model AuditEvent {
 // ─── Exchange accounts ────────────────────────────────────────────────────────
 
 model Account {
-  id           String      @id @default(cuid())
+  id           String          @id @default(cuid())
   userId       String
   venue        Venue
   label        String
   accountType  AccountType
+  category     AccountCategory @default(live)
   baseCurrency String
-  createdAt    DateTime    @default(now()) @db.Timestamptz
+  createdAt    DateTime        @default(now()) @db.Timestamptz
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   apiKeys   ApiKey[]
@@ -515,4 +523,180 @@ model LibraryNote {
   @@index([userId, folderId])
   @@index([userId, pinned])
   @@index([playbookId])
+}
+
+// ─── Prop trading ─────────────────────────────────────────────────────────────
+
+enum DrawdownKind {
+  STATIC
+  EOD_TRAILING
+  TICK_TRAILING
+}
+
+enum PropAccountStatus {
+  EVAL
+  FUNDED
+  PASSED
+  SUSPENDED
+  CLOSED
+}
+
+enum PropEventKind {
+  DAILY_LOSS_WARNING
+  DAILY_LOSS_BREACH
+  DRAWDOWN_WARNING
+  DRAWDOWN_BREACH
+  CONSISTENCY_WARNING
+  CONSISTENCY_BREACH
+  SL_MISSING_WARNING
+  EXPOSURE_WARNING
+  PROFIT_TARGET_HIT
+  MIN_DAYS_MET
+  DAILY_RESET
+  ACCOUNT_LOCKED
+}
+
+enum PropEventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum PropPayoutStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+/// Reference data — one row per supported firm. Managed by Edgebook team.
+model PropFirm {
+  id           String   @id @default(cuid())
+  slug         String   @unique // "hyrotrader" | "sizeprop" | "velotrade"
+  name         String
+  website      String
+  logoInitial  String   // single letter for the avatar
+  logoColor    String   // hex or CSS gradient string for avatar bg
+  exchanges    String[] // real-money execution venues e.g. ["bybit","binance","okx"]
+  flags        String[] // e.g. ["US_BANNED", "FINMA_WARNING"]
+  createdAt    DateTime @default(now()) @db.Timestamptz
+  updatedAt    DateTime @updatedAt @db.Timestamptz
+
+  rulePacks PropFirmRulePack[]
+  accounts  PropAccount[]
+}
+
+/// Versioned rule configuration per firm × account-size × phase.
+/// Bump version when a firm changes its terms; old packs stay linked to existing accounts.
+model PropFirmRulePack {
+  id          String   @id @default(cuid())
+  firmId      String
+  version     String   // "2026.06"
+  accountSize Decimal  @db.Decimal(20, 2) // USDT notional e.g. 5000.00
+  phase       Int      // 1 or 2
+  isActive    Boolean  @default(true)
+
+  // Profit
+  profitTargetPct Decimal @db.Decimal(6, 4) // 0.1000 = 10%
+
+  // Drawdown
+  drawdownKind      DrawdownKind
+  maxDailyLossPct   Decimal?     @db.Decimal(6, 4)
+  maxOverallLossPct Decimal      @db.Decimal(6, 4)
+
+  // Consistency — eval phase only
+  consistencyMaxDayPct Decimal? @db.Decimal(6, 4) // 0.40 = no single day > 40% of total eval profit
+
+  // Trading constraints
+  minTradingDays       Int?
+  timeLimitDays        Int?
+  maxRiskPerTradePct   Decimal? @db.Decimal(6, 4) // HyroTrader funded: 0.03
+  maxTotalExposurePct  Decimal? @db.Decimal(6, 4) // HyroTrader funded: 0.25
+  slRequiredWithinSecs Int?                        // HyroTrader: 300 (5 min)
+
+  // Position holding
+  weekendHoldAllowed   Boolean @default(true)
+  overnightHoldAllowed Boolean @default(true)
+
+  // Payout
+  profitSplitPct Decimal @db.Decimal(6, 4) // 0.70 = 70%
+
+  // Meta
+  verifiedAt DateTime @db.Timestamptz
+  notes      String?
+
+  firm     PropFirm      @relation(fields: [firmId], references: [id])
+  accounts PropAccount[]
+
+  @@unique([firmId, accountSize, phase, version])
+  @@index([firmId, isActive])
+}
+
+model PropAccount {
+  id          String            @id @default(cuid())
+  userId      String
+  firmId      String
+  rulePackId  String
+  label       String
+  externalId  String?           // firm-assigned account ID
+  accountSize Decimal           @db.Decimal(20, 2)
+  phase       Int
+  status      PropAccountStatus @default(EVAL)
+  startedAt   DateTime          @db.Timestamptz
+  endedAt     DateTime?         @db.Timestamptz
+
+  // Recomputed compliance state — updated by prop.compliance.recompute worker job
+  peakBalance       Decimal? @db.Decimal(30, 10) // high-water mark for trailing DD
+  todayStartBalance Decimal? @db.Decimal(30, 10) // balance at start of today (UTC) for daily loss
+  currentBalance    Decimal? @db.Decimal(30, 10)
+  tradingDaysCount  Int      @default(0)
+
+  // Optional link to an exchange sub-account for auto-sync
+  exchangeAccountId String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firm     PropFirm         @relation(fields: [firmId], references: [id])
+  rulePack PropFirmRulePack @relation(fields: [rulePackId], references: [id])
+  events   PropComplianceEvent[]
+  payouts  PropPayout[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+/// Append-only compliance event log — never DELETE or UPDATE rows in this table.
+model PropComplianceEvent {
+  id            String            @id @default(cuid())
+  propAccountId String
+  kind          PropEventKind
+  severity      PropEventSeverity
+  message       String
+  metadata      Json?
+  occurredAt    DateTime          @default(now()) @db.Timestamptz
+
+  account PropAccount @relation(fields: [propAccountId], references: [id], onDelete: Cascade)
+
+  @@index([propAccountId, occurredAt(sort: Desc)])
+  @@index([propAccountId, kind])
+}
+
+model PropPayout {
+  id            String           @id @default(cuid())
+  propAccountId String
+  userId        String
+  grossAmount   Decimal          @db.Decimal(20, 4)
+  splitPct      Decimal          @db.Decimal(6, 4)
+  netAmount     Decimal          @db.Decimal(20, 4)
+  status        PropPayoutStatus @default(PENDING)
+  requestedAt   DateTime         @db.Timestamptz
+  paidAt        DateTime?        @db.Timestamptz
+  notes         String?
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+
+  account PropAccount @relation(fields: [propAccountId], references: [id], onDelete: Cascade)
+
+  @@index([propAccountId])
+  @@index([userId])
 }

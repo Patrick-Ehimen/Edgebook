@@ -504,111 +504,187 @@ function EmptyState() {
 // ─── Heatmap panel ────────────────────────────────────────────────────────────
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function calDow(d: Date): number {
+  const raw = d.getDay();
+  return raw === 0 ? 6 : raw - 1; // 0=Mon..6=Sun
+}
+
+function fmtDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function HeatmapPanel({ positions }: { positions: Position[] }) {
-  // Build a 7x24 grid: grid[dayOfWeek][hour] = total pnl
-  // dayOfWeek: 0=Mon..6=Sun  (getDay() returns 0=Sun, so remap)
-  const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0) as number[]);
-  const filled = new Set<string>();
-
   const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-indexed
+
+  // Aggregate closed positions into a day → P&L map, bucketed by close date
+  const dayPnl = new Map<string, number>();
   for (const p of positions) {
-    const dt = new Date(p.openedAt);
+    if (p.status !== 'closed' || !p.closedAt) continue;
+    const dt = new Date(p.closedAt);
     if (dt > now) continue;
-    const rawDay = dt.getDay(); // 0=Sun
-    const dow = rawDay === 0 ? 6 : rawDay - 1; // 0=Mon..6=Sun
-    const hour = dt.getHours();
-    const pnl = parsePnl(p.netPnl);
-    grid[dow]![hour]! += pnl;
-    if (pnl !== 0) filled.add(`${dow}-${hour}`);
+    const key = fmtDayKey(dt);
+    dayPnl.set(key, (dayPnl.get(key) ?? 0) + parsePnl(p.netPnl));
   }
 
-  if (filled.size === 0) {
-    return <NoDataBox />;
+  if (dayPnl.size === 0) return <NoDataBox />;
+
+  let maxAbs = 0;
+  for (const v of dayPnl.values()) {
+    if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
   }
 
-  let maxAbsPnl = 0;
-  for (const row of grid) {
-    for (const v of row) {
-      if (Math.abs(v) > maxAbsPnl) maxAbsPnl = Math.abs(v);
-    }
+  // Build calendar weeks for the view month
+  // weeks[wi][di] = Date | null  (wi = week index, di = 0=Mon..6=Sun)
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const startOffset = calDow(firstDay);
+  const numWeeks = Math.ceil((startOffset + daysInMonth) / 7);
+  const weeks: (Date | null)[][] = Array.from({ length: numWeeks }, () =>
+    Array(7).fill(null) as (Date | null)[],
+  );
+  for (let d = 0; d < daysInMonth; d++) {
+    const wi = Math.floor((startOffset + d) / 7);
+    const di = (startOffset + d) % 7;
+    weeks[wi]![di] = new Date(viewYear, viewMonth, d + 1);
   }
+
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
+    else setViewMonth((m) => m - 1);
+  };
+  const nextMonth = () => {
+    if (isCurrentMonth) return;
+    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
+    else setViewMonth((m) => m + 1);
+  };
+
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const btnBase = {
+    background: 'var(--eb-panel-2)',
+    border: '1px solid var(--eb-border)',
+    borderRadius: 6,
+    color: 'var(--eb-fg)',
+    cursor: 'pointer',
+    fontSize: 15,
+    lineHeight: 1,
+    padding: '2px 9px',
+  };
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      {/* Hour header */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '40px repeat(24, 1fr)',
-          gap: 2,
-          marginBottom: 2,
-        }}
-      >
-        <div />
-        {HOURS.map((h) => (
+    <div>
+      {/* Month navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <button type="button" onClick={prevMonth} style={btnBase}>‹</button>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--eb-fg)', flex: 1, textAlign: 'center' }}>
+          {monthLabel}
+        </span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          disabled={isCurrentMonth}
+          style={{ ...btnBase, opacity: isCurrentMonth ? 0.35 : 1, cursor: isCurrentMonth ? 'default' : 'pointer' }}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* 7-column calendar grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 36, gap: 4 }}>
+        {/* Day-of-week header */}
+        {DAY_LABELS.map((label) => (
           <div
-            key={h}
+            key={label}
             style={{
               textAlign: 'center',
-              fontSize: 9,
+              fontSize: 10,
+              fontWeight: 600,
               color: 'var(--eb-muted)',
-              fontFamily: 'var(--font-mono, monospace)',
-              fontVariantNumeric: 'tabular-nums',
+              paddingBottom: 6,
+              letterSpacing: '.04em',
             }}
           >
-            {String(h).padStart(2, '0')}
+            {label}
           </div>
         ))}
-      </div>
-      {/* Rows */}
-      {DAY_LABELS.map((day, di) => (
-        <div
-          key={day}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '40px repeat(24, 1fr)',
-            gap: 2,
-            marginBottom: 2,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              color: 'var(--eb-muted)',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            {day}
-          </div>
-          {HOURS.map((h) => {
-            const pnl = grid[di]![h]!;
-            const alpha = maxAbsPnl > 0 ? Math.min((Math.abs(pnl) / maxAbsPnl) * 0.85, 0.85) : 0;
-            const bg =
-              pnl > 0
+
+        {/* Day cells — flattened from weeks[][] into a single sequence */}
+        {weeks.flatMap((weekDates, wi) =>
+          weekDates.map((date, di) => {
+            if (!date) return <div key={`e-${wi}-${di}`} />;
+
+            const key = fmtDayKey(date);
+            const pnl = dayPnl.has(key) ? (dayPnl.get(key) as number) : null;
+            const hasTrade = pnl !== null;
+            const alpha = hasTrade && maxAbs > 0
+              ? 0.4 + Math.min((Math.abs(pnl) / maxAbs) * 0.6, 0.6)
+              : 0;
+            const bg = !hasTrade
+              ? 'var(--eb-panel-2)'
+              : pnl > 0
                 ? `rgba(0,214,143,${alpha})`
                 : pnl < 0
                   ? `rgba(255,91,108,${alpha})`
                   : 'var(--eb-panel-2)';
-            const fmt = pnl !== 0 ? `${day} ${String(h).padStart(2, '0')}:00  ${fmtMoney(pnl)}` : '';
+            const isToday = date.toDateString() === now.toDateString();
+            const tooltip = hasTrade
+              ? `${date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}  ${fmtMoney(pnl)}`
+              : date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
             return (
               <div
-                key={h}
-                title={fmt}
+                key={`d-${wi}-${di}`}
+                title={tooltip}
                 style={{
-                  height: 16,
+                  borderRadius: 6,
                   background: bg,
-                  borderRadius: 2,
-                  border: '1px solid var(--eb-border)',
-                  opacity: pnl === 0 ? 0.3 : 1,
+                  border: isToday ? '1.5px solid var(--eb-cyan)' : '1px solid var(--eb-border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontVariantNumeric: 'tabular-nums',
+                  color: hasTrade && alpha > 0.5 ? 'rgba(255,255,255,0.85)' : 'var(--eb-muted)',
                 }}
-              />
+              >
+                {date.getDate()}
+              </div>
             );
-          })}
+          })
+        )}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {[0.4, 0.55, 0.7, 1.0].map((a) => (
+            <div
+              key={a}
+              style={{ width: 12, height: 12, borderRadius: 2, background: `rgba(0,214,143,${a})`, border: '1px solid var(--eb-border)' }}
+            />
+          ))}
+          <span style={{ fontSize: 10, color: 'var(--eb-muted)', marginLeft: 3 }}>Profit</span>
         </div>
-      ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {[0.4, 0.55, 0.7, 1.0].map((a) => (
+            <div
+              key={a}
+              style={{ width: 12, height: 12, borderRadius: 2, background: `rgba(255,91,108,${a})`, border: '1px solid var(--eb-border)' }}
+            />
+          ))}
+          <span style={{ fontSize: 10, color: 'var(--eb-muted)', marginLeft: 3 }}>Loss</span>
+        </div>
+        <span style={{ fontSize: 10, color: 'var(--eb-muted)' }}>Intensity = relative P&L · hover for details</span>
+      </div>
     </div>
   );
 }
@@ -636,7 +712,7 @@ function PlaybookPerfPanel({
   const statsMap = new Map<string, PbStat>();
 
   for (const pos of positions) {
-    if (!pos.playbookId) continue;
+    if (!pos.playbookId || pos.status !== 'closed') continue;
     const id = pos.playbookId;
     const existing = statsMap.get(id);
     const pnl = parsePnl(pos.netPnl);
@@ -669,6 +745,7 @@ function PlaybookPerfPanel({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {stats.map((s) => {
         const wr = s.count > 0 ? (s.wins / s.count) * 100 : 0;
+        const wrColor = wr >= 50 ? 'var(--green)' : wr >= 35 ? '#f5a524' : 'var(--eb-red, #ff5b6c)';
         const barPct = (Math.abs(s.expectancy) / maxExp) * 100;
         const barColor = s.expectancy >= 0 ? 'var(--green)' : 'var(--eb-red)';
         return (
@@ -701,7 +778,7 @@ function PlaybookPerfPanel({
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {fmtMoney(s.expectancy)} · {wr.toFixed(0)}%
+                {fmtMoney(s.expectancy)} · <span style={{ color: wrColor }}>{wr.toFixed(0)}%</span>
               </span>
             </div>
             <div
@@ -1176,7 +1253,7 @@ function EquityCurve({ data }: { data: { date: string; cum: number }[] }) {
             const val = payload[0]?.value as number;
             return (
               <div style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(0,0,0,.3)' }}>
-                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(label)}</div>
+                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(String(label ?? ''))}</div>
                 <div style={{ fontWeight: 600, color: val >= 0 ? '#00d68f' : '#f87171' }}>
                   {fmtMoney(val)} <span style={{ fontWeight: 400, color: 'var(--eb-muted)' }}>Cumulative P&L</span>
                 </div>

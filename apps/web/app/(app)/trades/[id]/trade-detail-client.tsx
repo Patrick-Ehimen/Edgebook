@@ -3,13 +3,14 @@
 import { positionsApi, useDeletePosition, useLogFill, usePosition, useUpdatePosition } from '@/features/positions';
 import type { PositionDetail } from '@/features/positions';
 import type { CheckState } from '@/features/positions';
-import { usePlaybook } from '@/features/playbooks';
+import { usePlaybook, usePlaybooks } from '@/features/playbooks';
 import type { ChecklistItem } from '@/features/playbooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, Brain, Check, CheckSquare, ClipboardList, Paperclip,
+  AlertTriangle, Brain, Check, CheckSquare, ClipboardList, FileSearch, Paperclip,
   Plus, NotebookPen, Star, Tag, Target, Trash2, X,
 } from 'lucide-react';
 
@@ -477,9 +478,69 @@ export function TradeDetailClient({
 
   if (error || !position) {
     return (
-      <div style={{ padding: '60px 26px', textAlign: 'center', color: 'var(--eb-muted)' }}>
-        Trade not found.{' '}
-        <Link href="/trades" style={{ color: 'var(--green)' }}>
+      <div
+        style={{
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '60px 24px',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 16,
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 20,
+          }}
+        >
+          <FileSearch size={28} style={{ color: 'var(--eb-muted)' }} />
+        </div>
+        <h2
+          style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: 'var(--eb-text)',
+            margin: '0 0 8px',
+          }}
+        >
+          Trade not found
+        </h2>
+        <p
+          style={{
+            fontSize: 13,
+            color: 'var(--eb-muted)',
+            margin: '0 0 28px',
+            maxWidth: 320,
+            lineHeight: 1.6,
+          }}
+        >
+          This trade may have been deleted or the link is no longer valid.
+        </p>
+        <Link
+          href="/trades"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 16px',
+            borderRadius: 8,
+            border: '1px solid #00b67a',
+            background: 'linear-gradient(180deg,#00d68f,#00b67a)',
+            color: '#06140f',
+            fontSize: 13,
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
           ← Back to trades
         </Link>
       </div>
@@ -599,6 +660,24 @@ function CloseTradeDialog({
     }
     setError('');
     setSaving(true);
+
+    // Guard: re-fetch the position to ensure it is still open before inserting
+    // a closing fill. Stale cache can show an already-closed position as open.
+    try {
+      const fresh = await positionsApi.getById(accountId, position.id);
+      if (fresh.status !== 'open') {
+        setError('This position is already closed.');
+        setSaving(false);
+        return;
+      }
+    } catch {
+      // If the fetch fails (e.g. position was deleted), bail out.
+      setError('Could not verify position status. Please refresh and try again.');
+      setSaving(false);
+      return;
+    }
+
+    // Step 1: log the closing fill + recompute. If this fails, stay on page.
     try {
       await logFill.mutateAsync({
         symbol: position.symbol,
@@ -611,32 +690,37 @@ function CloseTradeDialog({
         executedAt: new Date(`${exitTime.trim().replace(' ', 'T')}:00Z`).toISOString(),
         notes: notes.trim() || undefined,
       });
-
-      // After recompute the old position ID is gone (sourceHash changed).
-      // Find the newly-created closed position to save metrics on.
-      const finalR = perfMode === 'price' ? rFromExit : rRealized.trim();
-      const finalMfe = perfMode === 'price' ? mfeR : mfe.trim();
-      const finalMae = perfMode === 'price' ? maeR : mae.trim();
-      const hasMetrics = finalR || finalMfe || finalMae;
-      if (hasMetrics) {
-        const list = await positionsApi.list(accountId);
-        const newPos = list
-          .filter((p) => p.symbol === position.symbol && p.status === 'closed')
-          .sort((a, b) => new Date(b.closedAt ?? '').getTime() - new Date(a.closedAt ?? '').getTime())[0];
-
-        if (newPos) {
-          await positionsApi.updateMetrics(accountId, newPos.id, {
-            rRealized: finalR || undefined,
-            mfe: finalMfe || undefined,
-            mae: finalMae || undefined,
-          });
-        }
-      }
-
-      router.push(`/trades?account=${accountId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setSaving(false);
+      return;
+    }
+
+    // Close dialog immediately so the user doesn't see "Closing…" while
+    // navigation is in flight. Metrics save is fire-and-forget and outlives unmount.
+    onClose();
+    router.push(`/trades?account=${accountId}`);
+
+    // Step 2: best-effort metrics save against the newly-created position ID.
+    // The old position ID is gone after recompute (sourceHash changed), so we
+    // find the newest closed position for this symbol.
+    const finalR = perfMode === 'price' ? rFromExit : rRealized.trim();
+    const finalMfe = perfMode === 'price' ? mfeR : mfe.trim();
+    const finalMae = perfMode === 'price' ? maeR : mae.trim();
+    const hasMetrics = finalR || finalMfe || finalMae;
+    if (hasMetrics) {
+      positionsApi.list(accountId).then((list) => {
+        const newPos = list
+          .filter((p) => p.symbol === position.symbol && p.status === 'closed')
+          .sort((a, b) => new Date(b.closedAt ?? '').getTime() - new Date(a.closedAt ?? '').getTime())[0];
+        if (newPos) {
+          positionsApi.updateMetrics(accountId, newPos.id, {
+            rRealized: finalR || undefined,
+            mfe: finalMfe || undefined,
+            mae: finalMae || undefined,
+          }).catch(() => { /* non-fatal */ });
+        }
+      }).catch(() => { /* non-fatal */ });
     }
   }
 
@@ -1035,27 +1119,34 @@ function ConfirmDeletePopup({
 
 function Detail({ position, accountId }: { position: PositionDetail; accountId: string }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const deletePosition = useDeletePosition(accountId);
   const updateMetrics = useUpdatePosition(accountId, position.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
 
-  // Playbook checklist
+  // Playbook
   const { data: linkedPlaybook } = usePlaybook(position.playbookId ?? null);
+  const { data: allPlaybooks } = usePlaybooks();
+  const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
   const checklistItems: ChecklistItem[] = linkedPlaybook?.checklists?.[0]?.itemsJson ?? [];
   const [checkStates, setCheckStates] = useState<Record<string, CheckState>>(
     () => (position.checklistState as Record<string, CheckState> | null) ?? {},
   );
-  const checklistSavedRef = useRef(true);
+  // Only true after the user explicitly cycles a checkbox. Guards against
+  // React 18 Strict Mode running the effect twice on mount (which would
+  // fire a spurious PATCH → invalidate → 404 if a close happens concurrently).
+  const checklistDirtyRef = useRef(false);
   const saveChecklistRef = useRef(updateMetrics.mutate);
   saveChecklistRef.current = updateMetrics.mutate;
 
   useEffect(() => {
-    if (checklistSavedRef.current) { checklistSavedRef.current = false; return; }
+    if (!checklistDirtyRef.current) return;
     saveChecklistRef.current({ checklistState: checkStates });
   }, [checkStates]);
 
   function cycleCheck(id: string) {
+    checklistDirtyRef.current = true;
     setCheckStates((prev) => {
       const cur = prev[id] ?? 'none';
       const next: CheckState = cur === 'none' ? 'done' : cur === 'done' ? 'miss' : 'none';
@@ -1118,11 +1209,13 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagesSavedRef = useRef(true); // skip save on initial mount
 
-  // Auto-persist whenever the images array changes
+  // Auto-persist whenever the images array changes.
+  // Use saveChecklistRef (stable mutate ref) — including updateMetrics in deps causes an
+  // infinite save loop because useMutation returns a new object after each mutation.
   useEffect(() => {
     if (imagesSavedRef.current) { imagesSavedRef.current = false; return; }
-    updateMetrics.mutate({ images });
-  }, [images, updateMetrics]);
+    saveChecklistRef.current({ images });
+  }, [images]);
 
   const MAX_IMAGES = 6;
 
@@ -1865,20 +1958,70 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             <PanelH3
               left={<><Target size={13} /> Playbook</>}
               right={
-                position.playbookId ? (
-                  <span style={{ ...chip, cursor: 'pointer' }}>Open ↗</span>
-                ) : undefined
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {position.playbookId && (
+                    <span style={{ ...chip, cursor: 'pointer' }}>Open ↗</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPlaybookPicker((v) => !v)}
+                    style={{
+                      ...chip,
+                      cursor: 'pointer',
+                      background: showPlaybookPicker ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
+                      color: showPlaybookPicker ? 'var(--eb-green)' : 'var(--eb-muted)',
+                      border: `1px solid ${showPlaybookPicker ? 'rgba(0,214,143,.3)' : 'var(--eb-border)'}`,
+                    }}
+                  >
+                    {position.playbookId ? 'Change' : 'Link playbook'}
+                  </button>
+                </div>
               }
             />
-            {position.playbookId ? (
+            {showPlaybookPicker ? (
+              <select
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  borderRadius: 7,
+                  border: '1px solid var(--eb-border)',
+                  background: 'var(--eb-panel-2)',
+                  color: 'var(--eb-text)',
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                }}
+                value={position.playbookId ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  const prev = qc.getQueryData<PositionDetail>(['position', accountId, position.id]);
+                  qc.setQueryData(
+                    ['position', accountId, position.id],
+                    (old: PositionDetail | undefined) => old ? { ...old, playbookId: val } : old,
+                  );
+                  setShowPlaybookPicker(false);
+                  updateMetrics.mutate({ playbookId: val }, {
+                    onError: () => {
+                      qc.setQueryData(['position', accountId, position.id], prev);
+                      setShowPlaybookPicker(true);
+                    },
+                  });
+                }}
+              >
+                <option value="">— no playbook —</option>
+                {(allPlaybooks ?? []).map((pb) => (
+                  <option key={pb.id} value={pb.id}>{pb.name}</option>
+                ))}
+              </select>
+            ) : position.playbookId ? (
               <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500 }}>
-                {linkedPlaybook ? linkedPlaybook.name : position.playbookId}
+                {linkedPlaybook?.name ?? allPlaybooks?.find((p) => p.id === position.playbookId)?.name ?? position.playbookId}
                 {linkedPlaybook?.status === 'paused' && (
                   <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--eb-muted)', fontWeight: 400 }}>(paused)</span>
                 )}
               </div>
             ) : (
-              <EmptyHint text="No playbook tagged. Link one via Edit to track edge decay." />
+              <EmptyHint text="No playbook tagged. Click 'Link playbook' above to track edge decay." />
             )}
           </div>
 

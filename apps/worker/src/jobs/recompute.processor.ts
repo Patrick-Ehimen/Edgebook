@@ -43,17 +43,28 @@ export class RecomputeProcessor extends WorkerHost {
     const existingByHash = new Map(existing.map((p) => [p.sourceHash, p.id]));
     const newHashes = new Set(computed.map((p) => p.sourceHash));
 
-    await this.prisma.$transaction(async (tx) => {
-      const staleIds = existing
-        .filter((p) => !newHashes.has(p.sourceHash))
-        .map((p) => p.id);
+    const staleRows = existing.filter((p) => !newHashes.has(p.sourceHash));
+    const staleIds = staleRows.map((p) => p.id);
 
+    const staleMeta = staleIds.length > 0
+      ? await this.prisma.position.findMany({
+          where: { id: { in: staleIds } },
+          include: { tags: true, notes: { select: { images: true } } },
+        })
+      : [];
+
+    await this.prisma.$transaction(async (tx) => {
       if (staleIds.length > 0) {
         await tx.position.deleteMany({ where: { id: { in: staleIds } } });
       }
 
       for (const pos of computed) {
         if (existingByHash.has(pos.sourceHash)) continue;
+
+        const newFillIds = new Set(pos.fills.map((f) => f.fillId.toString()));
+        const predecessor = staleMeta.find((s) =>
+          s.sourceHash.split(',').every((id) => newFillIds.has(id)),
+        ) ?? null;
 
         const created = await tx.position.create({
           data: {
@@ -70,10 +81,18 @@ export class RecomputeProcessor extends WorkerHost {
             fees: pos.fees,
             funding: pos.funding,
             netPnl: pos.netPnl,
-            rPlanned: null,
-            rRealized: null,
-            mfe: null,
-            mae: null,
+            playbookId: predecessor?.playbookId ?? null,
+            rPlanned: predecessor?.rPlanned ?? null,
+            rRealized: predecessor?.rRealized ?? null,
+            mfe: predecessor?.mfe ?? null,
+            mae: predecessor?.mae ?? null,
+            wentRight: predecessor?.wentRight ?? null,
+            wentWrong: predecessor?.wentWrong ?? null,
+            lesson: predecessor?.lesson ?? null,
+            planAdherence: predecessor?.planAdherence ?? null,
+            processScore: predecessor?.processScore ?? null,
+            outcomeScore: predecessor?.outcomeScore ?? null,
+            checklistState: predecessor?.checklistState ?? null,
             sourceHash: pos.sourceHash,
           },
         });
@@ -85,6 +104,19 @@ export class RecomputeProcessor extends WorkerHost {
               fillId: f.fillId,
               role: f.role,
             })),
+          });
+        }
+
+        if (predecessor?.tags.length) {
+          await tx.positionTag.createMany({
+            data: predecessor.tags.map((t) => ({ positionId: created.id, tag: t.tag })),
+            skipDuplicates: true,
+          });
+        }
+
+        if (predecessor?.notes?.images?.length) {
+          await tx.positionNote.create({
+            data: { positionId: created.id, bodyMd: '', images: predecessor.notes.images },
           });
         }
       }

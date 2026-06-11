@@ -85,6 +85,7 @@ async function main() {
           fundingFee: null,
           exchangeTradeId: `demo-fill-${i + 1}`,
           executedAt: f.executedAt,
+          moods: [],
         },
       }),
     ),
@@ -253,7 +254,424 @@ async function main() {
 
   console.log(`\nSeeded ${fills.length} fills → ${computedPositions.length} positions`);
   console.log(`Seeded ${defaultPlaybooks.length} default playbooks`);
-  console.log(`\nDemo credentials:`);
+
+  // ── Prop firm reference data ───────────────────────────────────────────────
+
+  const VERIFIED_AT = new Date('2026-06-01T00:00:00Z');
+  const PACK_VERSION = '2026.06';
+
+  // HyroTrader — true crypto perps on Bybit / Binance / OKX
+  // Rules: https://www.hyrotrader.com/evaluations/
+  const hyro = await prisma.propFirm.upsert({
+    where: { slug: 'hyrotrader' },
+    update: {},
+    create: {
+      slug: 'hyrotrader',
+      name: 'HyroTrader',
+      website: 'https://www.hyrotrader.com',
+      logoInitial: 'H',
+      logoColor: 'linear-gradient(135deg,#3b82f6,#06b6d4)',
+      exchanges: ['bybit', 'binance', 'okx'],
+      flags: [],
+    },
+  });
+
+  // SizeProp — true crypto perps on Hyperliquid / Bybit
+  // Rules: https://www.sizeprop.com/
+  const sizeprop = await prisma.propFirm.upsert({
+    where: { slug: 'sizeprop' },
+    update: {},
+    create: {
+      slug: 'sizeprop',
+      name: 'SizeProp',
+      website: 'https://www.sizeprop.com',
+      logoInitial: 'S',
+      logoColor: 'linear-gradient(135deg,#8b5cf6,#a855f7)',
+      exchanges: ['hyperliquid', 'bybit'],
+      flags: [],
+    },
+  });
+
+  // Velotrade — true crypto perps
+  // Rules: https://velotrade.com/challenges
+  const velotrade = await prisma.propFirm.upsert({
+    where: { slug: 'velotrade' },
+    update: {},
+    create: {
+      slug: 'velotrade',
+      name: 'Velotrade',
+      website: 'https://velotrade.com',
+      logoInitial: 'V',
+      logoColor: 'linear-gradient(135deg,#10b981,#06b6d4)',
+      exchanges: ['bybit'],
+      flags: [],
+    },
+  });
+
+  // ── HyroTrader rule packs ──────────────────────────────────────────────────
+  //
+  // 1-Step: Phase 1 only.  10% target · 4% daily · 6% tick-trailing DD
+  //         40% consistency · mandatory SL ≤5 min · 10 min trading days
+  //         Funded: 3% max risk/trade · 25% max total exposure
+  //
+  // 2-Step: Phase 1 — 10% target · 5% daily · 10% tick-trailing · 10 min days
+  //         Phase 2 — 5% target  · 5% daily · 10% tick-trailing ·  5 min days
+  //         Same SL + consistency rules apply to eval phases.
+
+  const hyroSizes = [5_000, 10_000, 25_000, 50_000, 100_000, 200_000];
+
+  for (const size of hyroSizes) {
+    // 1-Step · Phase 1 (eval)
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: hyro.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-1step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: hyro.id,
+        version: `${PACK_VERSION}-1step`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'TICK_TRAILING',
+        maxDailyLossPct: 0.04,
+        maxOverallLossPct: 0.06,
+        consistencyMaxDayPct: 0.40,
+        minTradingDays: 10,
+        timeLimitDays: null,
+        maxRiskPerTradePct: 0.03,
+        maxTotalExposurePct: 0.25,
+        slRequiredWithinSecs: 300,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.70,
+        verifiedAt: VERIFIED_AT,
+        notes: 'Profit split scales to 90% after 16 months (+5% every 4 months). Swing Upgrade add-on converts DD to static for a fee.',
+      },
+    });
+
+    // 2-Step · Phase 1 (eval)
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: hyro.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-2step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: hyro.id,
+        version: `${PACK_VERSION}-2step`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'TICK_TRAILING',
+        maxDailyLossPct: 0.05,
+        maxOverallLossPct: 0.10,
+        consistencyMaxDayPct: 0.40,
+        minTradingDays: 10,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: 300,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.70,
+        verifiedAt: VERIFIED_AT,
+        notes: '2-Step Phase 1. Phase 2 requires 5% target with 5 min trading days.',
+      },
+    });
+
+    // 2-Step · Phase 2 (eval)
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: hyro.id,
+          accountSize: size,
+          phase: 2,
+          version: `${PACK_VERSION}-2step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: hyro.id,
+        version: `${PACK_VERSION}-2step`,
+        accountSize: size,
+        phase: 2,
+        isActive: true,
+        profitTargetPct: 0.05,
+        drawdownKind: 'TICK_TRAILING',
+        maxDailyLossPct: 0.05,
+        maxOverallLossPct: 0.10,
+        consistencyMaxDayPct: 0.40,
+        minTradingDays: 5,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: 300,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.70,
+        verifiedAt: VERIFIED_AT,
+        notes: '2-Step Phase 2. Consistency + SL rules still apply.',
+      },
+    });
+  }
+
+  // ── SizeProp rule packs ────────────────────────────────────────────────────
+  //
+  // 1-Step: 10% target · 3% daily · 5% STATIC DD · no consistency · no min days
+  //         No SL requirement · 5× BTC leverage · 2× alts
+  //
+  // Degen ($33): lighter version — 2% daily · 3% overall · same no-restriction spirit
+
+  const sizepropSizes = [5_000, 10_000, 25_000, 50_000, 100_000];
+
+  for (const size of sizepropSizes) {
+    // Standard 1-Step
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: sizeprop.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-1step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: sizeprop.id,
+        version: `${PACK_VERSION}-1step`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'STATIC',
+        maxDailyLossPct: 0.03,
+        maxOverallLossPct: 0.05,
+        consistencyMaxDayPct: null,
+        minTradingDays: null,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.80,
+        verifiedAt: VERIFIED_AT,
+        notes: 'Profit split 80–95% (scales with account growth). Max 5× leverage on BTC, 2× on alts. Grid + martingale allowed. USDT payouts within 24 h.',
+      },
+    });
+
+    // Degen challenge — same sizes, much tighter DD, lower entry fee
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: sizeprop.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-degen`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: sizeprop.id,
+        version: `${PACK_VERSION}-degen`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'STATIC',
+        maxDailyLossPct: 0.02,
+        maxOverallLossPct: 0.03,
+        consistencyMaxDayPct: null,
+        minTradingDays: null,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.80,
+        verifiedAt: VERIFIED_AT,
+        notes: '$33 Degen challenge — lower entry fee, tighter 3% overall DD and 2% daily loss. Same no-restriction rules otherwise.',
+      },
+    });
+  }
+
+  // ── Velotrade rule packs ───────────────────────────────────────────────────
+  //
+  // 1-Step Classic: 10% target · 3% daily · 5% EOD-trailing DD · 4 min days
+  // 1-Step Pro:     10% target · 3% daily · 5% STATIC DD       · 4 min days
+  // 2-Step P1:      10% target · 5% daily · 10% EOD-trailing   · 4 min days
+  // 2-Step P2:       5% target · 5% daily · 10% EOD-trailing   · 4 min days
+  //
+  // No consistency, no SL requirement, no exposure cap.
+  // Weekend + overnight holding allowed. Up to 90% profit split.
+
+  const veloSizes = [5_000, 25_000, 50_000, 100_000, 200_000];
+
+  for (const size of veloSizes) {
+    // 1-Step Classic
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: velotrade.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-1step-classic`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: velotrade.id,
+        version: `${PACK_VERSION}-1step-classic`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'EOD_TRAILING',
+        maxDailyLossPct: 0.03,
+        maxOverallLossPct: 0.05,
+        consistencyMaxDayPct: null,
+        minTradingDays: 4,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.90,
+        verifiedAt: VERIFIED_AT,
+        notes: 'EOD trailing DD — floor only moves at day close, not intraday. No news restrictions. 24-hour payout processing.',
+      },
+    });
+
+    // 1-Step Pro (static DD variant)
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: velotrade.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-1step-pro`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: velotrade.id,
+        version: `${PACK_VERSION}-1step-pro`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'STATIC',
+        maxDailyLossPct: 0.03,
+        maxOverallLossPct: 0.05,
+        consistencyMaxDayPct: null,
+        minTradingDays: 4,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.90,
+        verifiedAt: VERIFIED_AT,
+        notes: '1-Step Pro — static (fixed floor) drawdown instead of EOD trailing. Easier to manage during volatile sessions.',
+      },
+    });
+
+    // 2-Step · Phase 1
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: velotrade.id,
+          accountSize: size,
+          phase: 1,
+          version: `${PACK_VERSION}-2step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: velotrade.id,
+        version: `${PACK_VERSION}-2step`,
+        accountSize: size,
+        phase: 1,
+        isActive: true,
+        profitTargetPct: 0.10,
+        drawdownKind: 'EOD_TRAILING',
+        maxDailyLossPct: 0.05,
+        maxOverallLossPct: 0.10,
+        consistencyMaxDayPct: null,
+        minTradingDays: 4,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.90,
+        verifiedAt: VERIFIED_AT,
+        notes: '2-Step Phase 1. More lenient DD than Classic — 10% EOD trailing.',
+      },
+    });
+
+    // 2-Step · Phase 2
+    await prisma.propFirmRulePack.upsert({
+      where: {
+        firmId_accountSize_phase_version: {
+          firmId: velotrade.id,
+          accountSize: size,
+          phase: 2,
+          version: `${PACK_VERSION}-2step`,
+        },
+      },
+      update: {},
+      create: {
+        firmId: velotrade.id,
+        version: `${PACK_VERSION}-2step`,
+        accountSize: size,
+        phase: 2,
+        isActive: true,
+        profitTargetPct: 0.05,
+        drawdownKind: 'EOD_TRAILING',
+        maxDailyLossPct: 0.05,
+        maxOverallLossPct: 0.10,
+        consistencyMaxDayPct: null,
+        minTradingDays: 4,
+        timeLimitDays: null,
+        maxRiskPerTradePct: null,
+        maxTotalExposurePct: null,
+        slRequiredWithinSecs: null,
+        weekendHoldAllowed: true,
+        overnightHoldAllowed: true,
+        profitSplitPct: 0.90,
+        verifiedAt: VERIFIED_AT,
+        notes: '2-Step Phase 2 — halved profit target (5%). Same DD and day rules as Phase 1.',
+      },
+    });
+  }
+
+  const firmCount = 3;
+  const packCount =
+    hyroSizes.length * 3 +   // 1-step P1, 2-step P1, 2-step P2
+    sizepropSizes.length * 2 + // 1-step, degen
+    veloSizes.length * 4;      // classic, pro, 2step-P1, 2step-P2
+
+  console.log(`\nSeeded ${fills.length} fills → ${computedPositions.length} positions`);
+  console.log(`Seeded ${defaultPlaybooks.length} default playbooks`);
+  console.log(`Seeded ${firmCount} prop firms · ${packCount} rule packs`);
+  console.log('\nDemo credentials:');
   console.log(`  Email:    ${DEMO_EMAIL}`);
   console.log(`  Password: ${DEMO_PASSWORD}\n`);
 }

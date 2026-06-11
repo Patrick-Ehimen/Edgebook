@@ -15,6 +15,12 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
+  // Temporary request logger for debugging
+  app.use((req: import('express').Request, _res: import('express').Response, next: import('express').NextFunction) => {
+    if (req.method !== 'OPTIONS') console.log(`[HTTP] ${req.method} ${req.path}`);
+    next();
+  });
+
   app.enableCors({
     origin: env.APP_URL,
     credentials: true,

@@ -7,8 +7,9 @@ export {
   AddApiKeyInput,
   VenueSchema,
   AccountTypeSchema,
+  AccountCategorySchema,
 } from '@edgebook/shared/accounts';
-export type { Account, ApiKeyMeta, Venue, AccountType } from '@edgebook/shared/accounts';
+export type { Account, ApiKeyMeta, Venue, AccountType, AccountCategory } from '@edgebook/shared/accounts';
 
 export const AccountListResponse = z.array(
   z.object({
@@ -17,6 +18,7 @@ export const AccountListResponse = z.array(
     venue: z.enum(['binance', 'bybit']),
     label: z.string(),
     accountType: z.string(),
+    category: z.enum(['live', 'demo', 'prop']),
     baseCurrency: z.string(),
     createdAt: z.string(),
     keyCount: z.number(),
@@ -40,6 +42,7 @@ export const AccountResponse = z.object({
   venue: z.enum(['binance', 'bybit']),
   label: z.string(),
   accountType: z.string(),
+  category: z.enum(['live', 'demo', 'prop']),
   baseCurrency: z.string(),
   createdAt: z.string(),
   keyCount: z.number(),
