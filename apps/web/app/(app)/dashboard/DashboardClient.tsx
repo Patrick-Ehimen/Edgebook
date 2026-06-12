@@ -1,25 +1,27 @@
 'use client';
 
+import { useAccounts } from '@/features/accounts';
+import { useSession } from '@/features/auth';
+import { journalApi } from '@/features/journal';
+import { usePlaybooks } from '@/features/playbooks';
 import { positionsApi } from '@/features/positions/api';
 import type { Position } from '@/features/positions/schemas';
-import { journalApi } from '@/features/journal';
-import { useAccounts } from '@/features/accounts';
-import { usePlaybooks } from '@/features/playbooks';
-import { useSession } from '@/features/auth';
+import { useGoals } from '@/providers/goals-provider';
 import { useLogTrade } from '@/providers/log-trade-provider';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { BarChart2, Brain, FileUp, PenLine, Plug, RefreshCw, TrendingUp, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { Plug, PenLine, FileUp, TrendingUp, RefreshCw, BarChart2, Brain, Zap } from 'lucide-react';
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from 'recharts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,9 +71,9 @@ function greeting(): string {
 
 const PLAYBOOK_PALETTE: { color: string; bg: string; border: string }[] = [
   { color: '#a78bfa', bg: 'rgba(139,92,246,.12)', border: 'rgba(139,92,246,.30)' },
-  { color: '#22d3ee', bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)'  },
-  { color: '#00d68f', bg: 'rgba(0,214,143,.12)',  border: 'rgba(0,214,143,.30)'  },
-  { color: '#ea580c', bg: 'rgba(194,65,12,.12)',  border: 'rgba(194,65,12,.30)'  },
+  { color: '#22d3ee', bg: 'rgba(6,182,212,.12)', border: 'rgba(6,182,212,.30)' },
+  { color: '#00d68f', bg: 'rgba(0,214,143,.12)', border: 'rgba(0,214,143,.30)' },
+  { color: '#ea580c', bg: 'rgba(194,65,12,.12)', border: 'rgba(194,65,12,.30)' },
   { color: '#f472b6', bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)' },
   { color: '#f5a524', bg: 'rgba(245,165,36,.12)', border: 'rgba(245,165,36,.30)' },
   { color: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' },
@@ -921,7 +923,8 @@ export default function DashboardClient() {
   const { data: playbooks } = usePlaybooks();
   const logTrade = useLogTrade();
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string | 'all'>('all');
+  const { selectedAccountId, setSelectedAccountId } = useSelectedAccount();
+  const { configByAccount } = useGoals();
   const [equityRange, setEquityRange] = useState<DayRange>('30d');
 
   // Fetch positions for all accounts in parallel
@@ -1023,6 +1026,121 @@ export default function DashboardClient() {
     return { tradingDaysThisMonth, daysInMonth, streak, streakSign };
   }, [stats.dailyPnl]);
 
+  // ─── Goals strip (shared — renders with or without positions) ────────────────
+
+  const goalsStripEl = (() => {
+    if (selectedAccountId === 'all') return null;
+    const acctCfg = configByAccount[selectedAccountId];
+    const activeGoals = acctCfg?.goals ?? [];
+    if (activeGoals.length === 0) return null;
+
+    return (
+      <Panel style={{ marginBottom: 14 }}>
+        <PanelH3
+          left="Today's goals"
+          right={
+            <Link href="/goals" style={{ fontSize: 11, color: 'var(--eb-muted)', textDecoration: 'none' }}>
+              Manage →
+            </Link>
+          }
+        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(activeGoals.length, 4)}, 1fr)`,
+            gap: 10,
+          }}
+        >
+          {activeGoals.map((g) => {
+            const unitL = g.unit.toLowerCase();
+            const targetNum = Number.parseFloat(g.target.replace(/[^0-9.]/g, ''));
+            let current = 0;
+            let displayCurrent = '—';
+
+            if ((unitL === 'usdt' || unitL === 'usd') && g.period === 'daily') {
+              current = stats.todayPnl;
+              displayCurrent = current !== 0 ? `${current >= 0 ? '+' : ''}$${Math.abs(current).toFixed(0)}` : '—';
+            } else if (unitL.startsWith('trade') && g.period === 'daily') {
+              current = stats.todayTrades;
+              displayCurrent = current > 0 ? String(current) : '—';
+            } else if (unitL.startsWith('win')) {
+              current = stats.winRate;
+              displayCurrent = stats.wins + stats.losses > 0 ? `${current.toFixed(0)}%` : '—';
+            } else if ((unitL === 'usdt' || unitL === 'usd') && g.period === 'weekly') {
+              const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+              current = stats.dailyPnl
+                .filter((d) => new Date(d.date) >= weekAgo)
+                .reduce((s, d) => s + d.pnl, 0);
+              displayCurrent = current !== 0 ? `${current >= 0 ? '+' : ''}$${Math.abs(current).toFixed(0)}` : '—';
+            }
+
+            const pct =
+              !Number.isNaN(targetNum) && targetNum > 0
+                ? Math.min((current / targetNum) * 100, 100)
+                : 0;
+            const barColor = pct >= 60 ? 'var(--green)' : 'var(--eb-yellow)';
+
+            return (
+              <div
+                key={g.id}
+                style={{
+                  background: 'var(--eb-panel-2)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 9,
+                  padding: '10px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--eb-muted)',
+                    marginBottom: 4,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {g.label}
+                </div>
+                <div
+                  style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 6 }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: current < 0 ? 'var(--eb-red)' : 'var(--eb-text)',
+                      fontFamily: 'var(--font-mono, monospace)',
+                    }}
+                  >
+                    {displayCurrent}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--eb-muted)' }}>
+                    / {g.target}
+                  </span>
+                </div>
+                <div style={{ height: 4, background: 'var(--eb-border)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${pct}%`,
+                      background: barColor,
+                      borderRadius: 99,
+                      transition: 'width .3s',
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 4, textAlign: 'right' }}>
+                  {pct > 0 ? `${Math.round(pct)}%` : g.period}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    );
+  })();
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -1043,8 +1161,16 @@ export default function DashboardClient() {
       {/* ── No accounts ── */}
       {!loading && !hasAccounts && <EmptyState onLog={logTrade.open} />}
 
-      {/* ── Has accounts ── */}
-      {!loading && hasAccounts && (
+      {/* ── Has accounts but no trades yet ── */}
+      {!loading && hasAccounts && !hasPositions && (
+        <>
+          {goalsStripEl}
+          <EmptyState onLog={logTrade.open} />
+        </>
+      )}
+
+      {/* ── Has accounts + positions ── */}
+      {!loading && hasAccounts && hasPositions && (
         <>
           {/* ══ GREETING ══ */}
           <div
@@ -1720,15 +1846,22 @@ export default function DashboardClient() {
             {(() => {
               const score = discipline?.score ?? null;
               const delta = discipline?.delta ?? 0;
-              const scoreColor = score == null
-                ? 'var(--eb-muted)'
-                : score >= 70 ? 'var(--green)' : score >= 50 ? '#f5a524' : '#ff5b6c';
-              const components = discipline ? [
-                { label: 'Plan adherence', score: discipline.planAdherence.score },
-                { label: 'Rule violations', score: discipline.ruleViolations.score },
-                { label: 'Journal', score: discipline.journalCompletion.score },
-                { label: 'Risk', score: discipline.riskDiscipline.score },
-              ] : [];
+              const scoreColor =
+                score == null
+                  ? 'var(--eb-muted)'
+                  : score >= 70
+                    ? 'var(--green)'
+                    : score >= 50
+                      ? '#f5a524'
+                      : '#ff5b6c';
+              const components = discipline
+                ? [
+                    { label: 'Plan adherence', score: discipline.planAdherence.score },
+                    { label: 'Rule violations', score: discipline.ruleViolations.score },
+                    { label: 'Journal', score: discipline.journalCompletion.score },
+                    { label: 'Risk', score: discipline.riskDiscipline.score },
+                  ]
+                : [];
               return (
                 <div
                   style={{
@@ -1741,7 +1874,13 @@ export default function DashboardClient() {
                     justifyContent: 'space-between',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
                     <div
                       style={{
                         fontSize: 10,
@@ -1754,16 +1893,19 @@ export default function DashboardClient() {
                       Discipline Score
                     </div>
                     {score != null && delta !== 0 && (
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        color: delta > 0 ? 'var(--green)' : '#ff5b6c',
-                        background: delta > 0 ? 'rgba(0,214,143,.10)' : 'rgba(255,91,108,.10)',
-                        border: `1px solid ${delta > 0 ? 'rgba(0,214,143,.25)' : 'rgba(255,91,108,.25)'}`,
-                        borderRadius: 99,
-                        padding: '1px 6px',
-                      }}>
-                        {delta > 0 ? '+' : ''}{delta}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: delta > 0 ? 'var(--green)' : '#ff5b6c',
+                          background: delta > 0 ? 'rgba(0,214,143,.10)' : 'rgba(255,91,108,.10)',
+                          border: `1px solid ${delta > 0 ? 'rgba(0,214,143,.25)' : 'rgba(255,91,108,.25)'}`,
+                          borderRadius: 99,
+                          padding: '1px 6px',
+                        }}
+                      >
+                        {delta > 0 ? '+' : ''}
+                        {delta}
                       </span>
                     )}
                   </div>
@@ -1783,51 +1925,86 @@ export default function DashboardClient() {
                     <div style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
                       {score == null
                         ? 'No journal data'
-                        : score >= 70 ? 'Strong discipline'
-                        : score >= 50 ? 'Needs improvement'
-                        : 'Critical — review habits'}
+                        : score >= 70
+                          ? 'Strong discipline'
+                          : score >= 50
+                            ? 'Needs improvement'
+                            : 'Critical — review habits'}
                     </div>
                   </div>
                   {score != null && (
                     <div style={{ marginTop: 10 }}>
-                      <div style={{ height: 4, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${score}%`,
-                          background: score >= 70
-                            ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
-                            : score >= 50
-                              ? 'linear-gradient(90deg,#f5a524,#f97316)'
-                              : 'linear-gradient(90deg,#ff5b6c,#f97316)',
+                      <div
+                        style={{
+                          height: 4,
+                          background: 'var(--eb-panel-2)',
                           borderRadius: 99,
-                          transition: 'width .3s',
-                        }} />
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${score}%`,
+                            background:
+                              score >= 70
+                                ? 'linear-gradient(90deg,var(--green),var(--eb-cyan))'
+                                : score >= 50
+                                  ? 'linear-gradient(90deg,#f5a524,#f97316)'
+                                  : 'linear-gradient(90deg,#ff5b6c,#f97316)',
+                            borderRadius: 99,
+                            transition: 'width .3s',
+                          }}
+                        />
                       </div>
                       {components.length > 0 && (
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: '6px 10px',
-                          marginTop: 10,
-                        }}>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: '6px 10px',
+                            marginTop: 10,
+                          }}
+                        >
                           {components.map(({ label, score: s }) => (
                             <div key={label} style={{ fontSize: 10, color: 'var(--eb-muted)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  marginBottom: 2,
+                                }}
+                              >
                                 <span>{label}</span>
-                                <span style={{
-                                  fontFamily: 'var(--font-mono, monospace)',
-                                  color: s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
-                                  fontWeight: 600,
-                                }}>{s}</span>
+                                <span
+                                  style={{
+                                    fontFamily: 'var(--font-mono, monospace)',
+                                    color:
+                                      s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {s}
+                                </span>
                               </div>
-                              <div style={{ height: 2, background: 'var(--eb-panel-2)', borderRadius: 99, overflow: 'hidden' }}>
-                                <div style={{
-                                  height: '100%',
-                                  width: `${s}%`,
-                                  background: s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
+                              <div
+                                style={{
+                                  height: 2,
+                                  background: 'var(--eb-panel-2)',
                                   borderRadius: 99,
-                                  transition: 'width .3s',
-                                }} />
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${s}%`,
+                                    background:
+                                      s >= 70 ? 'var(--green)' : s >= 50 ? '#f5a524' : '#ff5b6c',
+                                    borderRadius: 99,
+                                    transition: 'width .3s',
+                                  }}
+                                />
                               </div>
                             </div>
                           ))}
@@ -2076,8 +2253,10 @@ export default function DashboardClient() {
                 />
               </div>
             </div>
-
           </div>
+
+          {/* ══ GOALS STRIP ══ */}
+          {goalsStripEl}
 
           {/* ══ ACCOUNTS SPINE ══ */}
           <div
@@ -2290,11 +2469,8 @@ export default function DashboardClient() {
             )}
           </div>
 
-          {/* ── No positions yet ── */}
-          {!hasPositions && <EmptyState onLog={logTrade.open} />}
-
-          {/* ── Has positions ── */}
-          {hasPositions && (
+          {/* ── Positions ── */}
+          {
             <>
               {/* ══ EQUITY CURVE + LIVE POSITIONS ══ */}
               <div
@@ -3026,7 +3202,7 @@ export default function DashboardClient() {
                 </div>
               </div>
             </>
-          )}
+          }
         </>
       )}
     </div>

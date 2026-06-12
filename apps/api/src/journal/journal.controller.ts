@@ -9,8 +9,12 @@ export class JournalController {
   constructor(private readonly journalService: JournalService) {}
 
   @Get('stats')
-  getStats(@CurrentUserId() userId: string, @Query('date') date?: string) {
-    return this.journalService.getStats(userId, date);
+  getStats(
+    @CurrentUserId() userId: string,
+    @Query('date') date?: string,
+    @Query('accountId') accountId?: string,
+  ) {
+    return this.journalService.getStats(userId, date, accountId);
   }
 
   @Get('entry')
@@ -33,7 +37,7 @@ export class JournalController {
   }
 
   @Get('recent')
-  listRecent(@CurrentUserId() userId: string) {
-    return this.journalService.listRecent(userId);
+  listRecent(@CurrentUserId() userId: string, @Query('accountId') accountId?: string) {
+    return this.journalService.listRecent(userId, undefined, accountId);
   }
 }

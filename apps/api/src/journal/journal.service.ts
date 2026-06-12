@@ -27,6 +27,11 @@ export class JournalService {
     streak: number,
     entriesThisMonth: number,
   ) {
+    // No data at all → return zeros so new accounts score 0, not 68
+    if (recentEntries.length === 0 && recentPositions.length === 0) {
+      return { planAdherence: 0, ruleViolations: 0, journalCompletion: 0, riskDiscipline: 0 };
+    }
+
     // 1. Plan adherence (0–100) — both entry & position use percentage scale
     const planValues: number[] = [];
     for (const e of recentEntries) {
@@ -39,7 +44,7 @@ export class JournalService {
     }
     const planAdherence = planValues.length > 0
       ? Math.round(planValues.reduce((a, b) => a + b, 0) / planValues.length)
-      : 50;
+      : 0;
 
     // 2. Rule violations (0–100, inverted — fewer violations = higher score)
     let ruleViolations = 100;
@@ -58,7 +63,7 @@ export class JournalService {
     ).length;
     const streakScore = Math.min(streak / 30 * 100, 100);
     const monthScore = Math.min(entriesThisMonth / 22 * 100, 100);
-    const qualityScore = entryCount > 0 ? (filledCount / entryCount) * 100 : 50;
+    const qualityScore = entryCount > 0 ? (filledCount / entryCount) * 100 : 0;
     const journalCompletion = Math.round(streakScore * 0.3 + monthScore * 0.3 + qualityScore * 0.4);
 
     // 4. Risk discipline (0–100)
@@ -75,7 +80,7 @@ export class JournalService {
     return { planAdherence, ruleViolations, journalCompletion, riskDiscipline };
   }
 
-  async getStats(userId: string, dateStr?: string) {
+  async getStats(userId: string, dateStr?: string, accountId?: string) {
     // Use provided date (for detail page context) or today (for global browser stats)
     const anchor = dateStr ? new Date(`${dateStr}T00:00:00.000Z`) : this.todayUTC();
     const anchorEnd = new Date(anchor.getTime() + 86_400_000); // inclusive end of day
@@ -133,13 +138,14 @@ export class JournalService {
     });
 
     // ── Positions (timestamptz — use anchorEnd to cover full day) ──
+    const posAccFilter = accountId ? { userId, id: accountId } : { userId };
     const recentPositions = await this.prisma.position.findMany({
-      where: { account: { userId }, closedAt: { gte: since30d, lt: anchorEnd } },
+      where: { account: posAccFilter, closedAt: { gte: since30d, lt: anchorEnd } },
       select: { planAdherence: true, processScore: true, rPlanned: true, playbookId: true, checklistState: true },
     });
 
     const oldPositions = await this.prisma.position.findMany({
-      where: { account: { userId }, closedAt: { gte: since60d, lt: since30d } },
+      where: { account: posAccFilter, closedAt: { gte: since60d, lt: since30d } },
       select: { planAdherence: true, processScore: true, rPlanned: true, playbookId: true, checklistState: true },
     });
 
@@ -208,7 +214,7 @@ export class JournalService {
     });
   }
 
-  async listRecent(userId: string, limit = 10) {
+  async listRecent(userId: string, limit = 10, accountId?: string) {
     const entries = await this.prisma.journalEntry.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
@@ -246,13 +252,14 @@ export class JournalService {
     const rangeStart = new Date(minDate);
     rangeStart.setUTCDate(rangeStart.getUTCDate() - 60);
 
+    const listAccFilter = accountId ? { userId, id: accountId } : { userId };
     const [windowEntries, windowPositions] = await Promise.all([
       this.prisma.journalEntry.findMany({
         where: { userId, date: { gte: rangeStart } },
         select: { date: true, planAdherence: true, finalizedAt: true, intentMd: true, eodMd: true },
       }),
       this.prisma.position.findMany({
-        where: { account: { userId }, openedAt: { gte: rangeStart } },
+        where: { account: listAccFilter, openedAt: { gte: rangeStart } },
         select: { openedAt: true, planAdherence: true, processScore: true, rPlanned: true, playbookId: true, checklistState: true },
       }),
     ]);

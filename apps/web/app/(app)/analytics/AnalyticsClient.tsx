@@ -8,6 +8,7 @@ import type { Playbook } from '@/features/playbooks/schemas';
 import { useQueries } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
 import { Lock, Plug, PenLine, Upload, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -1281,7 +1282,7 @@ function AnalyticsData({
   playbooks: Playbook[];
 }) {
   const [range, setRange] = useState<DayRange>('30d');
-  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const { selectedAccountId: accountFilter, setSelectedAccountId: setAccountFilter } = useSelectedAccount();
 
   const filtered = useMemo(() => {
     const cut = cutoff(range);

@@ -3,16 +3,14 @@
 import {
   useAccounts,
   useDeleteAccount,
-  useTriggerSync,
   AddAccountDialog,
 } from '@/features/accounts';
 import type { AccountItem } from '@/features/accounts';
 import {
   AlertTriangle,
   KeyRound,
-  Link2,
   MoreHorizontal,
-  RefreshCw,
+  Plus,
   ShieldCheck,
   Trash2,
   Zap,
@@ -109,14 +107,14 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
         background: 'linear-gradient(135deg,rgba(0,214,143,.12),rgba(6,182,212,.08))',
         border: '1px solid rgba(0,214,143,.2)',
       }}>
-        <Link2 size={36} style={{ color: 'var(--green)' }} />
+        <Plus size={36} style={{ color: 'var(--green)' }} />
       </div>
 
       <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 600, color: 'var(--eb-text)', letterSpacing: '-.01em' }}>
-        No accounts connected yet
+        No subaccounts yet
       </h2>
       <p style={{ margin: '0 0 28px', fontSize: 14, color: 'var(--eb-muted-2)', lineHeight: 1.6 }}>
-        Connect a read-only API key from your exchange. Edgebook will sync your trades automatically — no withdrawal access, ever.
+        Create subaccounts to organise your trades by exchange, account type, or strategy. Filter your dashboard, journal, and analytics by account.
       </p>
 
       <button
@@ -138,7 +136,7 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
           marginBottom: 40,
         }}
       >
-        <Link2 size={14} /> Connect exchange account
+        <Plus size={14} /> Add subaccount
       </button>
 
       {/* Supported exchanges */}
@@ -195,29 +193,128 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
 
 // ─── account card ──────────────────────────────────────────────────────────────
 
-function AccountCard({ account, onDelete, onSync }: {
+// ─── delete confirmation dialog ────────────────────────────────────────────────
+
+function DeleteConfirmDialog({
+  account,
+  onConfirm,
+  onCancel,
+  deleting,
+}: {
+  account: AccountItem;
+  onConfirm: () => void;
+  onCancel: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,.55)',
+        backdropFilter: 'blur(4px)',
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 14,
+          padding: '28px 26px 22px',
+          width: 380,
+          maxWidth: 'calc(100vw - 32px)',
+          boxShadow: '0 20px 60px rgba(0,0,0,.45)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* icon */}
+        <div style={{
+          width: 44,
+          height: 44,
+          borderRadius: 11,
+          background: 'rgba(255,91,108,.1)',
+          border: '1px solid rgba(255,91,108,.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+          color: 'var(--eb-red, #ff5b6c)',
+        }}>
+          <AlertTriangle size={20} />
+        </div>
+
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 6 }}>
+          Remove subaccount?
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--eb-muted)', lineHeight: 1.55, marginBottom: 20 }}>
+          <strong style={{ color: 'var(--eb-text)' }}>{account.label}</strong> and all its
+          associated trades and positions will be permanently deleted. This cannot be undone.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={deleting}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 9,
+              border: '1px solid var(--eb-border)',
+              background: 'var(--eb-panel-2)',
+              color: 'var(--eb-muted-2)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 9,
+              border: '1px solid rgba(255,91,108,.5)',
+              background: deleting ? 'rgba(255,91,108,.3)' : 'rgba(255,91,108,.15)',
+              color: 'var(--eb-red, #ff5b6c)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: deleting ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {deleting ? 'Removing…' : 'Remove account'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── account card ───────────────────────────────────────────────────────────────
+
+function AccountCard({ account, onDelete }: {
   account: AccountItem;
   onDelete: (id: string) => void;
-  onSync: (id: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { logo, color, bg } = venueMeta(account.venue);
   const { label: catLabel, color: catColor, bg: catBg, border: catBorder } = categoryMeta(account.category);
 
-  async function handleSync() {
-    setSyncing(true);
-    try { await onSync(account.id); } finally { setSyncing(false); }
-  }
-
-  async function handleDelete() {
-    if (!confirm(`Remove "${account.label}"? This will delete all associated data.`)) return;
+  async function handleDeleteConfirmed() {
     setDeleting(true);
-    try { await onDelete(account.id); } finally { setDeleting(false); }
+    try { await onDelete(account.id); } finally { setDeleting(false); setConfirmOpen(false); }
   }
 
-  const hasKey = account.keyCount > 0;
   const createdDate = new Date(account.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
@@ -289,7 +386,7 @@ function AccountCard({ account, onDelete, onSync }: {
               }}>
                 <button
                   type="button"
-                  onClick={() => { setMenuOpen(false); handleDelete(); }}
+                  onClick={() => { setMenuOpen(false); setConfirmOpen(true); }}
                   disabled={deleting}
                   style={{
                     display: 'flex',
@@ -315,50 +412,19 @@ function AccountCard({ account, onDelete, onSync }: {
         </div>
       </div>
 
-      {/* status row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        {hasKey ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--green)', padding: '2px 8px', borderRadius: 99, background: 'rgba(0,214,143,.1)', border: '1px solid rgba(0,214,143,.2)' }}>
-            <ShieldCheck size={10} /> API key connected
-          </span>
-        ) : (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--eb-yellow)', padding: '2px 8px', borderRadius: 99, background: 'rgba(245,165,36,.1)', border: '1px solid rgba(245,165,36,.2)' }}>
-            <AlertTriangle size={10} /> No API key
-          </span>
-        )}
-        <span style={{ fontSize: 11, color: 'var(--eb-muted)' }}>Added {createdDate}</span>
+      {/* footer */}
+      <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 4 }}>
+        Added {createdDate}
       </div>
 
-      {/* action buttons */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={syncing || !hasKey}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            padding: '7px 0',
-            borderRadius: 8,
-            border: '1px solid var(--eb-border)',
-            background: 'var(--eb-panel-2)',
-            color: (syncing || !hasKey) ? 'var(--eb-muted)' : 'var(--eb-text)',
-            fontSize: 12.5,
-            fontWeight: 500,
-            cursor: (syncing || !hasKey) ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit',
-            opacity: !hasKey ? 0.5 : 1,
-          }}
-        >
-          <RefreshCw size={12} style={{ animation: syncing ? 'spin 0.8s linear infinite' : undefined }} />
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
-      </div>
-
-      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+      {confirmOpen && (
+        <DeleteConfirmDialog
+          account={account}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setConfirmOpen(false)}
+          deleting={deleting}
+        />
+      )}
     </div>
   );
 }
@@ -368,7 +434,6 @@ function AccountCard({ account, onDelete, onSync }: {
 export default function ConnectAccountsClient() {
   const { data: accounts, isLoading } = useAccounts();
   const deleteAccount = useDeleteAccount();
-  const triggerSync = useTriggerSync();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (isLoading) return <AccountsSkeleton />;
@@ -383,7 +448,7 @@ export default function ConnectAccountsClient() {
 
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>Connected accounts</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>Subaccounts</h1>
         {hasAccounts && (
           <button
             type="button"
@@ -403,7 +468,7 @@ export default function ConnectAccountsClient() {
               fontFamily: 'inherit',
             }}
           >
-            <Link2 size={13} /> Connect account
+            <Plus size={13} /> Add subaccount
           </button>
         )}
       </div>
@@ -432,7 +497,6 @@ export default function ConnectAccountsClient() {
                         key={account.id}
                         account={account}
                         onDelete={(id) => deleteAccount.mutateAsync(id)}
-                        onSync={(id) => triggerSync.mutateAsync(id)}
                       />
                     ))}
                   </div>

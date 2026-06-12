@@ -1,6 +1,6 @@
 'use client';
 
-import { AddAccountDialog, useAccounts, useDeleteAccount, useTriggerSync } from '@/features/accounts';
+import { AddAccountDialog, useAccounts, useDeleteAccount } from '@/features/accounts';
 import { useAuth } from '@/providers/auth-provider';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -815,23 +815,12 @@ function NotificationsSection() {
 function ConnectionsSection() {
   const { data: accounts, isLoading } = useAccounts();
   const deleteAccount = useDeleteAccount();
-  const triggerSync = useTriggerSync();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const VENUE_META: Record<string, { logo: string; bg: string }> = {
     binance: { logo: '/assets/binance-logo.svg', bg: '#f0b90b' },
     bybit: { logo: '/assets/bybit-logo.svg', bg: '#f7a600' },
   };
-
-  async function handleSync(accountId: string) {
-    setSyncingId(accountId);
-    try {
-      await triggerSync.mutateAsync(accountId);
-    } finally {
-      setSyncingId(null);
-    }
-  }
 
   return (
     <div>
@@ -867,7 +856,6 @@ function ConnectionsSection() {
 
           {accounts?.map((account) => {
             const meta = VENUE_META[account.venue];
-            const syncing = syncingId === account.id;
             return (
               <div
                 key={account.id}
@@ -916,17 +904,6 @@ function ConnectionsSection() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  {account.keyCount > 0 && (
-                    <button
-                      type="button"
-                      disabled={syncing}
-                      onClick={() => handleSync(account.id)}
-                      style={{ ...btnStyle, fontSize: 11.5, padding: '5px 10px' }}
-                    >
-                      <RefreshCw size={11} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-                      {syncing ? 'Syncing…' : 'Resync'}
-                    </button>
-                  )}
                   <button
                     type="button"
                     disabled={deleteAccount.isPending}

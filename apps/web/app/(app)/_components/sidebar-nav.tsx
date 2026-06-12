@@ -14,6 +14,7 @@ import {
   BookOpen,
   Brain,
   CalendarDays,
+  ChevronDown,
   ChevronUp,
   ClipboardList,
   Inbox,
@@ -26,10 +27,12 @@ import {
   Target,
   TrendingUp,
   Users,
+  Wrench,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
@@ -66,8 +69,13 @@ const COACHING: {
   { href: '/goals', Icon: ShieldCheck, label: 'Goals & rules' },
 ];
 
+const OTHERS: { href: string; Icon: LucideIcon; label: string }[] = [
+  { href: '/tools', Icon: Wrench, label: 'Tools' },
+];
+
 export default function SidebarNav() {
   const pathname = usePathname();
+  const [accountsOpen, setAccountsOpen] = useState(true);
   const { session } = useAuth();
   const signOut = useSignOut();
   const { data: accounts } = useAccounts();
@@ -79,10 +87,16 @@ export default function SidebarNav() {
     queryFn: () => journalApi.getStats(),
     enabled: pathname.startsWith('/journal'),
   });
+  const { data: journalEntries } = useQuery({
+    queryKey: ['journal-recent', undefined],
+    queryFn: () => journalApi.listRecent(),
+    staleTime: 60_000,
+  });
 
   const tradeCount = positions?.length ?? 0;
   const playbookCount = playbooks?.length ?? 0;
   const noteCount = notes?.length ?? 0;
+  const journalCount = journalEntries?.length ?? 0;
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -194,45 +208,115 @@ export default function SidebarNav() {
               )}
             {href === '/playbooks' &&
               playbookCount > 0 &&
-              pill(
-                String(playbookCount),
-                'var(--eb-panel-2)',
-                'var(--eb-muted-2)',
-              )}
+              pill(String(playbookCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
           </Link>
         ))}
       </nav>
 
-      {/* Accounts nav */}
-      <div style={sectionLabel}>Accounts</div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {(accounts ?? []).map((account) => {
-          const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
-          return (
-            <Link key={account.id} href="/accounts" style={linkStyle(isActive('/accounts'))}>
-              <span style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
-                flexShrink: 0,
-                display: 'inline-block',
-              }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{account.label}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, marginLeft: 'auto', flexShrink: 0 }}>
-                {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
-              </span>
-            </Link>
-          );
-        })}
-        <Link
-          href="/accounts"
-          style={{ ...linkStyle(isActive('/accounts') && (accounts?.length ?? 0) === 0), color: 'var(--eb-muted)', fontSize: 12.5 }}
-        >
-          <Link2 size={13} style={{ flexShrink: 0 }} />
-          <span>Connect account</span>
-        </Link>
-      </nav>
+      {/* Accounts nav — collapsible */}
+      <button
+        type="button"
+        onClick={() => setAccountsOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
+          padding: '10px 6px 6px',
+          background: 'transparent',
+          border: 0,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ ...sectionLabel, padding: 0, flex: 1, textAlign: 'left' }}>Accounts</span>
+        {(accounts?.length ?? 0) > 0 && (
+          <span
+            style={{
+              fontSize: 10,
+              padding: '1px 5px',
+              borderRadius: 8,
+              background: 'var(--eb-panel-2)',
+              color: 'var(--eb-muted)',
+              marginRight: 4,
+            }}
+          >
+            {accounts?.length}
+          </span>
+        )}
+        <ChevronDown
+          size={12}
+          style={{
+            color: 'var(--eb-muted)',
+            transform: accountsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform .2s',
+          }}
+        />
+      </button>
+      {accountsOpen && (
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {(accounts ?? []).map((account) => {
+            const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
+            return (
+              <Link
+                key={account.id}
+                href="/accounts"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '5px 9px',
+                  borderRadius: 7,
+                  textDecoration: 'none',
+                  background: 'transparent',
+                  color: 'var(--eb-muted-2)',
+                  fontSize: 12,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
+                    flexShrink: 0,
+                    display: 'inline-block',
+                  }}
+                />
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {account.label}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, flexShrink: 0 }}>
+                  {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
+                </span>
+              </Link>
+            );
+          })}
+          <Link
+            href="/accounts"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              padding: '5px 9px',
+              borderRadius: 7,
+              textDecoration: 'none',
+              background: 'transparent',
+              color: 'var(--eb-muted)',
+              fontSize: 12,
+            }}
+          >
+            <Link2 size={12} style={{ flexShrink: 0 }} />
+            <span>Connect account</span>
+          </Link>
+        </nav>
+      )}
 
       {/* Prop trading nav */}
       <div style={sectionLabel}>Prop trading</div>
@@ -252,9 +336,22 @@ export default function SidebarNav() {
           <Link key={href} href={href} style={linkStyle(isActive(href))}>
             <Icon size={14} style={{ flexShrink: 0 }} />
             <span>{label}</span>
-            {href === '/notes' && noteCount > 0
-              ? pill(String(noteCount), 'rgba(0,214,143,.12)', '#00d68f')
-              : badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
+            {href === '/journal' && journalCount > 0
+              ? pill(String(journalCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')
+              : href === '/notes' && noteCount > 0
+                ? pill(String(noteCount), 'rgba(0,214,143,.12)', '#00d68f')
+                : badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
+          </Link>
+        ))}
+      </nav>
+
+      {/* Others nav */}
+      <div style={sectionLabel}>Others</div>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {OTHERS.map(({ href, Icon, label }) => (
+          <Link key={href} href={href} style={linkStyle(isActive(href))}>
+            <Icon size={14} style={{ flexShrink: 0 }} />
+            <span>{label}</span>
           </Link>
         ))}
       </nav>
@@ -266,13 +363,32 @@ export default function SidebarNav() {
           <div style={{ padding: '2px 6px 6px', fontSize: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--eb-muted)' }}>Journal streak</span>
-              <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>{journalStats.streak} day{journalStats.streak !== 1 ? 's' : ''}</b>
+              <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>
+                {journalStats.streak} day{journalStats.streak !== 1 ? 's' : ''}
+              </b>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 5,
+              }}
+            >
               <span style={{ color: 'var(--eb-muted)' }}>Discipline avg</span>
-              <b style={{ color: journalStats.disciplineAvg != null
-                ? journalStats.disciplineAvg >= 70 ? 'var(--eb-text)' : journalStats.disciplineAvg >= 40 ? 'var(--eb-yellow)' : 'var(--eb-red)'
-                : 'var(--eb-muted-2)', fontVariantNumeric: 'tabular-nums' }}>
+              <b
+                style={{
+                  color:
+                    journalStats.disciplineAvg != null
+                      ? journalStats.disciplineAvg >= 70
+                        ? 'var(--eb-text)'
+                        : journalStats.disciplineAvg >= 40
+                          ? 'var(--eb-yellow)'
+                          : 'var(--eb-red)'
+                      : 'var(--eb-muted-2)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
                 {journalStats.disciplineAvg != null ? `${journalStats.disciplineAvg}/100` : '—'}
               </b>
             </div>

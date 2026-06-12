@@ -6,6 +6,7 @@ import { playbooksApi } from '@/features/playbooks/api';
 import { useAccounts } from '@/features/accounts';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
 import Link from 'next/link';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -710,6 +711,7 @@ function LossStreakPanel({ streaks }: { streaks: LossStreak[] }) {
 
 export default function MindLabClient() {
   const { data: accounts, isLoading: loadingAccounts } = useAccounts();
+  const { selectedAccountId } = useSelectedAccount();
 
   const positionQueries = useQueries({
     queries: (accounts ?? []).map((a) => ({
@@ -754,7 +756,11 @@ export default function MindLabClient() {
 
   if (isLoading) return <MindLabSkeleton />;
 
-  const closedPositions = allPositions.filter((p) => p.status === 'closed');
+  const filteredPositions = selectedAccountId === 'all'
+    ? allPositions
+    : allPositions.filter((p) => p.accountId === selectedAccountId);
+
+  const closedPositions = filteredPositions.filter((p) => p.status === 'closed');
   const hasData = closedPositions.length > 0 || (recentEntries?.length ?? 0) > 0;
 
   if (!hasData) return <EmptyState />;
@@ -945,7 +951,10 @@ export default function MindLabClient() {
 
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--eb-text)' }}>🧠 Mind Lab</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--eb-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Brain size={20} style={{ color: 'var(--eb-purple)' }} />
+          Mind Lab
+        </h1>
         <div style={{ display: 'flex', gap: 8 }}>
           {discScore != null && <Chip color="purple">Discipline {discScore}</Chip>}
           {streak > 0 && <Chip color="green">Streak {streak} {streak === 1 ? 'day' : 'days'}</Chip>}

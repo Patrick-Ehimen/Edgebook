@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { journalApi } from '@/features/journal';
 import type { JournalEntry, JournalStats, RecentEntry } from '@/features/journal';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
 import {
   NotebookPen, Compass, Zap, Moon, Star, SlidersHorizontal,
   Search, LayoutGrid, List, CalendarDays, Activity,
@@ -951,9 +952,12 @@ export function JournalClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<SidebarFilters>(DEFAULT_FILTERS);
 
-  const { data: stats } = useQuery({ queryKey: ['journal-stats'], queryFn: () => journalApi.getStats() });
+  const { selectedAccountId } = useSelectedAccount();
+  const accParam = selectedAccountId === 'all' ? undefined : selectedAccountId;
+
+  const { data: stats } = useQuery({ queryKey: ['journal-stats', accParam], queryFn: () => journalApi.getStats(undefined, accParam) });
   const { data: todayEntry = null } = useQuery({ queryKey: ['journal-entry', today], queryFn: () => journalApi.getEntry(today) });
-  const { data: recentEntries = [], isPending: recentPending } = useQuery({ queryKey: ['journal-recent'], queryFn: () => journalApi.listRecent() });
+  const { data: recentEntries = [], isPending: recentPending } = useQuery({ queryKey: ['journal-recent', accParam], queryFn: () => journalApi.listRecent(accParam) });
 
   const hasEntries = !recentPending && recentEntries.length > 0;
 

@@ -1,13 +1,15 @@
 'use client';
 
-import { AddAccountDialog, useAccounts, useTriggerSync } from '@/features/accounts';
+import { AddAccountDialog, useAccounts } from '@/features/accounts';
 import { usePlaybooks } from '@/features/playbooks';
-import { usePositions } from '@/features/positions';
+import { positionsApi } from '@/features/positions';
 import { useLogTrade } from '@/providers/log-trade-provider';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
+import { useQueries } from '@tanstack/react-query';
 import { TradeCalendar } from '../_components/TradeCalendar';
-import { CalendarDays, FileUp, LayoutList, Link2, PenLine, RefreshCw } from 'lucide-react';
+import { CalendarDays, FileUp, LayoutList, Link2, PenLine } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const PLAYBOOK_PALETTE: { text: string; bg: string; border: string }[] = [
   { text: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' },
@@ -23,11 +25,10 @@ const PLAYBOOK_PALETTE: { text: string; bg: string; border: string }[] = [
 function playbookColor(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return PLAYBOOK_PALETTE[hash % PLAYBOOK_PALETTE.length];
+  return PLAYBOOK_PALETTE[hash % PLAYBOOK_PALETTE.length] ?? { text: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' };
 }
 
-const POLL_INTERVAL = 3_000;
-const POLL_TIMEOUT = 90_000;
+
 const PAGE_SIZE = 50;
 
 function fmt(n: string | null | undefined, decimals = 2) {
@@ -81,8 +82,7 @@ export default function TradesPage() {
   const { data: accounts, isLoading: loadingAccounts } = useAccounts();
   const { data: playbooks } = usePlaybooks();
   const logTrade = useLogTrade();
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
+  const { selectedAccountId, setSelectedAccountId } = useSelectedAccount();
   const [page, setPage] = useState(0);
   const [connectOpen, setConnectOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -94,57 +94,34 @@ export default function TradesPage() {
   const [filterStatus, setFilterStatus] = useState<'any' | 'open' | 'closed'>('any');
   const [filterResult, setFilterResult] = useState<'any' | 'win' | 'loss'>('any');
   const [filterDate, setFilterDate] = useState<'all' | '7d' | '30d' | '90d'>('all');
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const triggerSync = useTriggerSync();
 
-  const selectedId = accountId ?? accounts?.[0]?.id ?? null;
-  const prevCountRef = useRef<number | null>(null);
-
-  // Reset to first page whenever account or filters change
-  useEffect(() => { setPage(0); }, [selectedId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
-
-  const { data: positions, isLoading: loadingPositions } = usePositions(selectedId, {
-    refetchInterval: polling ? POLL_INTERVAL : false,
+  // Fetch positions for all accounts in parallel
+  const positionQueries = useQueries({
+    queries: (accounts ?? []).map((a) => ({
+      queryKey: ['positions', a.id],
+      queryFn: () => positionsApi.list(a.id),
+      enabled: (accounts?.length ?? 0) > 0,
+    })),
   });
 
-  // Stop polling once new positions arrive or timeout expires
-  useEffect(() => {
-    if (!polling) return;
-    const count = positions?.length ?? 0;
-    if (prevCountRef.current !== null && count > prevCountRef.current) {
-      setPolling(false);
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    }
-    prevCountRef.current = count;
-  }, [positions, polling]);
-
-  // Auto-poll when account exists but has no positions yet (first sync in flight)
-  useEffect(() => {
-    if (!selectedId || loadingPositions) return;
-    if ((positions?.length ?? 0) === 0 && !polling) {
-      startPolling();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, loadingPositions]);
-
-  function startPolling() {
-    setPolling(true);
-    prevCountRef.current = positions?.length ?? 0;
-    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    pollTimerRef.current = setTimeout(() => setPolling(false), POLL_TIMEOUT);
-  }
-
-  async function handleResync() {
-    if (!selectedId) return;
-    await triggerSync.mutateAsync(selectedId);
-    startPolling();
-  }
-
-  const hasAccounts = (accounts?.length ?? 0) > 0;
+  const loadingPositions = positionQueries.some((q) => q.isLoading);
   const loading = loadingAccounts || loadingPositions;
 
+  const allPositions = useMemo(
+    () => positionQueries.flatMap((q) => q.data ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [positionQueries.map((q) => q.dataUpdatedAt).join(',')],
+  );
+
+  const hasAccounts = (accounts?.length ?? 0) > 0;
+
+  // Reset to first page whenever account or filters change
+  useEffect(() => { setPage(0); }, [selectedAccountId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
+
   const filtered = useMemo(() => {
-    let list = positions ?? [];
+    let list = selectedAccountId === 'all'
+      ? allPositions
+      : allPositions.filter((p) => p.accountId === selectedAccountId);
     if (filterSymbol.trim()) {
       const q = filterSymbol.trim().toUpperCase();
       list = list.filter((p) => p.symbol.toUpperCase().includes(q));
@@ -164,7 +141,7 @@ export default function TradesPage() {
       list = list.filter((p) => new Date(p.openedAt).getTime() >= cutoff);
     }
     return list;
-  }, [positions, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
+  }, [allPositions, selectedAccountId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
 
   const isFiltered = filterSymbol.trim() || filterSide !== 'any' || filterStatus !== 'any' || filterResult !== 'any' || filterDate !== 'all';
 
@@ -204,59 +181,40 @@ export default function TradesPage() {
             <FileUp size={12} />
             Import CSV
           </button>
-          {hasAccounts && (
-            <select
-              value={selectedId ?? ''}
-              onChange={(e) => setAccountId(e.target.value)}
-              style={{
-                background: 'var(--eb-panel-2)',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 8,
-                padding: '6px 10px',
-                color: 'var(--eb-text)',
-                fontSize: 12.5,
-                fontFamily: 'inherit',
-                outline: 0,
-                cursor: 'pointer',
-              }}
-            >
-              {accounts?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {hasAccounts && (
-            <button
-              type="button"
-              onClick={handleResync}
-              disabled={triggerSync.isPending || polling}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '6px 11px',
-                borderRadius: 8,
-                border: '1px solid var(--eb-border)',
-                background: 'var(--eb-panel-2)',
-                color: polling ? 'var(--green)' : 'var(--eb-muted-2)',
-                fontSize: 12,
-                fontFamily: 'inherit',
-                cursor: triggerSync.isPending || polling ? 'not-allowed' : 'pointer',
-                opacity: triggerSync.isPending ? 0.6 : 1,
-                transition: 'color .15s',
-              }}
-            >
-              <RefreshCw
-                size={12}
-                style={{ animation: polling ? 'spin 1s linear infinite' : 'none' }}
-              />
-              {polling ? 'Syncing…' : 'Resync'}
-            </button>
-          )}
         </div>
       </div>
+
+      {/* Account filter pills */}
+      {hasAccounts && (accounts ?? []).length > 1 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          {(['all', ...(accounts ?? []).map((a) => a.id)] as const).map((id) => {
+            const isAll = id === 'all';
+            const acc = isAll ? null : (accounts ?? []).find((a) => a.id === id);
+            const active = selectedAccountId === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSelectedAccountId(id)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  border: `1px solid ${active ? 'var(--green)' : 'var(--eb-border)'}`,
+                  background: active ? 'rgba(0,214,143,.08)' : 'var(--eb-panel-2)',
+                  color: active ? 'var(--green)' : 'var(--eb-muted-2)',
+                  fontSize: 12.5,
+                  fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'border-color .15s, background .15s',
+                }}
+              >
+                {isAll ? 'All accounts' : (acc?.label ?? id)}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {loading && <TradesPageSkeleton />}
 
@@ -267,7 +225,7 @@ export default function TradesPage() {
       {!loading && hasAccounts && (
         <>
           {/* Filter bar + view toggle */}
-          {positions && positions.length > 0 && (
+          {allPositions.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0, visibility: view === 'calendar' ? 'hidden' : 'visible' }}>
                 <FilterBar
@@ -311,15 +269,15 @@ export default function TradesPage() {
           )}
 
           {/* Calendar view */}
-          {positions && positions.length > 0 && view === 'calendar' && (
+          {allPositions.length > 0 && view === 'calendar' && (
             <TradeCalendar positions={filtered} />
           )}
 
           {/* List view — also shown when no positions (empty state) */}
-          {(view === 'list' || !positions || positions.length === 0) && (
+          {(view === 'list' || allPositions.length === 0) && (
             <>
               {/* Summary strip */}
-              {positions && positions.length > 0 && (
+              {allPositions.length > 0 && (
             <div
               style={{
                 display: 'flex',
@@ -374,7 +332,7 @@ export default function TradesPage() {
               overflow: 'hidden',
             }}
           >
-            {!positions || positions.length === 0 ? (
+            {allPositions.length === 0 ? (
               <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
             ) : filtered.length === 0 ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
@@ -397,10 +355,10 @@ export default function TradesPage() {
                         <tr
                           key={pos.id}
                           style={{ cursor: 'pointer' }}
-                          onClick={() => router.push(`/trades/${pos.id}?account=${selectedId}`)}
+                          onClick={() => router.push(`/trades/${pos.id}?account=${pos.accountId}`)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ')
-                              router.push(`/trades/${pos.id}?account=${selectedId}`);
+                              router.push(`/trades/${pos.id}?account=${pos.accountId}`);
                           }}
                           tabIndex={0}
                         >

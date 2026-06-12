@@ -1,14 +1,15 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { useAccounts } from '@/features/accounts';
 import { useLogTrade } from '@/providers/log-trade-provider';
+import { useSelectedAccount } from '@/providers/selected-account-provider';
 import { SearchPalette } from './SearchPalette';
 import {
   Bell,
   Check,
   ChevronDown,
   Moon,
-  Plug,
   Plus,
   RefreshCw,
   Search,
@@ -17,40 +18,25 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-type Account = {
-  id: string;
-  label: string;
-  exchange: string;
-  color: string;
-  logo: string;
-  logoDark?: string;
+const VENUE_META: Record<string, { logo: string; color: string }> = {
+  binance: { logo: '/assets/binance-logo.svg', color: '#F0B90B' },
+  bybit:   { logo: '/assets/bybit-logo.svg',   color: '#F7A600' },
 };
 
-const DEMO_ACCOUNTS: Account[] = [
-  {
-    id: 'bybit-main',
-    label: 'Bybit main',
-    exchange: 'Bybit',
-    color: '#f7a600',
-    logo: '/assets/bybit-logo.svg',
-    logoDark: '/assets/bybit-logo-dark.svg',
-  },
-  {
-    id: 'binance-perps',
-    label: 'Binance perps',
-    exchange: 'Binance',
-    color: '#f0b90b',
-    logo: '/assets/binance-logo.svg',
-  },
-];
+const CATEGORY_DOT: Record<string, string> = {
+  live: 'var(--green)',
+  demo: 'var(--eb-cyan)',
+  prop: 'var(--eb-purple)',
+};
 
 function AccountSelector() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string>('all');
+  const { selectedAccountId: selected, setSelectedAccountId: setSelected } = useSelectedAccount();
   const ref = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
+  const { data: accounts } = useAccounts();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -60,10 +46,14 @@ function AccountSelector() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [open]);
 
-  const activeAccount = DEMO_ACCOUNTS.find((a) => a.id === selected);
-  const dotColor = selected === 'all' ? 'var(--green)' : (activeAccount?.color ?? 'var(--green)');
-  const triggerLabel =
-    selected === 'all' ? 'All accounts' : (activeAccount?.label ?? 'All accounts');
+  const activeAccount = (accounts ?? []).find((a) => a.id === selected);
+  const dotColor = selected === 'all'
+    ? 'var(--green)'
+    : (CATEGORY_DOT[activeAccount?.category ?? ''] ?? 'var(--green)');
+  const triggerLabel = selected === 'all' ? 'All accounts' : (activeAccount?.label ?? 'All accounts');
+
+  // Group accounts by venue
+  const venues = [...new Set((accounts ?? []).map((a) => a.venue))];
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -89,7 +79,7 @@ function AccountSelector() {
             height: 7,
             borderRadius: '50%',
             background: dotColor,
-            boxShadow: `0 0 0 3px ${selected === 'all' ? 'rgba(0,214,143,.15)' : 'rgba(247,166,0,.15)'}`,
+            boxShadow: `0 0 0 3px ${dotColor}26`,
             flexShrink: 0,
             display: 'inline-block',
           }}
@@ -104,7 +94,7 @@ function AccountSelector() {
             position: 'absolute',
             top: 'calc(100% + 6px)',
             left: 0,
-            minWidth: 220,
+            minWidth: 236,
             background: 'var(--eb-panel)',
             border: '1px solid var(--eb-border)',
             borderRadius: 10,
@@ -113,13 +103,10 @@ function AccountSelector() {
             padding: 4,
           }}
         >
-          {/* All accounts */}
+          {/* All accounts row */}
           <button
             type="button"
-            onClick={() => {
-              setSelected('all');
-              setOpen(false);
-            }}
+            onClick={() => { setSelected('all'); setOpen(false); }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -141,76 +128,94 @@ function AccountSelector() {
             {selected === 'all' && <Check size={12} style={{ color: 'var(--green)' }} />}
           </button>
 
-          {/* Divider + accounts */}
-          {DEMO_ACCOUNTS.length > 0 && (
+          {/* Exchange groups */}
+          {venues.length > 0 && (
             <>
               <div style={{ height: 1, background: 'var(--eb-border)', margin: '4px 6px' }} />
-              <div
-                style={{
-                  padding: '4px 10px 3px',
-                  fontSize: 10.5,
-                  color: 'var(--eb-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.07em',
-                  fontWeight: 600,
-                }}
-              >
-                Connected
-              </div>
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => {
-                    setSelected(acc.id);
-                    setOpen(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: 7,
-                    border: 0,
-                    background: selected === acc.id ? 'var(--eb-panel-2)' : 'transparent',
-                    color: selected === acc.id ? 'var(--eb-text)' : 'var(--eb-muted-2)',
-                    fontSize: 12.5,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: acc.color,
-                      flexShrink: 0,
-                      display: 'inline-block',
-                    }}
-                  />
-                  <span style={{ flex: 1 }}>{acc.label}</span>
-                  <Image
-                    src={resolvedTheme === 'dark' && acc.logoDark ? acc.logoDark : acc.logo}
-                    alt={acc.exchange}
-                    width={44}
-                    height={14}
-                    style={{ objectFit: 'contain', opacity: 0.85, flexShrink: 0 }}
-                  />
-                  {selected === acc.id && (
-                    <Check size={12} style={{ color: 'var(--green)', marginLeft: 4 }} />
-                  )}
-                </button>
-              ))}
+              {venues.map((venue) => {
+                const venueAccounts = (accounts ?? []).filter((a) => a.venue === venue);
+                const meta = VENUE_META[venue] ?? { logo: '', color: 'var(--eb-muted)' };
+                return (
+                  <div key={venue}>
+                    {/* Exchange header */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px 4px',
+                    }}>
+                      {meta.logo && (
+                        <Image
+                          src={meta.logo}
+                          alt={venue}
+                          width={52}
+                          height={14}
+                          style={{ objectFit: 'contain', flexShrink: 0 }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Subaccounts under this exchange */}
+                    {venueAccounts.map((acc) => {
+                      const catDot = CATEGORY_DOT[acc.category] ?? 'var(--eb-muted)';
+                      const isActive = selected === acc.id;
+                      return (
+                        <button
+                          key={acc.id}
+                          type="button"
+                          onClick={() => { setSelected(acc.id); setOpen(false); }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 9,
+                            width: '100%',
+                            padding: '6px 10px 6px 22px',
+                            borderRadius: 7,
+                            border: 0,
+                            background: isActive ? 'var(--eb-panel-2)' : 'transparent',
+                            color: isActive ? 'var(--eb-text)' : 'var(--eb-muted-2)',
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            textAlign: 'left',
+                          }}
+                        >
+                          <span style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: catDot,
+                            flexShrink: 0,
+                            display: 'inline-block',
+                          }} />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {acc.label}
+                          </span>
+                          <span style={{
+                            fontSize: 10,
+                            padding: '1px 5px',
+                            borderRadius: 99,
+                            background: `${catDot}1a`,
+                            color: catDot,
+                            fontWeight: 600,
+                            flexShrink: 0,
+                          }}>
+                            {acc.category.charAt(0).toUpperCase() + acc.category.slice(1)}
+                          </span>
+                          {isActive && <Check size={11} style={{ color: 'var(--green)', flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </>
           )}
 
-          {/* Connect account */}
+          {/* Add subaccount link */}
           <div style={{ height: 1, background: 'var(--eb-border)', margin: '4px 6px' }} />
-          <button
-            type="button"
+          <Link
+            href="/accounts"
             onClick={() => setOpen(false)}
             style={{
               display: 'flex',
@@ -219,18 +224,16 @@ function AccountSelector() {
               width: '100%',
               padding: '7px 10px',
               borderRadius: 7,
-              border: 0,
-              background: 'transparent',
               color: 'var(--eb-muted)',
               fontSize: 12,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              textAlign: 'left',
+              textDecoration: 'none',
             }}
           >
-            <Plug size={12} style={{ flexShrink: 0 }} />
-            Connect account…
-          </button>
+            <Plus size={12} style={{ flexShrink: 0 }} />
+            Add subaccount…
+          </Link>
         </div>
       )}
     </div>
@@ -357,7 +360,6 @@ export default function Topbar() {
         }}
       >
         <Bell size={14} />
-        {/* unread badge */}
         <span
           style={{
             position: 'absolute',
@@ -410,12 +412,8 @@ export default function Topbar() {
           fontFamily: 'inherit',
           transition: 'filter .15s',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.filter = 'brightness(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.filter = 'none';
-        }}
+        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.05)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
       >
         <Plus size={13} />
         Log trade
