@@ -7,10 +7,8 @@ import { NotesModule } from './notes/notes.module';
 import { PlaybooksModule } from './playbooks/playbooks.module';
 import { PositionsModule } from './positions/positions.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { QueueModule } from './queues/queue.module';
-import { WorkerModule } from './worker/worker.module';
 
 @Module({
-  imports: [PrismaModule, EncryptionModule, QueueModule, WorkerModule, AuthModule, AccountsModule, PositionsModule, PlaybooksModule, NotesModule, JournalModule],
+  imports: [PrismaModule, EncryptionModule, AuthModule, AccountsModule, PositionsModule, PlaybooksModule, NotesModule, JournalModule],
 })
 export class AppModule {}

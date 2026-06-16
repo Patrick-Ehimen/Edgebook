@@ -27,4 +27,4 @@ COPY --from=build /app/packages/db/prisma /app/packages/db/prisma
 COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
 
 EXPOSE 3001
-CMD ["node", "--max-old-space-size=350", "apps/api/dist/main.js"]
+CMD ["node", "apps/api/dist/main.js"]

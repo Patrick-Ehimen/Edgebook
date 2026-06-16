@@ -8,10 +8,7 @@ import {
   type CreateAccountInput,
   KeyScopeError,
 } from '@edgebook/shared/accounts';
-import { QUEUE_SYNC, type SyncJobData } from '@edgebook/shared/queues';
-import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import { Queue } from 'bullmq';
 import { EncryptionService } from '../encryption/encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -20,7 +17,6 @@ export class AccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
-    @InjectQueue(QUEUE_SYNC) private readonly syncQueue: Queue<SyncJobData>,
   ) {}
 
   async createAccount(userId: string, input: CreateAccountInput) {
@@ -95,12 +91,6 @@ export class AccountsService {
       },
     });
 
-    await this.syncQueue.add(
-      'sync',
-      { accountId, userId, fullSync: true },
-      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
-    );
-
     return this.toApiKeyShape(apiKey);
   }
 
@@ -130,13 +120,7 @@ export class AccountsService {
     if (!account) throw new AccountNotFoundError();
     if (account.userId !== userId) throw new AccountForbiddenError();
 
-    await this.syncQueue.add(
-      'sync',
-      { accountId, userId },
-      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
-    );
-
-    return { queued: true as const };
+    return { queued: false as const };
   }
 
   private toAccountShape(
