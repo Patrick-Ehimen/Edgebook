@@ -17,50 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Pull Vercel project settings into repo root (.vercel/project.json + env vars)
-      # vercel.json at repo root has outputDirectory=apps/web/.next so Vercel builds
-      # from the monorepo root where outputFileTracingRoot also points.
-      - name: Pull Vercel project settings
-        run: npx vercel@latest pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build with Vercel
-        run: npx vercel@latest build --prod --token ${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      # Upload the pre-built output — no remote rebuild needed
-      - name: Deploy prebuilt to Vercel
-        run: npx vercel@latest deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
+      # Upload the full repo source to Vercel and let their servers build it.
+      # The root vercel.json provides install/build/output settings.
+      # VERCEL_PROJECT_ID and VERCEL_ORG_ID identify the project without needing vercel pull.
+      - name: Deploy to Vercel
+        run: npx vercel@latest deploy --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
