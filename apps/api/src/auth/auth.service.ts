@@ -67,7 +67,7 @@ export class AuthService {
       },
     });
 
-    this.emailService.sendVerification(input.email, code);
+    await this.emailService.sendVerification(input.email, code);
 
     await this.prisma.auditEvent.create({
       data: { userId: user.id, kind: 'SIGNUP', ip: meta.ip, userAgent: meta.userAgent },
@@ -169,7 +169,7 @@ export class AuthService {
       },
     });
 
-    this.emailService.sendVerification(email, code);
+    await this.emailService.sendVerification(email, code);
     return { ok: true as const };
   }
 
@@ -348,7 +348,7 @@ export class AuthService {
       },
     });
 
-    this.emailService.sendPasswordReset(input.email, code);
+    await this.emailService.sendPasswordReset(input.email, code);
     return { ok: true as const };
   }
 

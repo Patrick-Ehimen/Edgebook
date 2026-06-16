@@ -17,6 +17,8 @@ const schema = z.object({
     .string()
     .regex(/^[0-9a-f]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)')
     .default('0000000000000000000000000000000000000000000000000000000000000000'),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().default('noreply@edgebook.app'),
 });
 
 export const env = schema.parse(process.env);
