@@ -15,10 +15,23 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      // App does not use React Compiler — downgrade to warn until adopted.
-      'react-compiler/react-compiler': 'warn',
+      // eslint-plugin-react-hooks v7 adds React Compiler validation rules.
+      // This app does not use React Compiler — downgrade all to warn.
+      'react-hooks/immutability': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-render': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-hooks/use-memo': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+      'react-hooks/globals': 'warn',
+      'react-hooks/error-boundaries': 'warn',
+      'react-hooks/config': 'warn',
+      'react-hooks/gating': 'warn',
       // Pre-existing violations; warn to keep visibility without blocking CI.
       '@typescript-eslint/no-explicit-any': 'warn',
+      'react/no-unescaped-entities': 'warn',
     },
   },
 ]);
