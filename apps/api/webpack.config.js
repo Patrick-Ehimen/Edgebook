@@ -3,12 +3,12 @@ const { IgnorePlugin } = require('webpack');
 
 module.exports = (options) => ({
   ...options,
-  // Bundle @edgebook/* workspace packages and ccxt inline.
-  // ccxt is pure JS but requires optional native deps for proxy + dYdX support.
-  // We don't use those features, so IgnorePlugin silences the missing-module errors.
+  // Bundle @edgebook/* workspace packages inline so the compiled bundle can
+  // resolve them without hoisted symlinks. ccxt is kept external — it's only
+  // needed when exchange sync runs, which is disabled for now.
   externals: [
     nodeExternals({
-      allowlist: [/^@edgebook\//, /^ccxt/],
+      allowlist: [/^@edgebook\//],
     }),
   ],
   plugins: [
