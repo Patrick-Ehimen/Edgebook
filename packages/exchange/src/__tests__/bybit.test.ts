@@ -3,7 +3,7 @@ import fixturesRaw from '../../__fixtures__/bybit/trades.json';
 import type { BybitTradeInfo } from '../bybit/normalize';
 import { normalizeBybitTrade } from '../bybit/normalize';
 
-const [info0, info1, info2] = fixturesRaw as [BybitTradeInfo, BybitTradeInfo, BybitTradeInfo];
+const [info0, info1, info2] = fixturesRaw as unknown as [BybitTradeInfo, BybitTradeInfo, BybitTradeInfo];
 
 describe('normalizeBybitTrade', () => {
   it('maps a buy trade correctly', () => {
