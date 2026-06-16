@@ -1,5 +1,5 @@
-import { AuthenticationError, PermissionDenied, binance, bybit } from 'ccxt';
 import type { Venue } from '@edgebook/shared/accounts';
+import { AuthenticationError, PermissionDenied, binance, bybit } from 'ccxt';
 
 export interface ProbeResult {
   safe: boolean;

@@ -128,7 +128,7 @@ function getNextSession(utcHour: number, utcMinute: number) {
   const h = Math.floor(minsUntil / 60);
   const m = minsUntil % 60;
   const countdown = h > 0 ? `${h}h ${m}m` : `${m}m`;
-  const opensAt = `${String(next.startHour === 24 ? 0 : next.startHour).padStart(2, '0')}:00`;
+  const opensAt = `${String(next.startHour).padStart(2, '0')}:00`;
   return { next, opensAt, countdown };
 }
 
