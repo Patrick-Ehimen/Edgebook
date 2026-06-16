@@ -43,12 +43,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build web app
-        run: pnpm build --filter=web
+      # Pull Vercel project settings (.vercel/project.json + env vars)
+      - name: Pull Vercel project settings
+        run: npx vercel@latest pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Deploy to Vercel
-        run: npx vercel@latest --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
-        working-directory: ./apps/web
+      # Build locally so the full monorepo is available (resolves workspace:* deps)
+      - name: Build with Vercel
+        run: npx vercel@latest build --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Upload the pre-built output — no remote rebuild needed
+      - name: Deploy prebuilt to Vercel
+        run: npx vercel@latest deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
