@@ -43,19 +43,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Pull Vercel project settings (.vercel/project.json + env vars)
+      # Pull Vercel project settings into repo root (.vercel/project.json + env vars)
+      # vercel.json at repo root has outputDirectory=apps/web/.next so Vercel builds
+      # from the monorepo root where outputFileTracingRoot also points.
       - name: Pull Vercel project settings
         run: npx vercel@latest pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
-        working-directory: ./apps/web
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # vercel.json in apps/web uses "cd ../.. && pnpm install" so the full
-      # monorepo is available when resolving workspace:* dependencies.
       - name: Build with Vercel
         run: npx vercel@latest build --prod --token ${{ secrets.VERCEL_TOKEN }}
-        working-directory: ./apps/web
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -63,7 +61,6 @@ jobs:
       # Upload the pre-built output — no remote rebuild needed
       - name: Deploy prebuilt to Vercel
         run: npx vercel@latest deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
-        working-directory: ./apps/web
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
