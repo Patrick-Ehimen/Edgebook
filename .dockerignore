@@ -1,6 +1,11 @@
-node_modules
-.next
-dist
-.turbo
-*.log
-.git
+**/.git
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/*.log
+*.png
+*.jpg
+*.jpeg
+index.html
+.DS_Store
