@@ -1,9 +1,9 @@
 FROM node:20-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Production dependencies only (for runtime node_modules)
+# Production dependencies only
 FROM base AS prod-deps
 COPY . /app
 WORKDIR /app
