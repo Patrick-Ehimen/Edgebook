@@ -50,6 +50,7 @@ export const JournalEntrySchema = z.object({
   confidenceEod: z.number().nullable().optional(),
   finalizedAt: z.string().nullable().optional(),
   lockedAt: z.string().nullable().optional(),
+  pinned: z.boolean().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -68,6 +69,8 @@ export const RecentEntrySchema = z.object({
   intentMd: z.string().nullable().optional(),
   tradeCount: z.number(),
   discipline: z.number().nullable().optional(),
+  tagsJson: z.unknown().nullable().optional(),
+  pinned: z.boolean().optional(),
 });
 
 export const RecentEntriesSchema = z.array(RecentEntrySchema);

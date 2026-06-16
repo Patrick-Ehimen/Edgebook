@@ -140,12 +140,12 @@ export class JournalService {
     // ── Positions (timestamptz — use anchorEnd to cover full day) ──
     const posAccFilter = accountId ? { userId, id: accountId } : { userId };
     const recentPositions = await this.prisma.position.findMany({
-      where: { account: posAccFilter, closedAt: { gte: since30d, lt: anchorEnd } },
+      where: { account: posAccFilter, openedAt: { gte: since30d, lt: anchorEnd } },
       select: { planAdherence: true, processScore: true, rPlanned: true, playbookId: true, checklistState: true },
     });
 
     const oldPositions = await this.prisma.position.findMany({
-      where: { account: posAccFilter, closedAt: { gte: since60d, lt: since30d } },
+      where: { account: posAccFilter, openedAt: { gte: since60d, lt: since30d } },
       select: { planAdherence: true, processScore: true, rPlanned: true, playbookId: true, checklistState: true },
     });
 
@@ -219,7 +219,7 @@ export class JournalService {
       where: { userId },
       orderBy: { date: 'desc' },
       take: limit,
-      select: { id: true, date: true, bias: true, finalizedAt: true, lesson: true, moodTagsJson: true, conviction: true, sleepHours: true, intentMd: true },
+      select: { id: true, date: true, bias: true, finalizedAt: true, lesson: true, moodTagsJson: true, tagsJson: true, conviction: true, sleepHours: true, intentMd: true, pinned: true },
     });
 
     if (entries.length === 0) return [];
@@ -307,6 +307,7 @@ export class JournalService {
         conviction: e.conviction,
         sleepHours: e.sleepHours,
         intentMd: e.intentMd,
+        pinned: e.pinned,
         tradeCount: dayPositions.length,
         discipline: overall,
       };

@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, X, CalendarDays, BookOpen,
-  Star, TrendingUp, TrendingDown, AlertTriangle, Lightbulb,
+  TrendingUp, TrendingDown, AlertTriangle, Lightbulb,
   Moon, MailX, Tag, Smile, Award, RotateCcw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { JournalStats } from '@/features/journal';
+import type { JournalStats, RecentEntry } from '@/features/journal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,8 @@ export interface JournalSidebarProps {
   onChange: (f: SidebarFilters) => void;
   entryDates: Set<string>;
   stats: JournalStats | undefined;
+  entries: RecentEntry[];
+  today: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,7 +74,6 @@ const QUICK_VIEWS: { id: string; label: string; Icon: LucideIcon }[] = [
   { id: 'all', label: 'All entries', Icon: BookOpen },
   { id: 'week', label: 'This week', Icon: CalendarDays },
   { id: 'month', label: 'This month', Icon: CalendarDays },
-  { id: 'pinned', label: 'Pinned', Icon: Star },
   { id: 'green', label: 'Green days', Icon: TrendingUp },
   { id: 'red', label: 'Red days', Icon: TrendingDown },
   { id: 'violations', label: 'Rule violations', Icon: AlertTriangle },
@@ -218,9 +219,69 @@ function DiscAvg({ value }: { value: number }) {
   return <span style={{ color }}>Avg D {value}</span>;
 }
 
+// ─── Count helpers ────────────────────────────────────────────────────────────
+
+function getTags(e: RecentEntry): string[] {
+  const raw = (e as unknown as Record<string, unknown>).tagsJson;
+  return Array.isArray(raw) ? (raw as string[]) : [];
+}
+
+function getMoods(e: RecentEntry): string[] {
+  return Array.isArray(e.moodTagsJson) ? (e.moodTagsJson as string[]) : [];
+}
+
+function quickViewCount(entries: RecentEntry[], id: string, today: string): number {
+  switch (id) {
+    case 'all': return entries.length;
+    case 'week': {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      const c = cutoff.toISOString().slice(0, 10);
+      return entries.filter(e => e.date.slice(0, 10) >= c).length;
+    }
+    case 'month':
+      return entries.filter(e => e.date.slice(0, 10) >= `${today.slice(0, 7)}-01`).length;
+    case 'lessons':
+      return entries.filter(e => e.lesson != null && e.lesson !== '').length;
+    case 'green': return entries.filter(e => e.bias === 'LONG').length;
+    case 'red':   return entries.filter(e => e.bias === 'SHORT').length;
+    case 'violations':
+      return entries.filter(e => {
+        const tags = getTags(e);
+        return tags.some(t => t.toLowerCase().includes('rule') || t.toLowerCase().includes('revenge'))
+          || (e.discipline != null && e.discipline < 40);
+      }).length;
+    case 'low-sleep': return entries.filter(e => e.sleepHours != null && Number(e.sleepHours) < 6).length;
+    case 'missed':    return entries.filter(e => e.finalizedAt == null).length;
+    default: return 0;
+  }
+}
+
+function CountBadge({ n }: { n: number }) {
+  if (n === 0) return null;
+  return (
+    <span style={{
+      marginLeft: 'auto',
+      fontSize: 10,
+      fontFamily: 'var(--font-mono, monospace)',
+      fontWeight: 600,
+      color: 'var(--eb-muted)',
+      background: 'var(--eb-panel-2)',
+      border: '1px solid var(--eb-border)',
+      borderRadius: 99,
+      padding: '0px 5px',
+      lineHeight: '16px',
+      minWidth: 18,
+      textAlign: 'center',
+    }}>
+      {n}
+    </span>
+  );
+}
+
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
 
-export function JournalSidebar({ open, onClose, filters, onChange, entryDates, stats }: JournalSidebarProps) {
+export function JournalSidebar({ open, onClose, filters, onChange, entryDates, stats, entries, today }: JournalSidebarProps) {
   const router = useRouter();
 
   const hasActiveFilters =
@@ -341,6 +402,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {QUICK_VIEWS.map(({ id, label, Icon }) => {
               const isOn = filters.quickView === id;
+              const count = quickViewCount(entries, id, today);
               return (
                 <button
                   key={id}
@@ -366,6 +428,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                 >
                   <Icon size={13} style={{ flexShrink: 0, color: isOn ? 'var(--green)' : 'var(--eb-muted)' }} />
                   {label}
+                  <CountBadge n={count} />
                 </button>
               );
             })}
@@ -378,6 +441,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {MOODS.map(({ label, c }) => {
               const isOn = filters.moods.includes(label);
+              const count = entries.filter(e => getMoods(e).includes(label)).length;
               return (
                 <button
                   key={label}
@@ -386,6 +450,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: 5,
                     fontSize: 11,
                     padding: '3px 9px',
                     borderRadius: 99,
@@ -398,6 +463,11 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   }}
                 >
                   {label}
+                  {count > 0 && (
+                    <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono, monospace)', opacity: 0.7 }}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -410,6 +480,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {TAGS.map(({ label, c }) => {
               const isOn = filters.tags.includes(label);
+              const count = entries.filter(e => getTags(e).includes(label)).length;
               return (
                 <button
                   key={label}
@@ -418,6 +489,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: 5,
                     fontSize: 11,
                     padding: '3px 9px',
                     borderRadius: 99,
@@ -430,6 +502,11 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   }}
                 >
                   {label}
+                  {count > 0 && (
+                    <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono, monospace)', opacity: 0.7 }}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -442,6 +519,15 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {DISCIPLINE_RANGES.map(({ label, value, color, borderColor, bg }) => {
               const isOn = filters.discipline === value;
+              const count = entries.filter(e => {
+                if (e.discipline == null) return false;
+                const d = e.discipline;
+                if (value === '90+') return d >= 90;
+                if (value === '70-89') return d >= 70 && d < 90;
+                if (value === '40-69') return d >= 40 && d < 70;
+                if (value === '<40') return d < 40;
+                return false;
+              }).length;
               return (
                 <button
                   key={value}
@@ -450,6 +536,7 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: 5,
                     fontSize: 11,
                     padding: '3px 9px',
                     borderRadius: 99,
@@ -462,6 +549,11 @@ export function JournalSidebar({ open, onClose, filters, onChange, entryDates, s
                   }}
                 >
                   {label}
+                  {count > 0 && (
+                    <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono, monospace)', opacity: 0.7 }}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}

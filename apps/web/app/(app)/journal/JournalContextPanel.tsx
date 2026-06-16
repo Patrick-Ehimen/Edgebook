@@ -65,7 +65,7 @@ const CIRCUMFERENCE = 314;
 
 function DisciplineRing({ score, vs30D, breakdown }: { score: number; vs30D: number; breakdown: BreakdownItem[] }) {
   const offset = CIRCUMFERENCE - (score / 100) * CIRCUMFERENCE;
-  const color = score >= 70 ? '#00d68f' : score >= 50 ? '#f5a524' : '#ff5b6c';
+  const color = score >= 70 ? '#00d68f' : score >= 40 ? '#f5a524' : '#ff5b6c';
   const gradId = `ring-grad-context`;
 
   return (
@@ -240,8 +240,8 @@ export function JournalContextPanel({ open, onClose, stats }: Props) {
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Discipline score</span>
             </div>
             {stats?.discipline != null && (
-              <span style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 99, background: stats.discipline.score >= 70 ? 'rgba(0,214,143,.10)' : stats.discipline.score >= 50 ? 'rgba(245,165,36,.10)' : 'rgba(255,91,108,.10)', color: stats.discipline.score >= 70 ? 'var(--green)' : stats.discipline.score >= 50 ? 'var(--eb-yellow)' : '#ff5b6c', border: `1px solid ${stats.discipline.score >= 70 ? 'rgba(0,214,143,.25)' : stats.discipline.score >= 50 ? 'rgba(245,165,36,.25)' : 'rgba(255,91,108,.25)'}` }}>
-                {stats.discipline.score >= 70 ? '✓ Good' : stats.discipline.score >= 50 ? '⚠ Needs work' : '✗ Critical'}
+              <span style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 99, background: stats.discipline.score >= 70 ? 'rgba(0,214,143,.10)' : stats.discipline.score >= 40 ? 'rgba(245,165,36,.10)' : 'rgba(255,91,108,.10)', color: stats.discipline.score >= 70 ? 'var(--green)' : stats.discipline.score >= 40 ? 'var(--eb-yellow)' : '#ff5b6c', border: `1px solid ${stats.discipline.score >= 70 ? 'rgba(0,214,143,.25)' : stats.discipline.score >= 40 ? 'rgba(245,165,36,.25)' : 'rgba(255,91,108,.25)'}` }}>
+                {stats.discipline.score >= 70 ? '✓ Good' : stats.discipline.score >= 40 ? '⚠ Needs work' : '✗ Critical'}
               </span>
             )}
           </div>

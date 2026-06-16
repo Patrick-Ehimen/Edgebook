@@ -879,14 +879,14 @@ function RiskAllocationBar({
   }
   const slotsList: SlotItem[] = [];
 
+  const plannedSymbols = new Set(usedPlans.map((p) => p.symbol.toUpperCase()));
+
   for (const p of usedPlans) {
-    slotsList.push({ id: p.id, symbol: p.symbol, riskPct: p.riskPct || null, type: 'plan' });
+    const traded = trades.some((t) => t.symbol.toUpperCase() === p.symbol.toUpperCase());
+    slotsList.push({ id: p.id, symbol: p.symbol, riskPct: p.riskPct || null, type: traded ? 'trade' : 'plan' });
   }
-  for (const t of trades) {
-    if (!slotsList.some((s) => s.type === 'trade' && s.id === t.id)) {
-      slotsList.push({ id: t.id, symbol: t.symbol, riskPct: t.rPlanned, type: 'trade' });
-    }
-  }
+
+  const unplannedTrades = trades.filter((t) => !plannedSymbols.has(t.symbol.toUpperCase()));
 
   const maxSlots = Math.max(1, maxTrades ?? 1);
   const usedCount = slotsList.length;
@@ -1000,6 +1000,49 @@ function RiskAllocationBar({
           );
         })}
       </div>
+
+      {unplannedTrades.length > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: 'rgba(245,165,36,.07)',
+            border: '1px solid rgba(245,165,36,.22)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <AlertTriangle size={12} style={{ color: 'var(--eb-yellow)', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: 'var(--eb-yellow)', fontWeight: 600, flexShrink: 0 }}>
+            Unplanned trades
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--eb-muted-2)' }}>
+            The following symbols were not in your risk plan:
+          </span>
+          <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {unplannedTrades.map((t) => (
+              <span
+                key={t.id}
+                style={{
+                  fontSize: 10.5,
+                  padding: '1px 7px',
+                  borderRadius: 99,
+                  background: 'rgba(245,165,36,.14)',
+                  color: 'var(--eb-yellow)',
+                  border: '1px solid rgba(245,165,36,.30)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontWeight: 600,
+                }}
+              >
+                {t.symbol}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -2668,6 +2711,10 @@ function LiveSession({
     },
   });
 
+  const plannedSymbolsInSession = new Set(
+    parsePlans((entry as any).keyLevelsJson).map((p) => p.symbol.toUpperCase()),
+  );
+
   const openCount = dayPositions.filter((p) => p.status === 'open').length;
   const closedCount = dayPositions.filter((p) => p.status === 'closed').length;
   const wins = dayPositions.filter((p) => p.netPnl && Number(p.netPnl) > 0).length;
@@ -2676,7 +2723,7 @@ function LiveSession({
   const maxTrades = Number((entry as any).maxTrades) || 0;
   const isOverPlan = maxTrades > 0 && dayPositions.length > maxTrades;
 
-  const discipline = stats?.disciplineAvg ?? null;
+  const discipline = stats?.discipline?.score ?? null;
 
   const thStyle: React.CSSProperties = {
     textAlign: 'left',
@@ -2725,28 +2772,30 @@ function LiveSession({
           />
           {session.label}
         </Chip>
-        <span style={{ marginLeft: 'auto' }}>
-          <button
-            type="button"
-            onClick={logTrade.open}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              borderRadius: 7,
-              cursor: 'pointer',
-              border: '1px solid rgba(0,214,143,.40)',
-              background: 'rgba(0,214,143,.08)',
-              color: 'var(--green)',
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: 'inherit',
-            }}
-          >
-            <Plus size={13} /> Log trade
-          </button>
-        </span>
+        {!locked && (
+          <span style={{ marginLeft: 'auto' }}>
+            <button
+              type="button"
+              onClick={logTrade.open}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: 7,
+                cursor: 'pointer',
+                border: '1px solid rgba(0,214,143,.40)',
+                background: 'rgba(0,214,143,.08)',
+                color: 'var(--green)',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'inherit',
+              }}
+            >
+              <Plus size={13} /> Log trade
+            </button>
+          </span>
+        )}
       </div>
 
       {/* KPIs row */}
@@ -2904,9 +2953,9 @@ function LiveSession({
               fontFamily: 'var(--font-mono, monospace)',
               color:
                 discipline != null
-                  ? discipline >= 80
+                  ? discipline >= 70
                     ? 'var(--green)'
-                    : discipline >= 50
+                    : discipline >= 40
                       ? 'var(--eb-yellow)'
                       : 'var(--eb-red)'
                   : 'var(--eb-muted)',
@@ -2991,7 +3040,31 @@ function LiveSession({
                           minute: '2-digit',
                         })}
                       </td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>{pos.symbol}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          {pos.symbol}
+                          {plannedSymbolsInSession.size > 0 && !plannedSymbolsInSession.has(pos.symbol.toUpperCase()) && (
+                            <span
+                              title="Not in risk plan"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                fontSize: 9.5,
+                                padding: '1px 5px',
+                                borderRadius: 99,
+                                background: 'rgba(245,165,36,.14)',
+                                color: 'var(--eb-yellow)',
+                                border: '1px solid rgba(245,165,36,.30)',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <AlertTriangle size={9} /> unplanned
+                            </span>
+                          )}
+                        </span>
+                      </td>
                       <td
                         style={{
                           ...tdStyle,
@@ -3082,25 +3155,27 @@ function LiveSession({
         >
           <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
           <div style={{ fontWeight: 500, color: 'var(--eb-muted-2)' }}>No trades logged today</div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>
-            Click{' '}
-            <button
-              type="button"
-              onClick={logTrade.open}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                font: 'inherit',
-                fontWeight: 700,
-                color: 'var(--green)',
-                cursor: 'pointer',
-              }}
-            >
-              Log trade
-            </button>{' '}
-            to record your first trade.
-          </div>
+          {!locked && (
+            <div style={{ fontSize: 12, marginTop: 4 }}>
+              Click{' '}
+              <button
+                type="button"
+                onClick={logTrade.open}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  font: 'inherit',
+                  fontWeight: 700,
+                  color: 'var(--green)',
+                  cursor: 'pointer',
+                }}
+              >
+                Log trade
+              </button>{' '}
+              to record your first trade.
+            </div>
+          )}
         </div>
       )}
 
@@ -3120,8 +3195,10 @@ function LiveSession({
       </h4>
       <textarea
         value={note}
+        disabled={locked}
         onChange={(e) => setNote(e.target.value)}
         onBlur={(e) => {
+          if (locked) return;
           const val = e.target.value;
           if (val !== entry.sessionNotesMd) saveNote(val);
           e.currentTarget.style.borderColor = 'var(--eb-border)';
@@ -3135,16 +3212,18 @@ function LiveSession({
           border: '1px solid var(--eb-border)',
           borderRadius: 8,
           padding: '9px 11px',
-          color: 'var(--eb-text)',
+          color: locked ? 'var(--eb-muted)' : 'var(--eb-text)',
           fontSize: 13,
           fontFamily: 'inherit',
           outline: 'none',
-          resize: 'vertical',
+          resize: locked ? 'none' : 'vertical',
           boxSizing: 'border-box',
           lineHeight: 1.6,
+          opacity: locked ? 0.6 : 1,
+          cursor: locked ? 'not-allowed' : 'text',
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = 'var(--green)';
+          if (!locked) e.currentTarget.style.borderColor = 'var(--green)';
         }}
       />
     </Panel>
@@ -3171,6 +3250,16 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : 'Failed to delete entry');
     },
+  });
+
+  const unlockEodMutation = useMutation({
+    mutationFn: () => journalApi.upsertEntry(dateStr, { finalizedAt: null } as any),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journal-entry', dateStr] });
+      qc.invalidateQueries({ queryKey: ['journal-recent'] });
+      toast.success('EOD review unlocked');
+    },
+    onError: () => toast.error('Failed to unlock'),
   });
 
   const { data: stats } = useQuery({
@@ -3607,16 +3696,40 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
                 title="End-of-day review"
                 chip={
                   full.finalizedAt ? (
-                    <Chip
-                      style={{
-                        color: 'var(--green)',
-                        borderColor: 'rgba(0,214,143,.3)',
-                        background: 'rgba(0,214,143,.08)',
-                        fontSize: 10.5,
-                      }}
-                    >
-                      ✓ Finalized
-                    </Chip>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Chip
+                        style={{
+                          color: 'var(--green)',
+                          borderColor: 'rgba(0,214,143,.3)',
+                          background: 'rgba(0,214,143,.08)',
+                          fontSize: 10.5,
+                        }}
+                      >
+                        ✓ Finalized
+                      </Chip>
+                      <button
+                        type="button"
+                        onClick={() => unlockEodMutation.mutate()}
+                        disabled={unlockEodMutation.isPending}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          border: '1px solid var(--eb-border)',
+                          background: 'var(--eb-panel-2)',
+                          color: 'var(--eb-muted-2)',
+                          fontSize: 11.5,
+                          fontWeight: 500,
+                          cursor: unlockEodMutation.isPending ? 'not-allowed' : 'pointer',
+                          fontFamily: 'inherit',
+                          opacity: unlockEodMutation.isPending ? 0.6 : 1,
+                        }}
+                      >
+                        <Unlock size={11} /> Unlock full day
+                      </button>
+                    </span>
                   ) : (
                     <Chip style={{ fontSize: 10.5 }}>Draft</Chip>
                   )

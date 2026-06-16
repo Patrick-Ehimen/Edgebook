@@ -152,7 +152,6 @@ export default function SidebarNav() {
         position: 'sticky',
         top: 0,
         height: '100vh',
-        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
         gap: 0,
@@ -191,6 +190,9 @@ export default function SidebarNav() {
           PRO
         </span>
       </div>
+
+      {/* Scrollable nav area */}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Workspace nav */}
       <div style={sectionLabel}>Workspace</div>
@@ -396,8 +398,10 @@ export default function SidebarNav() {
         </>
       )}
 
+      </div>
+
       {/* Profile card at bottom */}
-      <div style={{ marginTop: 'auto', paddingTop: 8 }}>
+      <div style={{ paddingTop: 8 }}>
         <div
           style={{
             borderTop: '1px solid var(--eb-border)',

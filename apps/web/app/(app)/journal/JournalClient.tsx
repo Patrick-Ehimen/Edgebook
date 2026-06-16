@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { journalApi } from '@/features/journal';
 import type { JournalEntry, JournalStats, RecentEntry } from '@/features/journal';
@@ -70,8 +70,18 @@ function weekRangeLabel(ws: string, today: string): string {
   return `${s.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} · ${fmt(s)} – ${fmt(e)}`;
 }
 
+function entryTags(e: RecentEntry): string[] {
+  const raw = (e as unknown as Record<string, unknown>).tagsJson;
+  return Array.isArray(raw) ? (raw as string[]) : [];
+}
+
+function entryMoods(e: RecentEntry): string[] {
+  return Array.isArray(e.moodTagsJson) ? (e.moodTagsJson as string[]) : [];
+}
+
 function applyFilters(entries: RecentEntry[], today: string, filters: SidebarFilters): RecentEntry[] {
   let r = entries;
+
   switch (filters.quickView) {
     case 'week': {
       const cutoff = new Date();
@@ -92,7 +102,50 @@ function applyFilters(entries: RecentEntry[], today: string, filters: SidebarFil
     case 'red':
       r = r.filter(e => e.bias === 'SHORT');
       break;
+    case 'violations': {
+      r = r.filter(e => {
+        const tags = entryTags(e);
+        const hasTiltTag = tags.some(t =>
+          t.toLowerCase().includes('rule') || t.toLowerCase().includes('revenge'),
+        );
+        return hasTiltTag || (e.discipline != null && e.discipline < 40);
+      });
+      break;
+    }
+    case 'low-sleep':
+      r = r.filter(e => e.sleepHours != null && Number(e.sleepHours) < 6);
+      break;
+    case 'missed':
+      r = r.filter(e => e.finalizedAt == null);
+      break;
   }
+
+  if (filters.moods.length > 0) {
+    r = r.filter(e => {
+      const moods = entryMoods(e);
+      return filters.moods.some(m => moods.includes(m));
+    });
+  }
+
+  if (filters.tags.length > 0) {
+    r = r.filter(e => {
+      const tags = entryTags(e);
+      return filters.tags.some(t => tags.includes(t));
+    });
+  }
+
+  if (filters.discipline !== null) {
+    r = r.filter(e => {
+      if (e.discipline == null) return false;
+      const d = e.discipline;
+      if (filters.discipline === '90+') return d >= 90;
+      if (filters.discipline === '70-89') return d >= 70 && d < 90;
+      if (filters.discipline === '40-69') return d >= 40 && d < 70;
+      if (filters.discipline === '<40') return d < 40;
+      return true;
+    });
+  }
+
   return r;
 }
 
@@ -196,6 +249,30 @@ function JournalSkeleton() {
   );
 }
 
+// ─── Pin button ───────────────────────────────────────────────────────────────
+
+function PinButton({ date, pinned }: { date: string; pinned: boolean }) {
+  const queryClient = useQueryClient();
+  const { mutate, isPending } = useMutation({
+    mutationFn: (next: boolean) => journalApi.upsertEntry(date, { pinned: next }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['journal-recent'] }); },
+  });
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isPending) mutate(!pinned); }}
+      title={pinned ? 'Unpin entry' : 'Pin entry'}
+      style={{
+        background: 'transparent', border: 'none', cursor: isPending ? 'default' : 'pointer',
+        padding: 3, opacity: isPending ? 0.5 : 1, flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <Star size={13} fill={pinned ? '#fbbf24' : 'none'} color={pinned ? '#fbbf24' : 'var(--eb-border)'} />
+    </button>
+  );
+}
+
 // ─── Chip ─────────────────────────────────────────────────────────────────────
 
 function Chip({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -220,6 +297,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
   const moods: string[] = Array.isArray(full.moodTagsJson) ? (full.moodTagsJson as string[]) : [];
   const borderLeft = entry.bias === 'LONG' ? '3px solid var(--green)' : entry.bias === 'SHORT' ? '3px solid #ef4444' : '3px solid var(--eb-muted)';
   const dk = entry.date.slice(0, 10);
+  const isPinned = (entry as RecentEntry).pinned === true;
 
   // Dynamic colors for "Today" highlight based on bias
   const todayColor = entry.bias === 'LONG' ? '0,214,143' : entry.bias === 'SHORT' ? '239,68,68' : '122,131,149';
@@ -249,10 +327,13 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
           <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{mon}</div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 }}>
-            {entry.bias && <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>}
-            {recent?.tradeCount != null && recent.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {recent.tradeCount} trade{recent.tradeCount !== 1 ? 's' : ''}</Chip>}
-            {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● Today · in progress</Chip>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {entry.bias && <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>}
+              {recent?.tradeCount != null && recent.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {recent.tradeCount} trade{recent.tradeCount !== 1 ? 's' : ''}</Chip>}
+              {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● Today · in progress</Chip>}
+            </div>
+            <PinButton date={dk} pinned={isPinned} />
           </div>
           <div style={{ fontSize: 11, color: 'var(--eb-muted)', display: 'flex', alignItems: 'center', gap: 10 }}>
             {full.conviction != null && (
@@ -327,10 +408,12 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
     ? disc >= 70 ? 'var(--eb-text)' : disc >= 40 ? 'var(--eb-yellow)' : 'var(--eb-red)'
     : 'var(--eb-muted)';
 
+  const isPinned = entry.pinned === true;
+
   return (
     <Link href={`/journal/${dk}`} style={{
         display: 'grid',
-        gridTemplateColumns: '10px 84px 1fr 40px auto 18px',
+        gridTemplateColumns: '10px 84px 1fr 40px auto 20px 18px',
         gap: 14, alignItems: 'center',
         padding: '11px 16px',
         background,
@@ -362,6 +445,7 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
           ? <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>
           : <span />
         }
+        <PinButton date={dk} pinned={isPinned} />
         <ChevronRight size={13} style={{ color: 'var(--eb-border)' }} />
       </Link>
     );
@@ -939,6 +1023,8 @@ function JournalBrowser({
         onChange={onFiltersChange}
         entryDates={entryDates}
         stats={stats}
+        entries={recentEntries}
+        today={today}
       />
     </div>
   );

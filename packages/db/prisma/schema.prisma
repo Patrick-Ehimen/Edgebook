@@ -428,6 +428,7 @@ model JournalEntry {
   tiltRisk      Int?
   confidenceEod Int?
   finalizedAt   DateTime? @db.Timestamptz
+  pinned        Boolean   @default(false)
 
   images    String[]
   createdAt DateTime @default(now()) @db.Timestamptz

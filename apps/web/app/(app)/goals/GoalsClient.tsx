@@ -2,6 +2,7 @@
 
 import { useAccounts } from '@/features/accounts';
 import type { AccountItem } from '@/features/accounts';
+import { usePositions } from '@/features/positions';
 import { useGoals } from '@/providers/goals-provider';
 import type { AccountConfig, GoalDef, RuleDef } from '@/providers/goals-provider';
 import { useSelectedAccount } from '@/providers/selected-account-provider';
@@ -18,7 +19,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 // ─── Preset definitions ───────────────────────────────────────────────────────
 
@@ -2739,6 +2740,159 @@ function AddRuleModal({
   );
 }
 
+// ─── Live PnL stats ───────────────────────────────────────────────────────────
+
+type PnlStats = {
+  todayPnl: number;
+  weekPnl: number;
+  monthPnl: number;
+  todayTrades: number;
+  winRate: number;
+  totalClosed: number;
+  // calendar context
+  dailyPnlMap: Record<string, number>; // 'YYYY-MM-DD' → net P&L
+  tradingDaysThisMonth: number; // weekdays elapsed 1st → today
+  totalTradingDaysThisMonth: number; // weekdays in the full month
+  weekdaysThisWeek: number; // weekdays elapsed Mon → today
+  weekStart: Date;
+  weekNum: number;
+  monthName: string;
+};
+
+function countWeekdays(from: Date, to: Date): number {
+  let count = 0;
+  const d = new Date(from);
+  while (d <= to) {
+    const day = d.getUTCDay();
+    if (day >= 1 && day <= 5) count++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return count;
+}
+
+function isoWeekNum(d: Date): number {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+}
+
+function computeGoalMeta(g: GoalDef, stats: PnlStats): string {
+  const lbl = g.label.toLowerCase();
+
+  if (lbl.includes('win rate')) {
+    const t = Number.parseFloat(g.target.replace('%', '').trim()) || 55;
+    return `Floor: ${t}% · sample window: rolling 50 trades`;
+  }
+
+  if (lbl.includes('max trades') || lbl.includes('trades /')) {
+    return `Limit: ${g.target} · prevents over-trading · soft alert at 80%`;
+  }
+
+  if (lbl.includes('max loss') || lbl.includes('drawdown')) {
+    const isMonthly = lbl.includes('monthly') || lbl.includes('drawdown cap');
+    return isMonthly
+      ? `${g.target} ${g.unit} · triggers account halt · ${stats.monthName}`
+      : `${g.target} ${g.unit} · hard pause when hit · circuit breaker`;
+  }
+
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+  if (lbl.includes('weekly')) {
+    const weekEnd = new Date(stats.weekStart);
+    weekEnd.setUTCDate(stats.weekStart.getUTCDate() + 6);
+    return `Week ${stats.weekNum} · ${fmtDate(stats.weekStart)} → ${fmtDate(weekEnd)} · ${stats.weekdaysThisWeek} of 5 days complete`;
+  }
+
+  if (lbl.includes('monthly')) {
+    return `${stats.monthName} · target ${g.target} · ${stats.tradingDaysThisMonth} of ${stats.totalTradingDaysThisMonth} trading days done`;
+  }
+
+  // daily P&L — count how many days hit target
+  const targetNum = Number.parseFloat(g.target.replace(/[$,]/g, '').trim()) || 0;
+  const daysHit = Object.values(stats.dailyPnlMap).filter((v) => v >= targetNum).length;
+  return `Mon–Fri · resets 00:00 UTC · ${daysHit} of ${stats.totalTradingDaysThisMonth} trading days hit this month`;
+}
+
+function fmtUsd(v: number): string {
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? '+' : '-';
+  if (abs >= 1000) return `${sign}$${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return `${sign}$${abs.toFixed(2)}`;
+}
+
+function computeGoalLive(
+  g: GoalDef,
+  stats: PnlStats,
+): { displayValue: string; subtext: string; pct: number; status: GoalDef['status'] } {
+  const lbl = g.label.toLowerCase();
+
+  if (lbl.includes('win rate')) {
+    const targetNum = Number.parseFloat(g.target.replace('%', '').trim()) || 55;
+    const current = stats.winRate;
+    const ratio = targetNum > 0 ? current / targetNum : 0;
+    const pct = Math.min(ratio * 100, 100);
+    const status: GoalDef['status'] = current >= targetNum ? 'on-track' : 'drift';
+    return {
+      displayValue: stats.totalClosed === 0 ? '—' : `${current.toFixed(0)}%`,
+      subtext:
+        stats.totalClosed === 0
+          ? 'No closed trades yet'
+          : `Last ${Math.min(stats.totalClosed, 50)} trades`,
+      pct,
+      status,
+    };
+  }
+
+  if (lbl.includes('max trades') || lbl.includes('trades /')) {
+    const targetNum = Number.parseFloat(g.target) || 8;
+    const pct = Math.min((stats.todayTrades / targetNum) * 100, 100);
+    const status: GoalDef['status'] = pct >= 80 ? 'drift' : 'safe';
+    return {
+      displayValue: `${stats.todayTrades}`,
+      subtext: `/ ${targetNum} limit today`,
+      pct,
+      status,
+    };
+  }
+
+  if (lbl.includes('max loss') || lbl.includes('drawdown')) {
+    const isMonthly = lbl.includes('monthly') || lbl.includes('drawdown cap');
+    const rawPnl = isMonthly ? stats.monthPnl : stats.todayPnl;
+    const loss = Math.min(rawPnl, 0);
+    const status: GoalDef['status'] = loss < 0 ? 'drift' : 'safe';
+    return {
+      displayValue: loss === 0 ? '$0.00' : `-$${Math.abs(loss).toFixed(2)}`,
+      subtext:
+        loss < 0
+          ? `${isMonthly ? 'Month' : 'Today'}'s loss`
+          : `No losses ${isMonthly ? 'this month' : 'today'}`,
+      pct: 0,
+      status,
+    };
+  }
+
+  // P&L goals — daily / weekly / monthly
+  const rawPnl = lbl.includes('weekly')
+    ? stats.weekPnl
+    : lbl.includes('monthly')
+      ? stats.monthPnl
+      : stats.todayPnl;
+  const targetNum = Number.parseFloat(g.target.replace(/[$,]/g, '').trim()) || 1;
+  const ratio = targetNum > 0 ? rawPnl / targetNum : 0;
+  const status: GoalDef['status'] = ratio >= 1.1 ? 'ahead' : ratio >= 0.3 ? 'on-track' : 'drift';
+  return {
+    displayValue: stats.totalClosed === 0 && rawPnl === 0 ? '—' : fmtUsd(rawPnl),
+    subtext:
+      stats.totalClosed === 0
+        ? 'No closed trades yet'
+        : `${Math.max(0, ratio * 100).toFixed(0)}% of ${g.target} target`,
+    pct: Math.min(Math.max(ratio * 100, 0), 100),
+    status: stats.totalClosed === 0 ? 'on-track' : status,
+  };
+}
+
 // ─── Configured / Dashboard state ─────────────────────────────────────────────
 
 type Tab = 'goals' | 'rules';
@@ -2772,6 +2926,67 @@ function GoalsDashboard({
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddRule, setShowAddRule] = useState(false);
   const activeRules = rules.filter((r) => r.enabled).length;
+
+  const { data: positions } = usePositions(account?.id ?? null, { refetchInterval: 30_000 });
+
+  const pnlStats = useMemo((): PnlStats => {
+    const closed = (positions ?? []).filter((p) => p.status === 'closed' && p.closedAt != null);
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth();
+    const d = now.getUTCDate();
+
+    const todayStart = new Date(Date.UTC(y, m, d));
+    const daysFromMonday = (todayStart.getUTCDay() + 6) % 7;
+    const weekStart = new Date(todayStart);
+    weekStart.setUTCDate(todayStart.getUTCDate() - daysFromMonday);
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 0)); // last day of month
+
+    let todayPnl = 0;
+    let weekPnl = 0;
+    let monthPnl = 0;
+    let todayTrades = 0;
+    const dailyPnlMap: Record<string, number> = {};
+
+    for (const p of closed) {
+      const closedAt = new Date(p.closedAt ?? '');
+      const pnl = Number.parseFloat(p.netPnl);
+      if (Number.isNaN(pnl)) continue;
+      if (closedAt >= todayStart) {
+        todayPnl += pnl;
+        todayTrades++;
+      }
+      if (closedAt >= weekStart) weekPnl += pnl;
+      if (closedAt >= monthStart) {
+        monthPnl += pnl;
+        const key = closedAt.toISOString().slice(0, 10);
+        dailyPnlMap[key] = (dailyPnlMap[key] ?? 0) + pnl;
+      }
+    }
+
+    const last50 = [...closed]
+      .sort((a, b) => new Date(b.closedAt ?? '').getTime() - new Date(a.closedAt ?? '').getTime())
+      .slice(0, 50);
+    const wins = last50.filter((p) => Number.parseFloat(p.netPnl) > 0).length;
+    const winRate = last50.length > 0 ? (wins / last50.length) * 100 : 0;
+
+    return {
+      todayPnl,
+      weekPnl,
+      monthPnl,
+      todayTrades,
+      winRate,
+      totalClosed: closed.length,
+      dailyPnlMap,
+      tradingDaysThisMonth: countWeekdays(monthStart, todayStart),
+      totalTradingDaysThisMonth: countWeekdays(monthStart, monthEnd),
+      weekdaysThisWeek: countWeekdays(weekStart, todayStart),
+      weekStart,
+      weekNum: isoWeekNum(now),
+      monthName: now.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' }),
+    };
+  }, [positions]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'goals', label: 'Goals' },
@@ -3029,7 +3244,11 @@ function GoalsDashboard({
             Targets that pace you. Pacing bars update in real time off your synced fills.
           </p>
           {goals.map((g) => {
-            const sc = STATUS_CHIP[g.status];
+            const live = computeGoalLive(g, pnlStats);
+            const sc = STATUS_CHIP[live.status];
+            const isPos = live.displayValue.startsWith('+');
+            const isNeg = live.displayValue.startsWith('-') && live.displayValue !== '-';
+            const valueColor = isPos ? 'var(--green)' : isNeg ? 'var(--eb-red)' : 'var(--eb-muted)';
             return (
               <div
                 key={g.id}
@@ -3060,13 +3279,9 @@ function GoalsDashboard({
                     <Chip label={sc.label} color={sc.color} bg={sc.bg} border={sc.border} />
                   </div>
                   <div style={{ color: 'var(--eb-muted)', fontSize: 11.5, marginTop: 3 }}>
-                    {g.period === 'daily'
-                      ? 'Resets daily · 00:00 UTC'
-                      : g.period === 'weekly'
-                        ? 'Resets Monday 00:00 UTC'
-                        : 'Resets 1st of month 00:00 UTC'}
+                    {computeGoalMeta(g, pnlStats)}
                   </div>
-                  <ProgressBar pct={g.pct} status={g.status} />
+                  <ProgressBar pct={live.pct} status={live.status} />
                 </div>
                 <div>
                   <div
@@ -3082,10 +3297,10 @@ function GoalsDashboard({
                         fontFamily: 'var(--font-mono, monospace)',
                         fontSize: 20,
                         fontWeight: 600,
-                        color: 'var(--eb-muted)',
+                        color: valueColor,
                       }}
                     >
-                      —
+                      {live.displayValue}
                     </span>
                     <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>
                       / {g.target} {g.unit}
@@ -3099,7 +3314,7 @@ function GoalsDashboard({
                       marginTop: 4,
                     }}
                   >
-                    No fills yet · target: {g.target}
+                    {live.subtext}
                   </div>
                   <div
                     style={{ display: 'flex', gap: 5, marginTop: 6, justifyContent: 'flex-end' }}
