@@ -89,7 +89,8 @@ function applyExitFill(
   let toMatch = exitQty;
 
   while (toMatch.gt(0) && pos.lots.length > 0) {
-    const lot = pos.lots[0]!;
+    const lot = pos.lots[0];
+    if (!lot) break;
     const matched = Decimal.min(toMatch, lot.qty);
 
     pos.grossPnl = pos.grossPnl.plus(

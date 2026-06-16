@@ -268,7 +268,7 @@ function EquityCurve({ data }: { data: { date: string; cum: number }[] }) {
                   boxShadow: '0 4px 16px rgba(0,0,0,.3)',
                 }}
               >
-                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(label)}</div>
+                <div style={{ color: 'var(--eb-muted)', marginBottom: 4 }}>{fmt(String(label ?? ''))}</div>
                 <div style={{ fontWeight: 600, color: val >= 0 ? '#00d68f' : '#f87171' }}>
                   {fmtMoney(val)}{' '}
                   <span style={{ fontWeight: 400, color: 'var(--eb-muted)' }}>Cumulative P&L</span>
