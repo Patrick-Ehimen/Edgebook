@@ -13,6 +13,7 @@ import { PasswordStrengthMeter } from '@/components/ui/password-strength-meter';
 import { SecurityBadge } from './SecurityBadge';
 import { OAuthButtons } from './OAuthButtons';
 import { WalletButton } from './WalletButton';
+import { AuthFormSkeleton } from './AuthFormSkeleton';
 import { useSignUp } from '../hooks/useSignUp';
 import { cn } from '@/lib/utils';
 
@@ -108,6 +109,8 @@ export function SignUpForm() {
       acceptTerms: true,
     });
   };
+
+  if (isPending) return <AuthFormSkeleton variant="sign-up" />;
 
   return (
     <div>

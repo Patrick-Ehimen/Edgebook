@@ -20,6 +20,7 @@ import { Divider } from '@/components/ui/divider';
 import { SecurityBadge } from './SecurityBadge';
 import { OAuthButtons } from './OAuthButtons';
 import { WalletButton } from './WalletButton';
+import { AuthFormSkeleton } from './AuthFormSkeleton';
 import { useSignIn } from '../hooks/useSignIn';
 import { SignInInput } from '../schemas';
 import { cn } from '@/lib/utils';
@@ -83,6 +84,8 @@ export function SignInForm() {
     resolver: zodResolver(SignInInput),
     defaultValues: { email: '', password: '', remember: false },
   });
+
+  if (isPending) return <AuthFormSkeleton variant="sign-in" />;
 
   return (
     <div>
