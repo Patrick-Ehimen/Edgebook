@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter=@edgebook/db db:generate",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=web",
   "outputDirectory": ".next",
   "framework": "nextjs"

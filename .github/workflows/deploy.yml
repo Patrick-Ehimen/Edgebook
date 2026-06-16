@@ -17,9 +17,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Upload the full repo source to Vercel and let their servers build it.
-      # The root vercel.json provides install/build/output settings.
-      # VERCEL_PROJECT_ID and VERCEL_ORG_ID identify the project without needing vercel pull.
+      # Set rootDirectory=apps/web so Vercel reads apps/web/package.json (which has
+      # "next") and apps/web/vercel.json (which has the "cd ../.." install/build cmds).
+      - name: Configure Vercel project rootDirectory
+        run: |
+          curl -s -X PATCH \
+            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}?teamId=${{ secrets.VERCEL_ORG_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"rootDirectory": "apps/web"}' | jq -r '.rootDirectory // .error.message // "ok"'
+
+      # Upload the full repo source; Vercel builds it in their infra using
+      # apps/web/vercel.json (framework=nextjs, installCommand, buildCommand).
       - name: Deploy to Vercel
         run: npx vercel@latest deploy --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
         env:
