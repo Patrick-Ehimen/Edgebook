@@ -46,18 +46,19 @@ export class SessionService {
       expiresIn: '7d',
     });
 
+    const crossOrigin = env.NODE_ENV === 'production';
     res.cookie(COOKIE, token, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: crossOrigin,
+      sameSite: crossOrigin ? 'none' : 'lax',
       maxAge: TTL_MS,
       path: '/',
     });
 
     res.cookie(ONBOARDED_COOKIE, String(user.isOnboarded), {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: crossOrigin,
+      sameSite: crossOrigin ? 'none' : 'lax',
       maxAge: TTL_MS,
       path: '/',
     });
@@ -114,7 +115,9 @@ export class SessionService {
   }
 
   clearCookie(res: Response): void {
-    res.clearCookie(COOKIE, { path: '/' });
-    res.clearCookie(ONBOARDED_COOKIE, { path: '/' });
+    const crossOrigin = env.NODE_ENV === 'production';
+    const opts = { path: '/', secure: crossOrigin, sameSite: crossOrigin ? ('none' as const) : ('lax' as const) };
+    res.clearCookie(COOKIE, opts);
+    res.clearCookie(ONBOARDED_COOKIE, opts);
   }
 }

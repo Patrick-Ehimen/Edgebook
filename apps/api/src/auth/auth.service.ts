@@ -328,7 +328,8 @@ export class AuthService {
     });
 
     await this.sessionService.create(user, res, meta);
-    return res.redirect(`${env.APP_URL}${user.isOnboarded ? '/dashboard' : '/onboarding'}`);
+    const appUrl = env.APP_URL.replace(/\/$/, '');
+    return res.redirect(`${appUrl}${user.isOnboarded ? '/dashboard' : '/onboarding'}`);
   }
 
   // ─── Forgot password ────────────────────────────────────────────────────────

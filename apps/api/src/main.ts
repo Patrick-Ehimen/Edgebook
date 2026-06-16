@@ -22,7 +22,7 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: env.APP_URL,
+    origin: env.APP_URL.replace(/\/$/, ''),
     credentials: true,
   });
 
