@@ -91,9 +91,8 @@ export const SignUpInput = z.object({
 });
 export type SignUpInput = z.infer<typeof SignUpInput>;
 
-/** Sign-up does not return a session — caller must verify email next. */
 export const SignUpResponse = z.object({
-  email: Email,
+  session: SessionSchema,
 });
 export type SignUpResponse = z.infer<typeof SignUpResponse>;
 

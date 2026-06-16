@@ -39,8 +39,8 @@ export class AuthController {
 
   @Post('sign-up')
   @HttpCode(HttpStatus.CREATED)
-  signUp(@Body(new ZodValidationPipe(SignUpInput)) body: SignUpInput, @Req() req: Request) {
-    return this.authService.signUp(body, meta(req));
+  signUp(@Body(new ZodValidationPipe(SignUpInput)) body: SignUpInput, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.authService.signUp(body, res, meta(req));
   }
 
   @Post('sign-in')

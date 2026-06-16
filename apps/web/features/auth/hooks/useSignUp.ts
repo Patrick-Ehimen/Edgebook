@@ -9,7 +9,7 @@ export function useSignUp() {
   return useMutation({
     mutationFn: (data: SignUpInput) => authApi.signUp(data),
     onSuccess: (res) => {
-      router.push(`/verify?email=${encodeURIComponent(res.email)}`);
+      router.push(res.session.isOnboarded ? '/dashboard' : '/onboarding');
     },
   });
 }

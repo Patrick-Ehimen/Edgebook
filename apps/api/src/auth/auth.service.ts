@@ -49,31 +49,21 @@ export class AuthService {
 
   // ─── Sign up ────────────────────────────────────────────────────────────────
 
-  async signUp(input: SignUpInput, meta: RequestMeta) {
+  async signUp(input: SignUpInput, res: Response, meta: RequestMeta) {
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) throw new AccountExistsError();
 
     const passwordHash = await this.passwordService.hash(input.password);
     const user = await this.prisma.user.create({
-      data: { handle: input.handle, email: input.email, passwordHash },
+      data: { handle: input.handle, email: input.email, passwordHash, emailVerifiedAt: new Date() },
     });
-
-    const code = this.generateNumericCode();
-    await this.prisma.emailVerification.create({
-      data: {
-        email: input.email,
-        codeHash: this.hashCode(code),
-        expiresAt: new Date(Date.now() + CODE_TTL_MS),
-      },
-    });
-
-    await this.emailService.sendVerification(input.email, code);
 
     await this.prisma.auditEvent.create({
       data: { userId: user.id, kind: 'SIGNUP', ip: meta.ip, userAgent: meta.userAgent },
     });
 
-    return { email: input.email };
+    await this.sessionService.create(user, res, meta);
+    return { session: this.toSessionShape(user) };
   }
 
   // ─── Sign in ────────────────────────────────────────────────────────────────
