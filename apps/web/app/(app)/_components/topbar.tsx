@@ -6,20 +6,259 @@ import { useLogTrade } from '@/providers/log-trade-provider';
 import { useSelectedAccount } from '@/providers/selected-account-provider';
 import { SearchPalette } from './SearchPalette';
 import {
+  AlertTriangle,
   Bell,
   Check,
+  CheckCheck,
   ChevronDown,
   Moon,
   Plus,
   RefreshCw,
   Search,
   Sun,
+  TrendingDown,
   Wallet,
+  Zap,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+type Notif = {
+  id: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  body: string;
+  time: string;
+  read: boolean;
+};
+
+const INITIAL_NOTIFS: Notif[] = [
+  {
+    id: '1',
+    icon: <AlertTriangle size={13} />,
+    iconBg: 'rgba(255,91,108,.15)',
+    title: 'Tilt alert triggered',
+    body: '3 consecutive losses detected on BTCUSDT. Consider pausing.',
+    time: '2m ago',
+    read: false,
+  },
+  {
+    id: '2',
+    icon: <TrendingDown size={13} />,
+    iconBg: 'rgba(245,165,36,.15)',
+    title: 'Edge decay warning',
+    body: 'Breakout Retest playbook win rate dropped 14% vs 30-day baseline.',
+    time: '18m ago',
+    read: false,
+  },
+  {
+    id: '3',
+    icon: <Zap size={13} />,
+    iconBg: 'rgba(139,92,246,.15)',
+    title: 'Sync complete',
+    body: 'Bybit account synced — 12 new fills imported.',
+    time: '1h ago',
+    read: true,
+  },
+];
+
+function NotificationPanel() {
+  const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState<Notif[]>(INITIAL_NOTIFS);
+  const ref = useRef<HTMLDivElement>(null);
+  const unread = notifs.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const markAllRead = () => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markRead = (id: string) => setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+
+  const iconColor = (n: Notif) => {
+    if (n.id === '1') return '#ff5b6c';
+    if (n.id === '2') return '#f5a524';
+    return '#8b5cf6';
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <Button
+        title="Notifications"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 34,
+          height: 32,
+          border: open ? '1px solid var(--eb-muted)' : '1px solid var(--eb-border)',
+          background: open ? 'var(--eb-panel-2)' : 'var(--eb-panel)',
+          borderRadius: 8,
+          cursor: 'pointer',
+          color: 'var(--eb-muted)',
+        }}
+      >
+        <Bell size={14} />
+        {unread > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 5,
+              right: 5,
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: 'var(--eb-red)',
+              border: '1.5px solid var(--eb-panel)',
+            }}
+          />
+        )}
+      </Button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            right: 0,
+            width: 320,
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 12,
+            boxShadow: '0 12px 32px rgba(0,0,0,.22)',
+            zIndex: 50,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px 10px',
+              borderBottom: '1px solid var(--eb-border)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Bell size={13} style={{ color: 'var(--eb-muted)' }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)' }}>Notifications</span>
+              {unread > 0 && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 99,
+                  background: 'var(--eb-red)',
+                  color: '#fff',
+                }}>
+                  {unread}
+                </span>
+              )}
+            </div>
+            {unread > 0 && (
+              <button
+                type="button"
+                onClick={markAllRead}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  color: 'var(--eb-muted)',
+                  background: 'transparent',
+                  border: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  padding: '2px 4px',
+                  borderRadius: 5,
+                }}
+              >
+                <CheckCheck size={11} /> Mark all read
+              </button>
+            )}
+          </div>
+
+          {/* Items */}
+          <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+            {notifs.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => markRead(n.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 11,
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderBottom: '1px solid var(--eb-border)',
+                  background: n.read ? 'transparent' : 'rgba(139,92,246,.04)',
+                  border: 0,
+                  borderBottomColor: 'var(--eb-border)',
+                  borderBottomStyle: 'solid',
+                  borderBottomWidth: 1,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                }}
+              >
+                {/* Icon */}
+                <div style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  background: n.iconBg,
+                  color: iconColor(n),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}>
+                  {n.icon}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>{n.title}</span>
+                    {!n.read && (
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#8b5cf6', flexShrink: 0, display: 'inline-block' }} />
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--eb-muted-2)', lineHeight: 1.45 }}>{n.body}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 4 }}>{n.time}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '8px 14px' }}>
+            {notifs.every((n) => n.read) ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 0', fontSize: 12, color: 'var(--eb-muted)' }}>
+                <Check size={12} /> All caught up
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const VENUE_META: Record<string, { logo: string; color: string }> = {
   binance: { logo: '/assets/binance-logo.svg', color: '#F0B90B' },
@@ -343,36 +582,7 @@ export default function Topbar() {
       </Button>
 
       {/* Notifications */}
-      <Button
-        title="Notifications"
-        style={{
-          position: 'relative',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 34,
-          height: 32,
-          border: '1px solid var(--eb-border)',
-          background: 'var(--eb-panel)',
-          borderRadius: 8,
-          cursor: 'pointer',
-          color: 'var(--eb-muted)',
-        }}
-      >
-        <Bell size={14} />
-        <span
-          style={{
-            position: 'absolute',
-            top: 5,
-            right: 5,
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'var(--eb-red)',
-            border: '1.5px solid var(--eb-panel)',
-          }}
-        />
-      </Button>
+      <NotificationPanel />
 
       {/* Theme toggle */}
       <Button
