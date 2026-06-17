@@ -459,7 +459,8 @@ export default function SidebarNav() {
             padding: '10px 4px 2px',
           }}
         >
-          <div
+          <Link
+            href="/settings"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -469,6 +470,7 @@ export default function SidebarNav() {
               background: 'var(--eb-panel-2)',
               border: '1px solid var(--eb-border)',
               cursor: 'pointer',
+              textDecoration: 'none',
             }}
           >
             {/* Avatar — click to change color */}
@@ -570,7 +572,7 @@ export default function SidebarNav() {
             </div>
 
             <ChevronUp size={13} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
-          </div>
+          </Link>
 
           {/* Quick actions */}
           <div style={{ display: 'flex', gap: 4, padding: '6px 2px 0' }}>
