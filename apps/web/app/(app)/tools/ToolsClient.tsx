@@ -1249,9 +1249,8 @@ export function ToolsClient() {
               style={{
                 padding: '8px 12px',
                 borderRadius: 9,
-                background: 'rgba(10,14,20,.4)',
+                background: 'var(--eb-panel-2)',
                 border: '1px solid var(--eb-border)',
-                backdropFilter: 'blur(8px)',
               }}
             >
               <div
@@ -1281,9 +1280,8 @@ export function ToolsClient() {
               style={{
                 padding: '8px 12px',
                 borderRadius: 9,
-                background: 'rgba(10,14,20,.4)',
+                background: 'var(--eb-panel-2)',
                 border: '1px solid var(--eb-border)',
-                backdropFilter: 'blur(8px)',
               }}
             >
               <div
