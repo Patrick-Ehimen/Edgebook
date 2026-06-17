@@ -1244,67 +1244,31 @@ export function ToolsClient() {
               Calculators and utilities for sizing, risk management, and projection.
             </div>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: 9,
-                background: 'var(--eb-panel-2)',
-                border: '1px solid var(--eb-border)',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: 'var(--eb-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.06em',
-                  fontWeight: 600,
-                }}
-              >
-                Tools available
+          <div
+            style={{
+              marginLeft: 'auto',
+              padding: '8px 14px',
+              borderRadius: 9,
+              background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)',
+              width: 140,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>
+                Tools
               </div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  letterSpacing: '-.01em',
-                  color: 'var(--eb-text)',
-                }}
-              >
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: 'var(--eb-text)' }}>
                 6
               </div>
             </div>
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: 9,
-                background: 'var(--eb-panel-2)',
-                border: '1px solid var(--eb-border)',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: 'var(--eb-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.06em',
-                  fontWeight: 600,
-                }}
-              >
-                Active
-              </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  color: 'var(--eb-text)',
-                }}
-              >
-                {active.shortLabel}
-              </div>
+            <div style={{ borderTop: '1px solid var(--eb-border)', margin: '6px 0' }} />
+            <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 2 }}>
+              Active
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: active.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {active.shortLabel}
             </div>
           </div>
         </div>
