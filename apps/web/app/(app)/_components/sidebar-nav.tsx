@@ -7,6 +7,14 @@ import { usePlaybooks } from '@/features/playbooks';
 import { usePositions } from '@/features/positions';
 import { useAuth } from '@/providers/auth-provider';
 import { journalApi } from '@/features/journal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -95,6 +103,7 @@ const OTHERS: { href: string; Icon: LucideIcon; label: string }[] = [
 export default function SidebarNav() {
   const pathname = usePathname();
   const [accountsOpen, setAccountsOpen] = useState(true);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const DEFAULT_AVATAR_COLOR = AVATAR_PRESETS[0] as string;
   const [avatarColor, setAvatarColor] = useState<string>(
@@ -585,7 +594,7 @@ export default function SidebarNav() {
             </Link>
             <button
               type="button"
-              onClick={() => signOut.mutate()}
+              onClick={() => setShowSignOutDialog(true)}
               disabled={signOut.isPending}
               style={{
                 flex: 1,
@@ -606,6 +615,58 @@ export default function SidebarNav() {
             >
               <LogOut size={12} /> {signOut.isPending ? 'Signing out…' : 'Sign out'}
             </button>
+
+            <Dialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+              <DialogContent style={{ maxWidth: 360 }}>
+                <DialogHeader>
+                  <DialogTitle>Sign out?</DialogTitle>
+                  <DialogDescription>
+                    You'll need to sign back in to access your journal and trade data.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter style={{ gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSignOutDialog(false)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 0',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      background: 'var(--eb-panel-2)',
+                      border: '1px solid var(--eb-border)',
+                      color: 'var(--eb-text)',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { signOut.mutate(); setShowSignOutDialog(false); }}
+                    disabled={signOut.isPending}
+                    style={{
+                      flex: 1,
+                      padding: '8px 0',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      background: 'rgba(255,91,108,.12)',
+                      border: '1px solid rgba(255,91,108,.3)',
+                      color: '#ff5b6c',
+                      cursor: signOut.isPending ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                      opacity: signOut.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <LogOut size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />
+                    {signOut.isPending ? 'Signing out…' : 'Sign out'}
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
