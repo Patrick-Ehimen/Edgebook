@@ -32,7 +32,26 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+const AVATAR_PRESETS = [
+  'linear-gradient(135deg,#8b5cf6,#06b6d4)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#10b981,#3b82f6)',
+  'linear-gradient(135deg,#ec4899,#8b5cf6)',
+  'linear-gradient(135deg,#f97316,#eab308)',
+  'linear-gradient(135deg,#14b8a6,#22c55e)',
+  'linear-gradient(135deg,#6366f1,#ec4899)',
+  'linear-gradient(135deg,#ef4444,#f97316)',
+  '#8b5cf6',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#ec4899',
+  '#6366f1',
+  '#64748b',
+];
 
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
@@ -76,7 +95,30 @@ const OTHERS: { href: string; Icon: LucideIcon; label: string }[] = [
 export default function SidebarNav() {
   const pathname = usePathname();
   const [accountsOpen, setAccountsOpen] = useState(true);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const DEFAULT_AVATAR_COLOR = AVATAR_PRESETS[0] as string;
+  const [avatarColor, setAvatarColor] = useState<string>(
+    () => (typeof window !== 'undefined' ? (localStorage.getItem('eb-avatar-color') ?? DEFAULT_AVATAR_COLOR) : DEFAULT_AVATAR_COLOR),
+  );
+  const colorPickerRef = useRef<HTMLDivElement>(null);
   const { session } = useAuth();
+
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showColorPicker]);
+
+  const pickColor = (color: string) => {
+    setAvatarColor(color);
+    localStorage.setItem('eb-avatar-color', color);
+    setShowColorPicker(false);
+  };
   const signOut = useSignOut();
   const { data: accounts } = useAccounts();
   const { data: positions } = usePositions(accounts?.[0]?.id ?? null);
@@ -420,24 +462,75 @@ export default function SidebarNav() {
               cursor: 'pointer',
             }}
           >
-            {/* Avatar */}
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 13,
-                flexShrink: 0,
-                boxShadow: '0 0 0 2px var(--eb-panel-2), 0 0 0 3.5px rgba(139,92,246,.3)',
-              }}
-            >
-              {initial}
+            {/* Avatar — click to change color */}
+            <div style={{ position: 'relative', flexShrink: 0 }} ref={colorPickerRef}>
+              <button
+                type="button"
+                title="Change avatar color"
+                onClick={(e) => { e.stopPropagation(); setShowColorPicker((v) => !v); }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: avatarColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  border: 0,
+                  cursor: 'pointer',
+                  boxShadow: '0 0 0 2px var(--eb-panel-2), 0 0 0 3.5px rgba(139,92,246,.3)',
+                  padding: 0,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {initial}
+              </button>
+
+              {/* Color picker popover */}
+              {showColorPicker && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 10px)',
+                    left: 0,
+                    zIndex: 100,
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 10,
+                    padding: '10px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+                    width: 160,
+                  }}
+                >
+                  <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginBottom: 8, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Avatar color
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                    {AVATAR_PRESETS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        title={color}
+                        onClick={() => pickColor(color)}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          background: color,
+                          border: avatarColor === color ? '2px solid var(--eb-text)' : '2px solid transparent',
+                          cursor: 'pointer',
+                          padding: 0,
+                          outline: avatarColor === color ? '2px solid var(--eb-panel)' : 'none',
+                          outlineOffset: -4,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Name + email */}
