@@ -34,11 +34,11 @@ function AppLoader() {
             width: 56,
             height: 56,
             borderRadius: 16,
-            background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)',
+            background: 'linear-gradient(135deg,#00d68f,#00b67a)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 0 8px rgba(139,92,246,.12), 0 0 0 16px rgba(139,92,246,.05)',
+            boxShadow: '0 0 0 8px rgba(0,214,143,.15), 0 0 0 16px rgba(0,214,143,.06)',
           }}
         >
           <Image src="/assets/logo-mark.svg" alt="Edgebook" width={32} height={32} priority />
