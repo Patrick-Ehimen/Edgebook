@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
     url.searchParams.set('price_change_percentage', '7d,30d');
     if (apiKey) url.searchParams.set('x_cg_demo_api_key', apiKey);
 
-    const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+    const res = await fetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) return NextResponse.json({}, { status: 502 });
 
     const data = (await res.json()) as CgMarket[];

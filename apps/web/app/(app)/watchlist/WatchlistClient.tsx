@@ -400,7 +400,7 @@ function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) 
               fontFamily: '"JetBrains Mono",monospace',
             }}
           >
-            {token.setupTag.replace(/^[^·]+·\s*/, '')} · added {token.addedAt} · {token.exchange}
+            {token.setupTag.replace(/^[^·]+·\s*/, '')} · added {token.addedAt}{token.exchange !== '—' ? ` · ${token.exchange}` : ''}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1018,7 +1018,7 @@ function AddTokenModal({
   };
 
   const horizonMeta = {
-    day: { Icon: CalendarDays, label: 'Today', sub: 'Auto-clears EOD' },
+    day: { Icon: CalendarDays, label: 'Today', sub: 'Live setups' },
     week: { Icon: CalendarRange, label: 'This week', sub: 'Refreshes Sun' },
     month: { Icon: Moon, label: 'This month', sub: 'Updates 1st' },
   };
@@ -1641,7 +1641,7 @@ function AddTokenModal({
             Horizon ·{' '}
             <b style={{ color: 'var(--eb-text)' }}>
               {form.horizon === 'day'
-                ? 'Today (expires EOD)'
+                ? 'Today'
                 : form.horizon === 'week'
                   ? 'This week'
                   : 'This month'}
@@ -1828,7 +1828,7 @@ function EmptyState({ onAddManual }: { onAddManual: () => void }) {
             iconBorder: 'rgba(245,165,36,.25)',
             iconColor: 'var(--eb-yellow)',
             title: 'Today',
-            desc: "Tokens you're actively hunting setups in right now. Auto-clears at EOD unless promoted.",
+            desc: "Tokens you're actively hunting setups in right now.",
             bullets: [
               ['Levels:', 'entry, stop, target prices'],
               ['Setup tag:', "which playbook you're applying"],
@@ -1847,7 +1847,7 @@ function EmptyState({ onAddManual }: { onAddManual: () => void }) {
             bullets: [
               ['Weekly/4H levels', 'instead of intraday'],
               ['Catalysts:', 'news, unlocks, FOMC, earnings'],
-              ['Multi-day patience', "· won't disappear at EOD"],
+              ['Multi-day patience', '· tracks across sessions'],
               ['Conviction tracking', 'over multiple sessions'],
             ],
           },
@@ -2020,6 +2020,22 @@ function FilledState({
     const now = new Date();
     return `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')} UTC`;
   });
+
+  const todayStr = (() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  })();
+
+  const weekStr = (() => {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sun
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - ((day + 6) % 7));
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(mon)} – ${fmt(sun)}`;
+  })();
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -2212,7 +2228,7 @@ function FilledState({
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
-          {(marketCtx?.items ?? Array.from({ length: 6 }, (_, i) => ({ label: '…', value: '—', sub: '—', positive: null as boolean | null }))).map((c) => (
+          {(marketCtx?.items ?? []).map((c) => (
             <div
               key={c.label}
               style={{
@@ -2381,18 +2397,9 @@ function FilledState({
         <>
           {sectionH(
             <>
-              <CalendarDays size={17} /> Watchlist · today{' '}
-              <Chip
-                style={{
-                  color: 'var(--eb-yellow)',
-                  borderColor: 'rgba(245,165,36,.3)',
-                  background: 'rgba(245,165,36,.08)',
-                }}
-              >
-                expires 21:00 UTC
-              </Chip>
+              <CalendarDays size={17} /> Watchlist · today · {todayStr}
             </>,
-            "Tokens you're actively hunting setups in · auto-clears EOD",
+            "Tokens you're actively hunting setups in",
             <>
               {smallBtn(
                 <>
@@ -2416,7 +2423,7 @@ function FilledState({
         <>
           {sectionH(
             <>
-              <CalendarRange size={17} /> Watchlist · this week{' '}
+              <CalendarRange size={17} /> Watchlist · this week · {weekStr}{' '}
               <Chip
                 style={{
                   color: 'var(--eb-cyan)',
@@ -2428,14 +2435,6 @@ function FilledState({
               </Chip>
             </>,
             `HTF setups developing · ${weekTokens.length} tokens`,
-            <>
-              {smallBtn(
-                <>
-                  <RefreshCw size={12} /> Refresh
-                </>,
-                handleRefresh,
-              )}
-            </>,
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {weekTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => (
@@ -2577,11 +2576,167 @@ function dbItemToMonthToken(item: WatchlistItemRow, p?: PriceData): MonthToken {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function Sk({ h = 14, w, r = 6 }: { h?: number; w?: string | number; r?: number }) {
+  return (
+    <div
+      style={{
+        height: h,
+        width: w ?? '100%',
+        borderRadius: r,
+        background: 'var(--eb-panel-2)',
+        animation: 'eb-pulse 1.6s ease-in-out infinite',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function WatchlistSkeleton() {
+  return (
+    <div style={{ padding: '18px 26px 60px', maxWidth: 1380, width: '100%' }}>
+      <style>{'@keyframes eb-pulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
+
+      {/* Market rail skeleton */}
+      <div
+        style={{
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 11,
+          padding: 12,
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <Sk h={10} w={80} r={4} />
+        </div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Sk h={9} w={60} r={3} />
+              <Sk h={13} w={80} r={4} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Horizon tabs skeleton — 4 tabs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            style={{
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 12,
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+            }}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 11, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Sk h={12} w="60%" r={4} />
+              <Sk h={10} w="80%" r={3} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bias filter skeleton */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <Sk key={i} h={28} w={72} r={7} />
+        ))}
+      </div>
+
+      {/* Day section */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
+        <Sk h={17} w={240} r={5} />
+        <Sk h={17} w={100} r={5} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 14 }}>
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            style={{
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderLeft: '3px solid var(--eb-border)',
+              borderRadius: '0 12px 12px 0',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Sk h={14} w="50%" r={4} />
+                <Sk h={10} w="80%" r={3} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                <Sk h={18} w={70} r={4} />
+                <Sk h={10} w={50} r={3} />
+              </div>
+            </div>
+            <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Sk h={60} r={8} />
+              <Sk h={38} r={8} />
+            </div>
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)' }}>
+              <Sk h={10} w="40%" r={3} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Week section */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
+        <Sk h={17} w={260} r={5} />
+        <Sk h={17} w={80} r={5} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderLeft: '3px solid var(--eb-border)',
+              borderRadius: '0 11px 11px 0',
+              padding: 12,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 9 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <Sk h={12} w="50%" r={4} />
+                <Sk h={9} w="70%" r={3} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                <Sk h={14} w={56} r={4} />
+                <Sk h={9} w={40} r={3} />
+              </div>
+            </div>
+            <Sk h={36} r={6} />
+            <div style={{ marginTop: 8 }}>
+              <Sk h={24} r={6} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function WatchlistClient() {
   const [showModal, setShowModal] = useState(false);
   const [modalHorizon, setModalHorizon] = useState<Horizon>('day');
 
-  const { data: watchlistItems = [] } = useWatchlist();
+  const { data: watchlistItems = [], isLoading } = useWatchlist();
   const createItem = useCreateWatchlistItem();
   const deleteItem = useDeleteWatchlistItem();
 
@@ -2603,6 +2758,8 @@ export function WatchlistClient() {
 
   const hasTokens = watchlistItems.length > 0;
   const totalCount = watchlistItems.length;
+
+  if (isLoading) return <WatchlistSkeleton />;
 
   const openModal = (h: Horizon) => {
     setModalHorizon(h);
