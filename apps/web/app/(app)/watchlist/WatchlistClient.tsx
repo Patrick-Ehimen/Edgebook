@@ -1,10 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { usePlaybooks } from '@/features/playbooks/hooks/usePlaybooks';
 import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
 import { useCreateWatchlistItem } from '@/features/watchlist/hooks/useCreateWatchlistItem';
 import { useDeleteWatchlistItem } from '@/features/watchlist/hooks/useDeleteWatchlistItem';
+import { useClearWatchlist } from '@/features/watchlist/hooks/useClearWatchlist';
 import { usePrices, type PriceData } from '@/features/watchlist/hooks/usePrices';
 import type { WatchlistItem as WatchlistItemRow } from '@/features/watchlist/schemas';
 import { useMarketContext } from '@/features/market/useMarketContext';
@@ -356,6 +365,7 @@ function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) 
   const b = BIAS[token.bias];
   return (
     <div
+      className="wl-card"
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -363,6 +373,7 @@ function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) 
         borderRadius: '0 12px 12px 0',
         overflow: 'hidden',
         position: 'relative',
+        cursor: 'pointer',
       }}
     >
       {/* Header */}
@@ -589,6 +600,7 @@ function WeekCard({ token, onRemove }: { token: WeekToken; onRemove: (id: string
   const b = BIAS[token.bias];
   return (
     <div
+      className="wl-card"
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -731,6 +743,7 @@ function WeekCard({ token, onRemove }: { token: WeekToken; onRemove: (id: string
 function MonthRow({ token, onRemove }: { token: MonthToken; onRemove: (id: string) => void }) {
   return (
     <div
+      className="wl-month-row"
       style={{
         display: 'grid',
         gridTemplateColumns: 'auto auto 1fr auto auto auto auto',
@@ -2028,13 +2041,12 @@ function FilledState({
 
   const weekStr = (() => {
     const now = new Date();
-    const day = now.getDay(); // 0 = Sun
-    const mon = new Date(now);
-    mon.setDate(now.getDate() - ((day + 6) % 7));
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
+    const sun = new Date(now);
+    sun.setDate(now.getDate() - now.getDay()); // back to Sunday
+    const sat = new Date(sun);
+    sat.setDate(sun.getDate() + 6);
     const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `${fmt(mon)} – ${fmt(sun)}`;
+    return `${fmt(sun)} – ${fmt(sat)}`;
   })();
   useEffect(() => {
     const tick = () => {
@@ -2739,6 +2751,29 @@ export function WatchlistClient() {
   const { data: watchlistItems = [], isLoading } = useWatchlist();
   const createItem = useCreateWatchlistItem();
   const deleteItem = useDeleteWatchlistItem();
+  const clearAll = useClearWatchlist();
+
+  type ConfirmState =
+    | { type: 'item'; id: string; symbol: string }
+    | { type: 'all'; count: number }
+    | null;
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+
+  const requestDelete = useCallback((id: string) => {
+    const item = watchlistItems.find((i) => i.id === id);
+    setConfirmState({ type: 'item', id, symbol: item?.symbol ?? id });
+  }, [watchlistItems]);
+
+  const requestClearAll = useCallback(() => {
+    setConfirmState({ type: 'all', count: watchlistItems.length });
+  }, [watchlistItems.length]);
+
+  const handleConfirm = useCallback(() => {
+    if (!confirmState) return;
+    if (confirmState.type === 'item') deleteItem.mutate(confirmState.id);
+    else clearAll.mutate(watchlistItems.map((i) => i.id));
+    setConfirmState(null);
+  }, [confirmState, deleteItem, clearAll, watchlistItems]);
 
   const symbols = useMemo(() => watchlistItems.map((i) => i.symbol), [watchlistItems]);
   const { data: prices = {}, refetch: refetchPrices } = usePrices(symbols);
@@ -2786,6 +2821,10 @@ export function WatchlistClient() {
       <style>{`
         @keyframes eb-pulse { 0%,100%{opacity:1}50%{opacity:.4} }
         @keyframes eb-pop { from{transform:translateY(8px) scale(.98);opacity:0}to{transform:none;opacity:1} }
+        .wl-card { transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s cubic-bezier(.4,0,.2,1), border-color .18s ease; }
+        .wl-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1); border-color: rgba(255,255,255,.1); }
+        .wl-month-row { transition: background .14s ease; }
+        .wl-month-row:hover { background: var(--eb-panel-2) !important; }
       `}</style>
 
       {/* Topbar extension */}
@@ -2834,9 +2873,7 @@ export function WatchlistClient() {
           {hasTokens && (
             <button
               type="button"
-              onClick={() => {
-                for (const item of watchlistItems) deleteItem.mutate(item.id);
-              }}
+              onClick={requestClearAll}
               style={{
                 padding: '5px 10px',
                 borderRadius: 7,
@@ -2879,9 +2916,9 @@ export function WatchlistClient() {
           dayTokens={dayTokens}
           weekTokens={weekTokens}
           monthTokens={monthTokens}
-          onRemoveDay={(id) => deleteItem.mutate(id)}
-          onRemoveWeek={(id) => deleteItem.mutate(id)}
-          onRemoveMonth={(id) => deleteItem.mutate(id)}
+          onRemoveDay={requestDelete}
+          onRemoveWeek={requestDelete}
+          onRemoveMonth={requestDelete}
           onAddDay={() => openModal('day')}
           onAddWeek={() => openModal('week')}
           onAddMonth={() => openModal('month')}
@@ -2899,6 +2936,56 @@ export function WatchlistClient() {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      <Dialog open={confirmState !== null} onOpenChange={(open) => { if (!open) setConfirmState(null); }}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmState?.type === 'all' ? 'Clear entire watchlist?' : `Remove ${confirmState?.type === 'item' ? confirmState.symbol : ''}?`}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmState?.type === 'all'
+                ? `This will permanently delete all ${confirmState.count} token${confirmState.count === 1 ? '' : 's'} from your watchlist.`
+                : 'This token will be removed from your watchlist.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setConfirmState(null)}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 8,
+                border: '1px solid var(--eb-border)',
+                background: 'transparent',
+                color: 'var(--eb-muted)',
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              style={{
+                padding: '7px 14px',
+                borderRadius: 8,
+                border: '1px solid rgba(255,91,108,.4)',
+                background: 'rgba(255,91,108,.1)',
+                color: 'var(--eb-red)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {confirmState?.type === 'all' ? 'Clear all' : 'Remove'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </>
   );

@@ -3,6 +3,7 @@
 import { useAccounts } from '@/features/accounts';
 import { useSignOut } from '@/features/auth';
 import { useNotes } from '@/features/notes';
+import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
 import { usePlaybooks } from '@/features/playbooks';
 import { usePositions } from '@/features/positions';
 import { useAuth } from '@/providers/auth-provider';
@@ -146,10 +147,13 @@ export default function SidebarNav() {
     staleTime: 60_000,
   });
 
+  const { data: watchlistItems } = useWatchlist();
+
   const tradeCount = positions?.length ?? 0;
   const playbookCount = playbooks?.length ?? 0;
   const noteCount = notes?.length ?? 0;
   const journalCount = journalEntries?.length ?? 0;
+  const watchlistCount = watchlistItems?.length ?? 0;
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -264,6 +268,9 @@ export default function SidebarNav() {
             {href === '/playbooks' &&
               playbookCount > 0 &&
               pill(String(playbookCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
+            {href === '/watchlist' &&
+              watchlistCount > 0 &&
+              pill(String(watchlistCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
           </Link>
         ))}
       </nav>
