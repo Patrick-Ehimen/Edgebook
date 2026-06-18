@@ -468,8 +468,7 @@ export default function SidebarNav() {
             padding: '10px 4px 2px',
           }}
         >
-          <Link
-            href="/settings"
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -478,8 +477,6 @@ export default function SidebarNav() {
               borderRadius: 9,
               background: 'var(--eb-panel-2)',
               border: '1px solid var(--eb-border)',
-              cursor: 'pointer',
-              textDecoration: 'none',
             }}
           >
             {/* Avatar — click to change color */}
@@ -487,7 +484,7 @@ export default function SidebarNav() {
               <button
                 type="button"
                 title="Change avatar color"
-                onClick={(e) => { e.stopPropagation(); setShowColorPicker((v) => !v); }}
+                onClick={() => setShowColorPicker((v) => !v)}
                 style={{
                   width: 32,
                   height: 32,
@@ -553,35 +550,39 @@ export default function SidebarNav() {
               )}
             </div>
 
-            {/* Name + email */}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: 'var(--eb-text)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {displayName}
+            {/* Name + email → navigates to settings */}
+            <Link
+              href="/settings"
+              style={{ minWidth: 0, flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9 }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: 'var(--eb-text)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {displayName}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: 'var(--eb-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {session?.email}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  color: 'var(--eb-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {session?.email}
-              </div>
-            </div>
-
-            <ChevronUp size={13} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
-          </Link>
+              <ChevronUp size={13} style={{ flexShrink: 0, color: 'var(--eb-muted)' }} />
+            </Link>
+          </div>
 
           {/* Quick actions */}
           <div style={{ display: 'flex', gap: 4, padding: '6px 2px 0' }}>
