@@ -107,6 +107,7 @@ model User {
   aiReports      AiReport[]
   libraryNotes   LibraryNote[]
   propAccounts   PropAccount[]
+  watchlistItems WatchlistItem[]
 }
 
 model Session {
@@ -700,4 +701,27 @@ model PropPayout {
 
   @@index([propAccountId])
   @@index([userId])
+}
+
+// ─── Watchlist ────────────────────────────────────────────────────────────────
+
+model WatchlistItem {
+  id               String   @id @default(cuid())
+  userId           String
+  symbol           String
+  horizon          String
+  bias             String
+  notes            String?
+  conviction       Int      @default(3)
+  convictionReason String?
+  tags             String[]
+  playbookNames    String[]
+  keyLevelsJson    Json     @default("[]")
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, horizon])
 }

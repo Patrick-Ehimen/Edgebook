@@ -8,3 +8,5 @@ export * as playbooks from './playbooks';
 export * from './playbooks';
 export * as prop from './prop';
 export * from './prop';
+export * as watchlist from './watchlist';
+export * from './watchlist';

@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Eye,
   Inbox,
   LayoutDashboard,
   Link2,
@@ -68,6 +69,7 @@ const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/calendar', Icon: CalendarDays, label: 'Calendar' },
   { href: '/mind-lab', Icon: Brain, label: 'Mind Lab' },
   { href: '/playbooks', Icon: Target, label: 'Playbook' },
+  { href: '/watchlist', Icon: Eye, label: 'Watchlist' },
 ];
 
 const PROP: { href: string; Icon: LucideIcon; label: string }[] = [
