@@ -1,5 +1,5 @@
-import { CreateWatchlistItem } from '@edgebook/shared';
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { CreateWatchlistItem, UpdateWatchlistItem } from '@edgebook/shared';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUserId } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -15,6 +15,11 @@ export class WatchlistController {
     return this.watchlistService.list(userId);
   }
 
+  @Get(':id')
+  getById(@Param('id') id: string, @CurrentUserId() userId: string) {
+    return this.watchlistService.getById(userId, id);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -22,6 +27,15 @@ export class WatchlistController {
     @CurrentUserId() userId: string,
   ) {
     return this.watchlistService.create(userId, body);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateWatchlistItem)) body: UpdateWatchlistItem,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.watchlistService.update(userId, id, body);
   }
 
   @Delete(':id')

@@ -1,4 +1,4 @@
-import type { CreateWatchlistItem } from '@edgebook/shared';
+import type { CreateWatchlistItem, UpdateWatchlistItem } from '@edgebook/shared';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -11,6 +11,13 @@ export class WatchlistService {
       where: { userId },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async getById(userId: string, id: string) {
+    const item = await this.prisma.watchlistItem.findUnique({ where: { id } });
+    if (!item) throw new NotFoundException('Watchlist item not found.');
+    if (item.userId !== userId) throw new ForbiddenException();
+    return item;
   }
 
   async create(userId: string, input: CreateWatchlistItem) {
@@ -26,6 +33,28 @@ export class WatchlistService {
         tags: input.tags ?? [],
         playbookNames: input.playbookNames ?? [],
         keyLevelsJson: input.keyLevelsJson ?? [],
+      },
+    });
+  }
+
+  async update(userId: string, id: string, input: UpdateWatchlistItem) {
+    const item = await this.prisma.watchlistItem.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    if (!item) throw new NotFoundException('Watchlist item not found.');
+    if (item.userId !== userId) throw new ForbiddenException();
+    return this.prisma.watchlistItem.update({
+      where: { id },
+      data: {
+        ...(input.horizon !== undefined && { horizon: input.horizon }),
+        ...(input.bias !== undefined && { bias: input.bias }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+        ...(input.conviction !== undefined && { conviction: input.conviction }),
+        ...(input.convictionReason !== undefined && { convictionReason: input.convictionReason }),
+        ...(input.tags !== undefined && { tags: input.tags }),
+        ...(input.playbookNames !== undefined && { playbookNames: input.playbookNames }),
+        ...(input.keyLevelsJson !== undefined && { keyLevelsJson: input.keyLevelsJson }),
       },
     });
   }

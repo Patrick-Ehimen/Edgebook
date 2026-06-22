@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -361,11 +362,13 @@ function AlertDot({ text, type }: { text: string; type: 'hit' | 'warn' | 'armed'
 
 // ─── Day card ────────────────────────────────────────────────────────────────
 
-function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) => void }) {
+function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   const b = BIAS[token.bias];
   return (
     <div
       className="wl-card"
+      onClick={() => onNavigate(token.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -439,7 +442,7 @@ function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginLeft: 6 }}>
           <button
             type="button"
-            onClick={() => onRemove(token.id)}
+            onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
             title="Remove"
             style={{
               background: 'transparent',
@@ -596,11 +599,13 @@ function DayCard({ token, onRemove }: { token: DayToken; onRemove: (id: string) 
 
 // ─── Week card ────────────────────────────────────────────────────────────────
 
-function WeekCard({ token, onRemove }: { token: WeekToken; onRemove: (id: string) => void }) {
+function WeekCard({ token, onRemove, onNavigate }: { token: WeekToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   const b = BIAS[token.bias];
   return (
     <div
       className="wl-card"
+      onClick={() => onNavigate(token.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -657,7 +662,7 @@ function WeekCard({ token, onRemove }: { token: WeekToken; onRemove: (id: string
         </div>
         <button
           type="button"
-          onClick={() => onRemove(token.id)}
+          onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
           title="Remove"
           style={{
             background: 'transparent',
@@ -740,10 +745,12 @@ function WeekCard({ token, onRemove }: { token: WeekToken; onRemove: (id: string
 
 // ─── Month row ────────────────────────────────────────────────────────────────
 
-function MonthRow({ token, onRemove }: { token: MonthToken; onRemove: (id: string) => void }) {
+function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   return (
     <div
       className="wl-month-row"
+      onClick={() => onNavigate(token.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
       style={{
         display: 'grid',
         gridTemplateColumns: 'auto auto 1fr auto auto auto auto',
@@ -836,7 +843,7 @@ function MonthRow({ token, onRemove }: { token: MonthToken; onRemove: (id: strin
       <div style={{ display: 'flex', gap: 3 }}>
         <button
           type="button"
-          onClick={() => onRemove(token.id)}
+          onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
           title="Remove"
           style={{
             background: 'transparent',
@@ -2010,6 +2017,7 @@ function FilledState({
   onAddWeek,
   onAddMonth,
   onRefresh,
+  onNavigate,
   totalCount,
 }: {
   dayTokens: DayToken[];
@@ -2022,6 +2030,7 @@ function FilledState({
   onAddWeek: () => void;
   onAddMonth: () => void;
   onRefresh: () => void;
+  onNavigate: (id: string) => void;
   totalCount: number;
 }) {
   const [activeHorizon, setActiveHorizon] = useState<Horizon | 'all'>('all');
@@ -2423,7 +2432,7 @@ function FilledState({
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
             {dayTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => (
-              <DayCard key={tok.id} token={tok} onRemove={onRemoveDay} />
+              <DayCard key={tok.id} token={tok} onRemove={onRemoveDay} onNavigate={onNavigate} />
             ))}
           </div>
           {addBtn('Add another token for today', onAddDay)}
@@ -2450,7 +2459,7 @@ function FilledState({
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {weekTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => (
-              <WeekCard key={tok.id} token={tok} onRemove={onRemoveWeek} />
+              <WeekCard key={tok.id} token={tok} onRemove={onRemoveWeek} onNavigate={onNavigate} />
             ))}
           </div>
           {addBtn('Add weekly token', onAddWeek)}
@@ -2490,7 +2499,7 @@ function FilledState({
                 No monthly theses yet · add your first long-horizon idea
               </div>
             ) : (
-              monthTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => <MonthRow key={tok.id} token={tok} onRemove={onRemoveMonth} />)
+              monthTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => <MonthRow key={tok.id} token={tok} onRemove={onRemoveMonth} onNavigate={onNavigate} />)
             )}
           </div>
           {addBtn('Add long-horizon thesis', onAddMonth)}
@@ -2745,6 +2754,7 @@ function WatchlistSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function WatchlistClient() {
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalHorizon, setModalHorizon] = useState<Horizon>('day');
 
@@ -2752,6 +2762,10 @@ export function WatchlistClient() {
   const createItem = useCreateWatchlistItem();
   const deleteItem = useDeleteWatchlistItem();
   const clearAll = useClearWatchlist();
+
+  const handleNavigate = useCallback((id: string) => {
+    router.push(`/watchlist/${id}`);
+  }, [router]);
 
   type ConfirmState =
     | { type: 'item'; id: string; symbol: string }
@@ -2923,6 +2937,7 @@ export function WatchlistClient() {
           onAddWeek={() => openModal('week')}
           onAddMonth={() => openModal('month')}
           onRefresh={() => { void refetchPrices(); }}
+          onNavigate={handleNavigate}
           totalCount={totalCount}
         />
       ) : (
