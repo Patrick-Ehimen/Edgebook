@@ -594,9 +594,8 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
   const horizConf = HORIZON_CFG[item.horizon as Horizon] ?? HORIZON_CFG.day;
   const keyLevels = (item.keyLevelsJson as KeyLevel[]) ?? [];
 
-  const priceNum   = priceData ? Number(priceData.price) : null;
-  const priceStr   = priceNum !== null ? `$${priceNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: priceNum < 1 ? 6 : 2 })}` : '—';
-  const changeStr  = priceData ? `${priceData.positive ? '+' : ''}${Number(priceData.change).toFixed(2)}%` : null;
+  const priceStr  = priceData ? `$${priceData.price}` : '—';
+  const changeStr = priceData ? priceData.change : null;
   const wasEdited  = item.updatedAt !== item.createdAt;
 
   const draftBiasConf  = draft ? (BIAS_CFG[draft.bias]       ?? BIAS_CFG.neutral)  : biasConf;
