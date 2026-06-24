@@ -617,6 +617,7 @@ function FolderNoteList({
   onMove,
   onPin,
   onNoteClick,
+  searchQuery,
 }: {
   notes: LibraryNote[];
   folder: Folder | null;
@@ -627,6 +628,7 @@ function FolderNoteList({
   onMove: (id: string, folderId: string) => void;
   onPin: (id: string, pinned: boolean) => void;
   onNoteClick: (note: LibraryNote) => void;
+  searchQuery?: string;
 }) {
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -726,17 +728,21 @@ function FolderNoteList({
               marginBottom: 4,
             }}
           >
-            <FolderIcon size={24} style={{ color: folderColor }} />
+            {searchQuery ? <Search size={24} style={{ color: folderColor }} /> : <FolderIcon size={24} style={{ color: folderColor }} />}
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--eb-text)' }}>
-            {isPinnedFolder ? 'No pinned notes yet' : `Nothing in ${folderLabel} yet`}
+            {searchQuery
+              ? `No results for "${searchQuery}"`
+              : isPinnedFolder ? 'No pinned notes yet' : `Nothing in ${folderLabel} yet`}
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--eb-muted)', maxWidth: 340, lineHeight: 1.6 }}>
-            {isPinnedFolder
+            {searchQuery
+              ? 'Try a different keyword, or search by tag name.'
+              : isPinnedFolder
               ? 'Right-click any note and choose Pin note to surface it here for quick access.'
               : 'Create your first note here — capture ideas, research, or lessons and they\'ll appear in this folder.'}
           </div>
-          {!isPinnedFolder && (
+          {!isPinnedFolder && !searchQuery && (
             <button
               type="button"
               onClick={onNewNote}
@@ -2945,12 +2951,28 @@ export function NotesClient() {
   const [treeOpen, setTreeOpen] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogFolder, setDialogFolder] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: notes = [], isLoading: notesLoading } = useNotes();
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
   const moveNote = useMoveNote();
   const pinNote = usePinNote();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement) && !(e.target as HTMLElement).isContentEditable) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchRef.current) {
+        setSearch('');
+        searchRef.current?.blur();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const openNewNote = (folderId?: string | null) => {
     setDialogFolder(folderId ?? null);
@@ -2966,13 +2988,24 @@ export function NotesClient() {
     });
   };
 
-  const activeFolderNotes = activeFolder
+  const folderNotes = activeFolder
     ? activeFolder === 'recent'
       ? notes
       : activeFolder === 'pinned'
       ? notes.filter((n) => n.pinned)
       : notes.filter((n) => n.folderId === activeFolder)
     : notes;
+
+  const activeFolderNotes = search.trim()
+    ? (() => {
+        const q = search.trim().toLowerCase();
+        return folderNotes.filter((n) =>
+          n.name.toLowerCase().includes(q) ||
+          n.tags.some((t) => t.toLowerCase().includes(q)) ||
+          n.bodyMd.toLowerCase().includes(q),
+        );
+      })()
+    : folderNotes;
 
   const activeLabel =
     [...QUICK_FOLDERS, ...FOLDERS].find((f) => f.id === activeFolder)?.label ?? 'All notes';
@@ -3084,14 +3117,16 @@ export function NotesClient() {
                 alignItems: 'center',
                 gap: 6,
                 background: 'var(--eb-panel-2)',
-                border: '1px solid var(--eb-border)',
+                border: `1px solid ${search ? 'rgba(0,214,143,.4)' : 'var(--eb-border)'}`,
                 padding: '4px 8px',
                 borderRadius: 6,
                 color: 'var(--eb-muted)',
+                transition: 'border-color .15s',
               }}
             >
               <Search size={10} style={{ flexShrink: 0 }} />
               <input
+                ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search notes…"
@@ -3105,17 +3140,27 @@ export function NotesClient() {
                   fontFamily: 'inherit',
                 }}
               />
-              <span
-                style={{
-                  fontSize: 9,
-                  padding: '1px 4px',
-                  border: '1px solid var(--eb-border)',
-                  borderRadius: 3,
-                  color: 'var(--eb-muted)',
-                }}
-              >
-                /
-              </span>
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(''); searchRef.current?.focus(); }}
+                  style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', display: 'flex', color: 'var(--eb-muted)', lineHeight: 1 }}
+                >
+                  <X size={11} />
+                </button>
+              ) : (
+                <span
+                  style={{
+                    fontSize: 9,
+                    padding: '1px 4px',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 3,
+                    color: 'var(--eb-muted)',
+                  }}
+                >
+                  /
+                </span>
+              )}
             </div>
           </div>
 
@@ -3293,6 +3338,7 @@ export function NotesClient() {
             onMove={(id, folderId) => moveNote.mutate({ id, folderId })}
             onPin={(id, pinned) => pinNote.mutate({ id, pinned })}
             onNoteClick={(note) => setActiveNote(note)}
+            searchQuery={search.trim()}
           />
         ) : (
           /* First-time empty state / hero */
