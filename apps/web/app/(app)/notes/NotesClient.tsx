@@ -591,17 +591,18 @@ function NoteCardSkeleton() {
   return (
     <div
       style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 14px', borderRadius: 9,
+        display: 'flex', flexDirection: 'column', gap: 10,
+        padding: '14px 16px', borderRadius: 10,
         border: '1px solid var(--eb-border)', background: 'var(--eb-panel)',
+        minHeight: 110,
       }}
     >
       <Sk w={32} h={32} r={7} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <Sk w="60%" h={12} />
-        <Sk w="35%" h={10} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+        <Sk w="75%" h={12} />
+        <Sk w="50%" h={10} />
       </div>
-      <Sk w={36} h={10} r={4} />
+      <Sk w={60} h={10} r={4} />
     </div>
   );
 }
@@ -634,7 +635,7 @@ function FolderNoteList({
   const isPinnedFolder = folder?.id === 'pinned';
 
   return (
-    <div style={{ padding: '28px 36px 80px', maxWidth: 740, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '28px 36px 80px', maxWidth: 1000, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div
@@ -700,8 +701,8 @@ function FolderNoteList({
 
       {/* ── Content ─────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[0, 1, 2, 3, 4].map((i) => <NoteCardSkeleton key={i} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[0, 1, 2, 3, 4, 5].map((i) => <NoteCardSkeleton key={i} />)}
         </div>
       ) : notes.length === 0 ? (
         /* Empty state */
@@ -754,8 +755,8 @@ function FolderNoteList({
           )}
         </div>
       ) : (
-        /* Note cards */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        /* Note cards — 3-column grid */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {notes.map((note) => {
             const iconEntry = NOTE_ICONS.find((i) => i.id === note.iconId);
             const NoteIcon = iconEntry?.Icon ?? FileText;
@@ -774,40 +775,47 @@ function FolderNoteList({
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--eb-panel-2)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,.08)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--eb-panel)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--eb-border)'; }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 13,
-                  padding: '11px 14px',
+                  display: 'flex', flexDirection: 'column', gap: 0,
+                  padding: '14px 16px',
                   borderRadius: 10,
                   border: '1px solid var(--eb-border)',
+                  borderTop: `3px solid ${noteFg}`,
                   background: 'var(--eb-panel)',
                   cursor: 'pointer',
                   transition: 'background .1s, border-color .1s',
-                  borderLeft: `3px solid ${noteFg}`,
+                  minHeight: 110,
                 }}
               >
-                <div
-                  style={{
-                    width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-                    background: noteBg,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <NoteIcon size={15} style={{ color: noteFg }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--eb-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {note.name}
+                {/* Top row: icon + pin */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div
+                    style={{
+                      width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                      background: noteBg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <NoteIcon size={15} style={{ color: noteFg }} />
                   </div>
-                  {!folder && noteFolder && (
-                    <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {note.pinned && (
+                    <Pin size={11} style={{ color: '#f5a524', flexShrink: 0, marginTop: 2 }} />
+                  )}
+                </div>
+                {/* Note name */}
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)', lineHeight: 1.4, flex: 1,
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {note.name}
+                </div>
+                {/* Bottom row: folder tag + date */}
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
+                  {!folder && noteFolder ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <noteFolder.Icon size={9} style={{ color: noteFolder.iconColor, flexShrink: 0 }} />
                       <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', whiteSpace: 'nowrap' }}>{noteFolder.label}</span>
                     </div>
-                  )}
+                  ) : <span />}
+                  <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', flexShrink: 0 }}>{relativeDate(note.createdAt)}</span>
                 </div>
-                {note.pinned && (
-                  <Pin size={11} style={{ color: '#f5a524', flexShrink: 0 }} />
-                )}
-                <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', flexShrink: 0 }}>{relativeDate(note.createdAt)}</span>
               </div>
             );
           })}
