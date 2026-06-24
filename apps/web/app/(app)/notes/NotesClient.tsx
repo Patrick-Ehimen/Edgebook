@@ -61,6 +61,8 @@ import {
 type Folder = { id: string; Icon: LucideIcon; iconColor: string; label: string; count: number };
 type CreateNoteInput = { folderId: string; name: string; iconId: string };
 
+const PAGE_SIZE = 9;
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const QUICK_FOLDERS: Folder[] = [
@@ -632,9 +634,26 @@ function FolderNoteList({
 }) {
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const FolderIcon = folder?.Icon ?? Library;
   const folderColor = folder?.iconColor ?? 'var(--green)';
   const isPinnedFolder = folder?.id === 'pinned';
+
+  const displayedNotes = notes.slice(0, visibleCount);
+  const hasMore = notes.length > visibleCount;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) setVisibleCount((c) => c + PAGE_SIZE); },
+      { rootMargin: '120px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-observe only when hasMore changes
+  }, [hasMore]);
 
   return (
     <div style={{ padding: '28px 36px 80px', maxWidth: 1000, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -762,8 +781,9 @@ function FolderNoteList({
         </div>
       ) : (
         /* Note cards — 3-column grid */
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {notes.map((note) => {
+          {displayedNotes.map((note) => {
             const iconEntry = NOTE_ICONS.find((i) => i.id === note.iconId);
             const NoteIcon = iconEntry?.Icon ?? FileText;
             const noteBg  = iconEntry?.bg  ?? 'rgba(100,149,237,.15)';
@@ -826,6 +846,15 @@ function FolderNoteList({
             );
           })}
         </div>
+
+        {/* Infinite-scroll sentinel */}
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {hasMore && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0', color: 'var(--eb-muted)', fontSize: 12 }}>
+            Loading more…
+          </div>
+        )}
+        </>
       )}
 
       {ctxMenu && (
@@ -3329,6 +3358,7 @@ export function NotesClient() {
           />
         ) : notesLoading || activeFolder !== null || notes.length > 0 ? (
           <FolderNoteList
+            key={`${activeFolder ?? 'all'}::${search.trim()}`}
             notes={activeFolderNotes}
             folder={[...QUICK_FOLDERS, ...FOLDERS].find((f) => f.id === activeFolder) ?? null}
             folderLabel={activeLabel}
