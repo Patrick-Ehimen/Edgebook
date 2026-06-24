@@ -30,6 +30,7 @@ import {
   Inbox,
   LayoutDashboard,
   Link2,
+  ListChecks,
   LogOut,
   NotebookPen,
   Settings,
@@ -65,6 +66,7 @@ const AVATAR_PRESETS = [
 
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/session', Icon: ListChecks, label: 'Pre-session' },
   { href: '/trades', Icon: BookOpen, label: 'Trade log' },
   { href: '/analytics', Icon: TrendingUp, label: 'Analytics' },
   { href: '/calendar', Icon: CalendarDays, label: 'Calendar' },
