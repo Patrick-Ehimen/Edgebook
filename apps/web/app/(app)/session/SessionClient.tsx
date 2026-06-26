@@ -55,8 +55,8 @@ interface SessionData {
   maxTrades: string;
   riskPct: string;
   preflight: Record<string, boolean>;
-  customPreflightItems: CustomPreflightItem[];
-  events: EventItem[];
+  customPreflightItems?: CustomPreflightItem[];
+  events: string;
   intention: string;
   lockedAt: string | null;
 }
