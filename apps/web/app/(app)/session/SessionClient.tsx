@@ -35,11 +35,6 @@ interface SetupItem {
   text: string;
 }
 
-interface EventItem {
-  id: string;
-  text: string;
-}
-
 interface CustomPreflightItem {
   id: string;
   label: string;
