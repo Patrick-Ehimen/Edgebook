@@ -7,14 +7,9 @@ import {
   Brain,
   CalendarClock,
   CheckCircle2,
-  CheckSquare,
-  Circle,
-  Clock,
-  ListChecks,
   Lock,
   Minus,
   Plus,
-  Square,
   Target,
   TrendingDown,
   TrendingUp,
@@ -58,28 +53,28 @@ interface SessionData {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SESSION_TYPES: { id: SessionType; label: string }[] = [
-  { id: 'morning', label: 'Morning' },
+  { id: 'morning',   label: 'Morning' },
   { id: 'afternoon', label: 'Afternoon' },
-  { id: 'evening', label: 'Evening' },
+  { id: 'evening',   label: 'Evening' },
   { id: 'overnight', label: 'Overnight' },
 ];
 
 const MOODS: { val: 1 | 2 | 3 | 4 | 5; emoji: string; label: string; color: string }[] = [
   { val: 1, emoji: '😰', label: 'Anxious', color: '#ff5b6c' },
-  { val: 2, emoji: '😕', label: 'Off', color: '#f5a524' },
-  { val: 3, emoji: '😐', label: 'Neutral', color: 'var(--eb-muted-2)' },
-  { val: 4, emoji: '🙂', label: 'Good', color: '#06b6d4' },
-  { val: 5, emoji: '🔥', label: 'Sharp', color: '#00d68f' },
+  { val: 2, emoji: '😕', label: 'Off',     color: '#f5a524' },
+  { val: 3, emoji: '😐', label: 'Neutral', color: '#7a8395' },
+  { val: 4, emoji: '🙂', label: 'Good',    color: '#06b6d4' },
+  { val: 5, emoji: '🔥', label: 'Sharp',   color: '#00d68f' },
 ];
 
 const PREFLIGHT_ITEMS: { id: string; label: string }[] = [
-  { id: 'sleep',       label: 'Rested — at least 6 hours of sleep' },
-  { id: 'fomo',        label: 'Not trading out of boredom, revenge, or FOMO' },
-  { id: 'risk',        label: 'Risk limits reviewed and set for today' },
-  { id: 'calendar',    label: 'Economic calendar checked for events' },
+  { id: 'sleep',        label: 'Rested — at least 6 hours of sleep' },
+  { id: 'fomo',         label: 'Not trading out of boredom, revenge, or FOMO' },
+  { id: 'risk',         label: 'Risk limits reviewed and set for today' },
+  { id: 'calendar',     label: 'Economic calendar checked for events' },
   { id: 'invalidation', label: 'Know my invalidation level for each planned setup' },
-  { id: 'stops',       label: 'Will respect stop losses — no moving them wider' },
-  { id: 'screen',      label: 'Charts and workspace are set up and ready' },
+  { id: 'stops',        label: 'Will respect stop losses — no moving them wider' },
+  { id: 'screen',       label: 'Charts and workspace are set up and ready' },
 ];
 
 const DEFAULT_SESSION: SessionData = {
@@ -136,6 +131,7 @@ function SectionCard({
   subtitle,
   children,
   accent,
+  badge,
 }: {
   icon: React.ReactNode;
   iconColor: string;
@@ -143,40 +139,58 @@ function SectionCard({
   subtitle?: string;
   children: React.ReactNode;
   accent?: string;
+  badge?: React.ReactNode;
 }) {
   return (
     <div
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
-        borderTop: accent ? `3px solid ${accent}` : '1px solid var(--eb-border)',
-        borderRadius: 12,
-        padding: '20px 24px',
+        borderTop: accent ? `2px solid ${accent}` : '1px solid var(--eb-border)',
+        borderRadius: 14,
+        padding: '22px 26px 24px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 18,
+        gap: 16,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <div
-          style={{
-            width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-            background: `color-mix(in srgb, ${iconColor} 15%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${iconColor} 30%, transparent)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--eb-text)', letterSpacing: '-.01em' }}>
-            {title}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+          <div
+            style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+              background: `color-mix(in srgb, ${iconColor} 11%, transparent)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {icon}
           </div>
-          {subtitle && (
-            <div style={{ fontSize: 12, color: 'var(--eb-muted)', marginTop: 2 }}>{subtitle}</div>
-          )}
+          <div style={{ paddingTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--eb-text)', letterSpacing: '-.01em', lineHeight: 1.3 }}>
+              {title}
+            </div>
+            {subtitle && (
+              <div style={{ fontSize: 12, color: 'var(--eb-muted)', marginTop: 3, lineHeight: 1.4 }}>
+                {subtitle}
+              </div>
+            )}
+          </div>
         </div>
+        {badge}
       </div>
+      {children}
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em',
+        textTransform: 'uppercase', color: 'var(--eb-muted)', marginBottom: 6,
+      }}
+    >
       {children}
     </div>
   );
@@ -205,54 +219,43 @@ function TextArea({
       style={{
         width: '100%',
         background: disabled ? 'transparent' : 'var(--eb-panel-2)',
-        border: '1px solid var(--eb-border)',
-        borderRadius: 8,
-        padding: '10px 12px',
+        border: `1px solid ${disabled ? 'transparent' : 'var(--eb-border)'}`,
+        borderRadius: 10,
+        padding: '10px 13px',
         color: 'var(--eb-text)',
         fontSize: 13,
         fontFamily: 'inherit',
-        lineHeight: 1.6,
+        lineHeight: 1.65,
         resize: 'vertical',
         outline: 0,
         boxSizing: 'border-box',
-        opacity: disabled ? 0.7 : 1,
+        opacity: disabled ? 0.8 : 1,
       }}
     />
   );
 }
 
-function InlineInput({
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  style,
+function Chip({
+  color,
+  children,
 }: {
-  value: string;
-  onChange?: (v: string) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  style?: React.CSSProperties;
+  color: string;
+  children: React.ReactNode;
 }) {
   return (
-    <input
-      value={value}
-      onChange={(e) => onChange?.(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
+    <span
       style={{
-        background: disabled ? 'transparent' : 'var(--eb-panel-2)',
-        border: '1px solid var(--eb-border)',
-        borderRadius: 7,
-        padding: '7px 10px',
-        color: 'var(--eb-text)',
-        fontSize: 13,
-        fontFamily: 'inherit',
-        outline: 0,
-        opacity: disabled ? 0.7 : 1,
-        ...style,
+        fontSize: 11, fontWeight: 700,
+        color,
+        background: `color-mix(in srgb, ${color} 10%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+        borderRadius: 99,
+        padding: '2px 10px',
+        whiteSpace: 'nowrap',
       }}
-    />
+    >
+      {children}
+    </span>
   );
 }
 
@@ -266,7 +269,6 @@ export function SessionClient() {
   const newSymbolRef = useRef<HTMLInputElement>(null);
   const newSetupRef = useRef<HTMLInputElement>(null);
 
-  // Load from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(todayKey());
     if (saved) {
@@ -274,24 +276,24 @@ export function SessionClient() {
     }
   }, []);
 
-  // Persist on change
   useEffect(() => {
     localStorage.setItem(todayKey(), JSON.stringify(session));
   }, [session]);
 
-  // Live timer tick when session locked
+  // Re-render every second to update the elapsed timer
   useEffect(() => {
     if (!session.lockedAt) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [session.lockedAt]);
 
+  void tick; // consumed by elapsedLabel via re-render
+
   const set = <K extends keyof SessionData>(key: K, val: SessionData[K]) =>
     setSession((s) => ({ ...s, [key]: val }));
 
   const isLocked = !!session.lockedAt;
 
-  // Completion score
   const preflightDone = Object.values(session.preflight).filter(Boolean).length;
   const completionItems = [
     session.mood !== 3,
@@ -307,7 +309,6 @@ export function SessionClient() {
 
   const activeMood = MOODS.find((m) => m.val === session.mood);
 
-  // ── Bias helpers ──
   const addBias = () => {
     const sym = newSymbol.trim().toUpperCase();
     if (!sym) return;
@@ -328,7 +329,6 @@ export function SessionClient() {
   const removeBias = (id: string) =>
     setSession((s) => ({ ...s, biases: s.biases.filter((b) => b.id !== id) }));
 
-  // ── Setup helpers ──
   const addSetup = () => {
     const text = newSetup.trim();
     if (!text) return;
@@ -348,18 +348,16 @@ export function SessionClient() {
 
   const lockSession = () => set('lockedAt', new Date().toISOString());
   const unlockSession = () => set('lockedAt', null);
-
   const resetSession = () => {
-    const fresh = { ...DEFAULT_SESSION };
-    setSession(fresh);
+    setSession({ ...DEFAULT_SESSION });
     localStorage.removeItem(todayKey());
   };
 
   const biasBtn = (item: BiasItem, dir: BiasDir) => {
     const configs: Record<BiasDir, { label: string; color: string; bg: string; Icon: typeof TrendingUp }> = {
-      bull:    { label: 'Bull',    color: '#00d68f', bg: 'rgba(0,214,143,.15)',   Icon: TrendingUp },
-      neutral: { label: 'Neutral', color: 'var(--eb-muted-2)', bg: 'var(--eb-panel-2)', Icon: Minus },
-      bear:    { label: 'Bear',    color: '#ff5b6c', bg: 'rgba(255,91,108,.15)',  Icon: TrendingDown },
+      bull:    { label: 'Bull',    color: '#00d68f', bg: 'rgba(0,214,143,.13)',  Icon: TrendingUp },
+      neutral: { label: 'Neutral', color: 'var(--eb-muted-2)', bg: 'var(--eb-panel)', Icon: Minus },
+      bear:    { label: 'Bear',    color: '#ff5b6c', bg: 'rgba(255,91,108,.13)', Icon: TrendingDown },
     };
     const c = configs[dir];
     const active = item.direction === dir;
@@ -371,8 +369,10 @@ export function SessionClient() {
         onClick={() => updateBias(item.id, { direction: dir })}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '5px 10px', borderRadius: 6,
-          border: active ? `1px solid color-mix(in srgb, ${c.color} 50%, transparent)` : '1px solid var(--eb-border)',
+          padding: '5px 11px', borderRadius: 7,
+          border: active
+            ? `1px solid color-mix(in srgb, ${c.color} 45%, transparent)`
+            : '1px solid var(--eb-border)',
           background: active ? c.bg : 'transparent',
           color: active ? c.color : 'var(--eb-muted)',
           fontSize: 11.5, fontWeight: active ? 600 : 400,
@@ -387,33 +387,59 @@ export function SessionClient() {
     );
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 53px)', background: 'var(--eb-bg, var(--eb-panel-2))' }}>
-      <style>{`@keyframes eb-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }`}</style>
+  const inputBase: React.CSSProperties = {
+    background: 'var(--eb-panel-2)',
+    border: '1px solid var(--eb-border)',
+    borderRadius: 8,
+    padding: '8px 12px',
+    color: 'var(--eb-text)',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    outline: 0,
+  };
 
-      {/* ── Locked banner ──────────────────────────────────────────────── */}
+  const addBtn: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    padding: '8px 16px', borderRadius: 8,
+    border: '1px solid var(--eb-border)',
+    background: 'var(--eb-panel)',
+    color: 'var(--eb-muted-2)', fontSize: 12, fontWeight: 500,
+    cursor: 'pointer', fontFamily: 'inherit',
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex', flexDirection: 'column',
+        minHeight: 'calc(100vh - 53px)',
+        background: 'var(--eb-bg)',
+      }}
+    >
+      <style>{`
+        @keyframes eb-pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+        @keyframes eb-slide-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+
+      {/* ── Locked banner ─────────────────────────────────────────────── */}
       {isLocked && (
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '10px 32px',
-            background: 'rgba(0,214,143,.08)',
-            borderBottom: '1px solid rgba(0,214,143,.2)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 36px',
+            background: 'color-mix(in srgb, #00d68f 6%, var(--eb-panel))',
+            borderBottom: '1px solid color-mix(in srgb, #00d68f 18%, var(--eb-border))',
+            animation: 'eb-slide-in .2s ease',
           }}
         >
           <div
             style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: '#00d68f',
-              animation: 'eb-pulse 2s infinite',
-              flexShrink: 0,
+              width: 7, height: 7, borderRadius: '50%', background: '#00d68f',
+              animation: 'eb-pulse 2s infinite', flexShrink: 0,
             }}
           />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#00d68f' }}>
-            Session active
-          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#00d68f' }}>Session active</span>
           <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
-            Started at {formatTime(session.lockedAt!)} · {elapsedLabel(session.lockedAt!)} elapsed
+            · Started {formatTime(session.lockedAt ?? '')} · {elapsedLabel(session.lockedAt ?? '')} elapsed
           </span>
           <div style={{ flex: 1 }} />
           <button
@@ -421,9 +447,9 @@ export function SessionClient() {
             onClick={unlockSession}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '5px 12px', borderRadius: 7,
+              padding: '4px 12px', borderRadius: 7,
               border: '1px solid var(--eb-border)',
-              background: 'var(--eb-panel)',
+              background: 'var(--eb-panel-2)',
               color: 'var(--eb-muted-2)', fontSize: 12, fontWeight: 500,
               cursor: 'pointer', fontFamily: 'inherit',
             }}
@@ -435,9 +461,9 @@ export function SessionClient() {
             onClick={resetSession}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '5px 12px', borderRadius: 7,
-              border: '1px solid rgba(255,91,108,.35)',
-              background: 'rgba(255,91,108,.08)',
+              padding: '4px 12px', borderRadius: 7,
+              border: '1px solid color-mix(in srgb, #ff5b6c 35%, transparent)',
+              background: 'rgba(255,91,108,.07)',
               color: '#ff5b6c', fontSize: 12, fontWeight: 500,
               cursor: 'pointer', fontFamily: 'inherit',
             }}
@@ -447,73 +473,87 @@ export function SessionClient() {
         </div>
       )}
 
-      {/* ── Main scroll area ────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 36px 120px' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* ── Main scroll area ───────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px 140px' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Page header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div
+            style={{
+              display: 'flex', alignItems: 'flex-start',
+              justifyContent: 'space-between', flexWrap: 'wrap',
+              gap: 14, marginBottom: 6,
+            }}
+          >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div
-                  style={{
-                    width: 36, height: 36, borderRadius: 9,
-                    background: 'rgba(139,92,246,.15)',
-                    border: '1px solid rgba(139,92,246,.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <ListChecks size={18} style={{ color: '#8b5cf6' }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--eb-text)', letterSpacing: '-.02em' }}>
-                    Pre-Session Checklist
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--eb-muted)', marginTop: 1 }}>
-                    {formatDate(new Date())}
-                  </div>
-                </div>
+              <div
+                style={{
+                  fontSize: 11, fontWeight: 600, letterSpacing: '.1em',
+                  textTransform: 'uppercase', color: 'var(--eb-muted)', marginBottom: 6,
+                }}
+              >
+                {formatDate(new Date())}
+              </div>
+              <div
+                style={{
+                  fontSize: 22, fontWeight: 800, color: 'var(--eb-text)',
+                  letterSpacing: '-.03em', lineHeight: 1,
+                }}
+              >
+                Pre-Session Checklist
               </div>
             </div>
 
-            {/* Session type tabs */}
-            <div
-              style={{
-                display: 'flex', gap: 2,
-                background: 'var(--eb-panel)',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 9, padding: 3,
-              }}
-            >
-              {SESSION_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => set('sessionType', t.id)}
-                  style={{
-                    padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                    border: 0, cursor: isLocked ? 'default' : 'pointer', fontFamily: 'inherit',
-                    background: session.sessionType === t.id ? 'rgba(139,92,246,.2)' : 'transparent',
-                    color: session.sessionType === t.id ? '#c4b5fd' : 'var(--eb-muted)',
-                    transition: 'all .12s',
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 4 }}>
+              {!isLocked && (
+                <Chip color={completionPct === 100 ? '#00d68f' : 'var(--eb-muted)'}>
+                  {completionPct}% ready
+                </Chip>
+              )}
+
+              {/* Session type selector */}
+              <div
+                style={{
+                  display: 'flex', gap: 1,
+                  background: 'var(--eb-panel)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 10, padding: 3,
+                }}
+              >
+                {SESSION_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => set('sessionType', t.id)}
+                    style={{
+                      padding: '4px 12px', borderRadius: 7,
+                      fontSize: 12, fontWeight: 500,
+                      border: 0, cursor: isLocked ? 'default' : 'pointer',
+                      fontFamily: 'inherit',
+                      background: session.sessionType === t.id
+                        ? 'rgba(139,92,246,.18)'
+                        : 'transparent',
+                      color: session.sessionType === t.id ? '#c4b5fd' : 'var(--eb-muted)',
+                      transition: 'all .12s',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* ── Section 1: Mood ──────────────────────────────────────────── */}
+          {/* ── 1. Mental State ─────────────────────────────────────────── */}
           <SectionCard
-            icon={<Brain size={17} style={{ color: '#8b5cf6' }} />}
+            icon={<Brain size={16} style={{ color: '#8b5cf6' }} />}
             iconColor="#8b5cf6"
-            title="How are you feeling today?"
+            title="Mental State"
             subtitle="Honest self-assessment before you risk capital"
             accent="#8b5cf6"
           >
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               {MOODS.map((m) => {
                 const active = session.mood === m.val;
                 return (
@@ -523,23 +563,26 @@ export function SessionClient() {
                     disabled={isLocked}
                     onClick={() => set('mood', m.val)}
                     style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                      padding: '12px 18px', borderRadius: 10, flex: 1, minWidth: 80,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                      padding: '14px 10px', borderRadius: 11, flex: 1,
                       border: active
-                        ? `1px solid color-mix(in srgb, ${m.color} 50%, transparent)`
+                        ? `1px solid color-mix(in srgb, ${m.color} 40%, transparent)`
                         : '1px solid var(--eb-border)',
                       background: active
-                        ? `color-mix(in srgb, ${m.color} 12%, transparent)`
+                        ? `color-mix(in srgb, ${m.color} 10%, var(--eb-panel-2))`
                         : 'var(--eb-panel-2)',
+                      boxShadow: active
+                        ? `0 0 0 3px color-mix(in srgb, ${m.color} 12%, transparent)`
+                        : 'none',
                       cursor: isLocked ? 'default' : 'pointer',
                       fontFamily: 'inherit',
-                      transition: 'all .12s',
+                      transition: 'all .15s',
                     }}
                   >
-                    <span style={{ fontSize: 24, lineHeight: 1 }}>{m.emoji}</span>
+                    <span style={{ fontSize: 26, lineHeight: 1 }}>{m.emoji}</span>
                     <span
                       style={{
-                        fontSize: 11.5, fontWeight: active ? 700 : 400,
+                        fontSize: 11, fontWeight: active ? 700 : 400,
                         color: active ? m.color : 'var(--eb-muted)',
                       }}
                     >
@@ -554,12 +597,12 @@ export function SessionClient() {
               <div
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: 8,
-                  padding: '10px 14px', borderRadius: 8,
-                  background: 'rgba(245,165,36,.08)',
-                  border: '1px solid rgba(245,165,36,.25)',
+                  padding: '10px 13px', borderRadius: 9,
+                  background: 'rgba(245,165,36,.07)',
+                  border: '1px solid rgba(245,165,36,.22)',
                 }}
               >
-                <AlertTriangle size={14} style={{ color: '#f5a524', flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={13} style={{ color: '#f5a524', flexShrink: 0, marginTop: 1 }} />
                 <span style={{ fontSize: 12.5, color: '#f5a524', lineHeight: 1.5 }}>
                   You rated yourself <strong>{activeMood.label}</strong>. Consider reducing position size or sitting out high-risk setups today.
                 </span>
@@ -567,9 +610,7 @@ export function SessionClient() {
             )}
 
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--eb-muted)', marginBottom: 6 }}>
-                Optional note
-              </div>
+              <FieldLabel>Optional note</FieldLabel>
               <TextArea
                 value={session.moodNote}
                 onChange={(v) => set('moodNote', v)}
@@ -580,21 +621,21 @@ export function SessionClient() {
             </div>
           </SectionCard>
 
-          {/* ── Section 2: Market Bias ───────────────────────────────────── */}
+          {/* ── 2. Market Bias ──────────────────────────────────────────── */}
           <SectionCard
-            icon={<Zap size={17} style={{ color: '#06b6d4' }} />}
+            icon={<Zap size={16} style={{ color: '#06b6d4' }} />}
             iconColor="#06b6d4"
             title="Market Bias"
             subtitle="Define your directional conviction before the session starts"
             accent="#06b6d4"
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {session.biases.map((item) => (
                 <div
                   key={item.id}
                   style={{
                     display: 'flex', flexDirection: 'column', gap: 8,
-                    padding: '14px 16px', borderRadius: 10,
+                    padding: '13px 14px', borderRadius: 10,
                     background: 'var(--eb-panel-2)',
                     border: '1px solid var(--eb-border)',
                   }}
@@ -602,13 +643,13 @@ export function SessionClient() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span
                       style={{
-                        fontSize: 13, fontWeight: 700, color: 'var(--eb-text)',
-                        minWidth: 48, letterSpacing: '.03em',
+                        fontSize: 12.5, fontWeight: 700, color: 'var(--eb-text)',
+                        minWidth: 44, letterSpacing: '.04em',
                       }}
                     >
                       {item.symbol}
                     </span>
-                    <div style={{ display: 'flex', gap: 4, flex: 1, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 4, flex: 1 }}>
                       {(['bull', 'neutral', 'bear'] as BiasDir[]).map((dir) => biasBtn(item, dir))}
                     </div>
                     {!isLocked && (
@@ -616,8 +657,8 @@ export function SessionClient() {
                         type="button"
                         onClick={() => removeBias(item.id)}
                         style={{
-                          background: 'none', border: 0, padding: '2px 4px',
-                          cursor: 'pointer', color: 'var(--eb-muted)', lineHeight: 1,
+                          background: 'none', border: 0, padding: 3,
+                          cursor: 'pointer', color: 'var(--eb-muted)',
                           borderRadius: 4, display: 'flex', alignItems: 'center',
                         }}
                       >
@@ -625,12 +666,20 @@ export function SessionClient() {
                       </button>
                     )}
                   </div>
-                  <InlineInput
+                  <input
                     value={item.thesis}
-                    onChange={(v) => updateBias(item.id, { thesis: v })}
+                    onChange={(e) => updateBias(item.id, { thesis: e.target.value })}
                     placeholder={`${item.symbol} thesis — why do you hold this bias?`}
                     disabled={isLocked}
-                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: isLocked ? 'transparent' : 'var(--eb-panel)',
+                      border: `1px solid ${isLocked ? 'transparent' : 'var(--eb-border)'}`,
+                      borderRadius: 8, padding: '7px 10px',
+                      color: 'var(--eb-text)', fontSize: 12.5,
+                      fontFamily: 'inherit', outline: 0,
+                      opacity: isLocked ? 0.8 : 1,
+                    }}
                   />
                 </div>
               ))}
@@ -643,44 +692,32 @@ export function SessionClient() {
                   value={newSymbol}
                   onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && addBias()}
-                  placeholder="Add symbol (e.g. SOL)"
+                  placeholder="Symbol (e.g. SOL)"
                   maxLength={10}
-                  style={{
-                    flex: 1, background: 'var(--eb-panel-2)',
-                    border: '1px solid var(--eb-border)', borderRadius: 7,
-                    padding: '7px 10px', color: 'var(--eb-text)',
-                    fontSize: 13, fontFamily: 'inherit', outline: 0,
-                    textTransform: 'uppercase',
-                  }}
+                  style={{ ...inputBase, flex: 1, textTransform: 'uppercase' }}
                 />
-                <button
-                  type="button"
-                  onClick={addBias}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '7px 14px', borderRadius: 7,
-                    border: '1px solid var(--eb-border)',
-                    background: 'var(--eb-panel)',
-                    color: 'var(--eb-muted-2)', fontSize: 12, fontWeight: 500,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
+                <button type="button" onClick={addBias} style={addBtn}>
                   <Plus size={13} /> Add
                 </button>
               </div>
             )}
           </SectionCard>
 
-          {/* ── Section 3: Setups on Watch ───────────────────────────────── */}
+          {/* ── 3. Setups on Watch ──────────────────────────────────────── */}
           <SectionCard
-            icon={<Target size={17} style={{ color: '#00d68f' }} />}
+            icon={<Target size={16} style={{ color: '#00d68f' }} />}
             iconColor="#00d68f"
             title="Setups on Watch"
-            subtitle="What are you actually watching today? Be specific."
+            subtitle="Be specific — vague setups lead to impulsive entries"
             accent="#00d68f"
+            badge={
+              session.setups.length > 0
+                ? <Chip color="#00d68f">{session.setups.length}</Chip>
+                : undefined
+            }
           >
             {session.setups.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {session.setups.map((setup, i) => (
                   <div
                     key={setup.id}
@@ -694,8 +731,8 @@ export function SessionClient() {
                     <span
                       style={{
                         fontSize: 10, fontWeight: 700, color: '#00d68f',
-                        background: 'rgba(0,214,143,.12)',
-                        border: '1px solid rgba(0,214,143,.25)',
+                        background: 'rgba(0,214,143,.1)',
+                        border: '1px solid rgba(0,214,143,.22)',
                         borderRadius: 4, padding: '1px 6px', flexShrink: 0,
                         fontVariantNumeric: 'tabular-nums',
                       }}
@@ -710,8 +747,8 @@ export function SessionClient() {
                         type="button"
                         onClick={() => removeSetup(setup.id)}
                         style={{
-                          background: 'none', border: 0, padding: '2px 4px',
-                          cursor: 'pointer', color: 'var(--eb-muted)', lineHeight: 1,
+                          background: 'none', border: 0, padding: 3,
+                          cursor: 'pointer', color: 'var(--eb-muted)',
                           borderRadius: 4, display: 'flex', alignItems: 'center',
                         }}
                       >
@@ -731,25 +768,9 @@ export function SessionClient() {
                   onChange={(e) => setNewSetup(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addSetup()}
                   placeholder="e.g. BTC retest of 68k support — long if holds on 15m close"
-                  style={{
-                    flex: 1, background: 'var(--eb-panel-2)',
-                    border: '1px solid var(--eb-border)', borderRadius: 7,
-                    padding: '7px 10px', color: 'var(--eb-text)',
-                    fontSize: 13, fontFamily: 'inherit', outline: 0,
-                  }}
+                  style={{ ...inputBase, flex: 1 }}
                 />
-                <button
-                  type="button"
-                  onClick={addSetup}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '7px 14px', borderRadius: 7,
-                    border: '1px solid var(--eb-border)',
-                    background: 'var(--eb-panel)',
-                    color: 'var(--eb-muted-2)', fontSize: 12, fontWeight: 500,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
+                <button type="button" onClick={addSetup} style={addBtn}>
                   <Plus size={13} /> Add
                 </button>
               </div>
@@ -762,30 +783,28 @@ export function SessionClient() {
             )}
           </SectionCard>
 
-          {/* ── Section 4: Risk Parameters ───────────────────────────────── */}
+          {/* ── 4. Risk Limits ──────────────────────────────────────────── */}
           <SectionCard
-            icon={<BookOpen size={17} style={{ color: '#f5a524' }} />}
+            icon={<BookOpen size={16} style={{ color: '#f5a524' }} />}
             iconColor="#f5a524"
             title="Today's Risk Limits"
-            subtitle="Lock in your numbers before the market opens"
+            subtitle="Lock in your numbers before the session begins"
             accent="#f5a524"
           >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {[
-                { key: 'maxLoss' as const, label: 'Max Daily Loss', placeholder: '500', suffix: 'USDT' },
-                { key: 'maxTrades' as const, label: 'Max Trades', placeholder: '5', suffix: 'trades' },
-                { key: 'riskPct' as const, label: 'Risk Per Trade', placeholder: '1', suffix: '%' },
+                { key: 'maxLoss'   as const, label: 'Max Daily Loss', placeholder: '500', suffix: 'USDT' },
+                { key: 'maxTrades' as const, label: 'Max Trades',     placeholder: '5',   suffix: 'trades' },
+                { key: 'riskPct'   as const, label: 'Risk Per Trade', placeholder: '1',   suffix: '%' },
               ].map(({ key, label, placeholder, suffix }) => (
                 <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--eb-muted)' }}>
-                    {label}
-                  </div>
+                  <FieldLabel>{label}</FieldLabel>
                   <div
                     style={{
                       display: 'flex', alignItems: 'center',
                       background: isLocked ? 'transparent' : 'var(--eb-panel-2)',
                       border: '1px solid var(--eb-border)',
-                      borderRadius: 8, overflow: 'hidden',
+                      borderRadius: 9, overflow: 'hidden',
                       opacity: isLocked ? 0.8 : 1,
                     }}
                   >
@@ -797,7 +816,7 @@ export function SessionClient() {
                       disabled={isLocked}
                       style={{
                         flex: 1, background: 'transparent', border: 0, outline: 0,
-                        padding: '8px 10px', color: 'var(--eb-text)',
+                        padding: '9px 11px', color: 'var(--eb-text)',
                         fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
                       }}
                     />
@@ -818,15 +837,20 @@ export function SessionClient() {
             </div>
           </SectionCard>
 
-          {/* ── Section 5: Pre-flight Checks ─────────────────────────────── */}
+          {/* ── 5. Pre-flight Checks ────────────────────────────────────── */}
           <SectionCard
-            icon={<CheckCircle2 size={17} style={{ color: '#00d68f' }} />}
+            icon={<CheckCircle2 size={16} style={{ color: '#00d68f' }} />}
             iconColor="#00d68f"
             title="Pre-flight Checks"
             subtitle={`${preflightDone} of ${PREFLIGHT_ITEMS.length} confirmed`}
             accent="#00d68f"
+            badge={
+              preflightDone === PREFLIGHT_ITEMS.length
+                ? <Chip color="#00d68f">All clear</Chip>
+                : undefined
+            }
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {PREFLIGHT_ITEMS.map((item) => {
                 const checked = session.preflight[item.id] ?? false;
                 return (
@@ -837,21 +861,43 @@ export function SessionClient() {
                     onClick={() => togglePreflight(item.id)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 14px', borderRadius: 8,
-                      border: checked
-                        ? '1px solid rgba(0,214,143,.25)'
-                        : '1px solid var(--eb-border)',
-                      background: checked ? 'rgba(0,214,143,.06)' : 'transparent',
+                      padding: '10px 12px', borderRadius: 9,
+                      border: 'none',
+                      background: checked ? 'rgba(0,214,143,.05)' : 'transparent',
                       cursor: isLocked ? 'default' : 'pointer',
                       textAlign: 'left', fontFamily: 'inherit',
-                      transition: 'all .12s',
+                      transition: 'background .12s',
                     }}
                   >
-                    {checked
-                      ? <CheckCircle2 size={16} style={{ color: '#00d68f', flexShrink: 0 }} />
-                      : <Circle size={16} style={{ color: 'var(--eb-muted)', flexShrink: 0 }} />
-                    }
-                    <span style={{ fontSize: 13, color: checked ? 'var(--eb-text)' : 'var(--eb-muted-2)', lineHeight: 1.4 }}>
+                    {/* Custom checkbox */}
+                    <div
+                      style={{
+                        width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                        border: checked ? '1.5px solid #00d68f' : '1.5px solid var(--eb-border)',
+                        background: checked ? '#00d68f' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all .12s',
+                      }}
+                    >
+                      {checked && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                          <path
+                            d="M1 4L3.5 6.5L9 1"
+                            stroke="var(--eb-bg)"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: checked ? 'var(--eb-text)' : 'var(--eb-muted-2)',
+                        lineHeight: 1.4,
+                      }}
+                    >
                       {item.label}
                     </span>
                   </button>
@@ -860,11 +906,11 @@ export function SessionClient() {
             </div>
           </SectionCard>
 
-          {/* ── Section 6: Macro Events ───────────────────────────────────── */}
+          {/* ── 6. Macro Events ─────────────────────────────────────────── */}
           <SectionCard
-            icon={<CalendarClock size={17} style={{ color: '#06b6d4' }} />}
+            icon={<CalendarClock size={16} style={{ color: '#06b6d4' }} />}
             iconColor="#06b6d4"
-            title="Macro Events Today"
+            title="Macro Events"
             subtitle="CPI, FOMC, earnings, open interest flips — anything that moves the tape"
             accent="#06b6d4"
           >
@@ -877,12 +923,12 @@ export function SessionClient() {
             />
           </SectionCard>
 
-          {/* ── Section 7: Session Intention ─────────────────────────────── */}
+          {/* ── 7. Session Intention ────────────────────────────────────── */}
           <SectionCard
-            icon={<BookOpen size={17} style={{ color: '#8b5cf6' }} />}
+            icon={<BookOpen size={16} style={{ color: '#8b5cf6' }} />}
             iconColor="#8b5cf6"
             title="Session Intention"
-            subtitle="One clear sentence about what you're here to do — and how you'll do it"
+            subtitle="One clear sentence about what you're here to do and how you'll do it"
             accent="#8b5cf6"
           >
             <TextArea
@@ -895,10 +941,10 @@ export function SessionClient() {
             {session.intention.trim() && (
               <div
                 style={{
-                  padding: '12px 16px', borderRadius: 8,
-                  background: 'rgba(139,92,246,.08)',
-                  border: '1px solid rgba(139,92,246,.2)',
-                  fontSize: 13, color: '#c4b5fd', lineHeight: 1.6,
+                  padding: '13px 16px', borderRadius: 10,
+                  background: 'rgba(139,92,246,.07)',
+                  border: '1px solid rgba(139,92,246,.18)',
+                  fontSize: 13, color: '#c4b5fd', lineHeight: 1.65,
                   fontStyle: 'italic',
                 }}
               >
@@ -916,12 +962,14 @@ export function SessionClient() {
           style={{
             position: 'sticky', bottom: 0,
             borderTop: '1px solid var(--eb-border)',
-            background: 'var(--eb-panel)',
-            padding: '14px 36px',
+            background: 'color-mix(in srgb, var(--eb-panel) 88%, transparent)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            padding: '14px 40px',
             display: 'flex', alignItems: 'center', gap: 20,
           }}
         >
-          {/* Progress */}
+          {/* Progress bar */}
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <div
               style={{
@@ -936,14 +984,19 @@ export function SessionClient() {
                   height: '100%', borderRadius: 99,
                   width: `${completionPct}%`,
                   background: completionPct === 100
-                    ? 'var(--green)'
-                    : 'linear-gradient(90deg,#8b5cf6,#06b6d4)',
-                  transition: 'width .3s ease',
+                    ? '#00d68f'
+                    : 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)',
+                  transition: 'width .35s cubic-bezier(.4,0,.2,1)',
                 }}
               />
             </div>
-            <span style={{ fontSize: 12, color: 'var(--eb-muted)', flexShrink: 0 }}>
-              {completionPct}% complete
+            <span
+              style={{
+                fontSize: 12, color: 'var(--eb-muted)',
+                flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {completionPct}%
             </span>
           </div>
 
@@ -952,15 +1005,16 @@ export function SessionClient() {
             onClick={lockSession}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 24px', borderRadius: 9,
+              padding: '10px 26px', borderRadius: 10,
               border: '1px solid #00b67a',
-              background: 'linear-gradient(180deg,#00d68f,#00b67a)',
-              color: '#06140f', fontSize: 13.5, fontWeight: 700,
+              background: 'linear-gradient(160deg, #00d68f 0%, #00b67a 100%)',
+              color: '#052e17', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 2px 12px rgba(0,214,143,.25)',
+              boxShadow: '0 2px 16px rgba(0,214,143,.28)',
+              letterSpacing: '-.01em',
             }}
           >
-            <Lock size={14} /> Lock in & Start Session
+            <Lock size={13} /> Lock in & Start Session
           </button>
         </div>
       )}
