@@ -35,6 +35,16 @@ interface SetupItem {
   text: string;
 }
 
+interface EventItem {
+  id: string;
+  text: string;
+}
+
+interface CustomPreflightItem {
+  id: string;
+  label: string;
+}
+
 interface SessionData {
   sessionType: SessionType;
   mood: 1 | 2 | 3 | 4 | 5;
@@ -45,7 +55,8 @@ interface SessionData {
   maxTrades: string;
   riskPct: string;
   preflight: Record<string, boolean>;
-  events: string;
+  customPreflightItems: CustomPreflightItem[];
+  events: EventItem[];
   intention: string;
   lockedAt: string | null;
 }
