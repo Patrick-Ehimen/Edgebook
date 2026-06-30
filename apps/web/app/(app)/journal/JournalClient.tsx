@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { RiDeleteBin6Line } from 'react-icons/ri';
 import { useRouter } from 'next/navigation';
 import { journalApi } from '@/features/journal';
 import type { JournalEntry, JournalStats, RecentEntry } from '@/features/journal';
@@ -299,7 +301,6 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
   const dk = entry.date.slice(0, 10);
   const isPinned = (entry as RecentEntry).pinned === true;
 
-  // Dynamic colors for "Today" highlight based on bias
   const todayColor = entry.bias === 'LONG' ? '0,214,143' : entry.bias === 'SHORT' ? '239,68,68' : '122,131,149';
   const todayBorder = isToday ? `rgba(${todayColor},.55)` : 'var(--eb-border)';
   const todayGlow = isToday ? `0 0 0 3px rgba(${todayColor},.10)` : undefined;
@@ -311,82 +312,164 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
   const dCirc = 94;
   const dOffset = discipline != null ? dCirc - (discipline / 100) * dCirc : dCirc;
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const qc = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: () => journalApi.deleteEntry(dk),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journal'] });
+      toast.success('Journal entry deleted');
+    },
+    onError: () => toast.error('Failed to delete entry'),
+  });
+
   return (
-    <Link href={`/journal/${dk}`} style={{
-      background: 'var(--eb-panel)',
-      border: `1px solid ${todayBorder}`,
-      borderLeft, borderRadius: 11, overflow: 'hidden',
-      boxShadow: todayGlow,
-      display: 'flex', flexDirection: 'column', textDecoration: 'none',
-      color: 'inherit', cursor: 'pointer', transition: 'border-color .12s, transform .08s',
-    }}>
-      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, background: 'linear-gradient(180deg,rgba(255,255,255,.02),transparent)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 52px', textAlign: 'center' }}>
-          <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{dow}</div>
-          <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', fontFamily: 'var(--font-mono, monospace)' }}>{day}</div>
-          <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{mon}</div>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {entry.bias && <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>}
-              {recent?.tradeCount != null && recent.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {recent.tradeCount} trade{recent.tradeCount !== 1 ? 's' : ''}</Chip>}
-              {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● Today · in progress</Chip>}
+    <div style={{ position: 'relative' }}>
+      <Link href={`/journal/${dk}`} style={{
+        background: 'var(--eb-panel)',
+        border: `1px solid ${todayBorder}`,
+        borderLeft, borderRadius: 11, overflow: 'hidden',
+        boxShadow: todayGlow,
+        display: 'flex', flexDirection: 'column', textDecoration: 'none',
+        color: 'inherit', cursor: 'pointer', transition: 'border-color .12s, transform .08s',
+      }}>
+        <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, background: 'linear-gradient(180deg,rgba(255,255,255,.02),transparent)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 52px', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{dow}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', fontFamily: 'var(--font-mono, monospace)' }}>{day}</div>
+            <div style={{ fontSize: 10, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{mon}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {entry.bias && <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>}
+                {recent?.tradeCount != null && recent.tradeCount > 0 && <Chip style={{ color: 'var(--eb-muted-2)', borderColor: 'var(--eb-border)' }}>⏱ {recent.tradeCount} trade{recent.tradeCount !== 1 ? 's' : ''}</Chip>}
+                {isToday && <Chip style={{ color: 'var(--eb-cyan)', borderColor: 'rgba(6,182,212,.30)', background: 'rgba(6,182,212,.08)' }}>● Today · in progress</Chip>}
+              </div>
+              <PinButton date={dk} pinned={isPinned} />
             </div>
-            <PinButton date={dk} pinned={isPinned} />
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--eb-muted)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            {full.conviction != null && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {([1, 2, 3, 4, 5] as const).map(n => (
-                  <Star key={n} size={10} fill={n <= (full.conviction ?? 0) ? '#fbbf24' : 'none'} color={n <= (full.conviction ?? 0) ? '#fbbf24' : 'var(--eb-border)'} />
-                ))}
-              </span>
-            )}
-            {full.sleepHours != null && <span>Sleep {Number(full.sleepHours).toFixed(1)}h</span>}
-          </div>
-        </div>
-        {discipline != null && (
-          <div style={{ position: 'relative', width: 38, height: 38, flex: '0 0 38px' }}>
-            <svg width="38" height="38" viewBox="0 0 38 38" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="19" cy="19" r="15" fill="none" stroke="var(--eb-panel-2)" strokeWidth="4.5" strokeLinecap="round" />
-              <circle cx="19" cy="19" r="15" fill="none" stroke={dRingColor} strokeWidth="4.5" strokeLinecap="round" strokeDasharray={dCirc} strokeDashoffset={dOffset} />
-            </svg>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono, monospace)', color: dRingColor }}>
-              {discipline}
+            <div style={{ fontSize: 11, color: 'var(--eb-muted)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              {full.conviction != null && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {([1, 2, 3, 4, 5] as const).map(n => (
+                    <Star key={n} size={10} fill={n <= (full.conviction ?? 0) ? '#fbbf24' : 'none'} color={n <= (full.conviction ?? 0) ? '#fbbf24' : 'var(--eb-border)'} />
+                  ))}
+                </span>
+              )}
+              {full.sleepHours != null && <span>Sleep {Number(full.sleepHours).toFixed(1)}h</span>}
             </div>
           </div>
-        )}
-      </div>
-      <div style={{ padding: '0 14px 12px', fontSize: 12, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
-        {full.intentMd && (
-          <>
-            <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--eb-muted)', fontWeight: 600, marginBottom: 3 }}>Pre-market intent</div>
-            <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{full.intentMd}</div>
-          </>
-        )}
-        {moods.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-            {moods.map(m => {
-              const tag = getMoodTag(m);
-              return (
-                <Chip key={m} style={tag ? { color: tag.color, background: tag.bg, borderColor: tag.border } : {}}>
-                  {m}
-                </Chip>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '8px 14px', borderTop: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)', fontSize: 11, color: 'var(--eb-muted)', marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
-        {isToday
-          ? <><Radio size={11} style={{ color: 'var(--eb-cyan)' }} /> Live · intent saved</>
-          : full.finalizedAt
-            ? <><BookOpen size={11} /> Full entry</>
-            : <><FileText size={11} /> Intent only</>
-        }
-      </div>
-    </Link>
+          {discipline != null && (
+            <div style={{ position: 'relative', width: 38, height: 38, flex: '0 0 38px' }}>
+              <svg width="38" height="38" viewBox="0 0 38 38" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="19" cy="19" r="15" fill="none" stroke="var(--eb-panel-2)" strokeWidth="4.5" strokeLinecap="round" />
+                <circle cx="19" cy="19" r="15" fill="none" stroke={dRingColor} strokeWidth="4.5" strokeLinecap="round" strokeDasharray={dCirc} strokeDashoffset={dOffset} />
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono, monospace)', color: dRingColor }}>
+                {discipline}
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '0 14px 12px', fontSize: 12, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
+          {full.intentMd && (
+            <>
+              <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--eb-muted)', fontWeight: 600, marginBottom: 3 }}>Pre-market intent</div>
+              <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{full.intentMd}</div>
+            </>
+          )}
+          {moods.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+              {moods.map(m => {
+                const tag = getMoodTag(m);
+                return (
+                  <Chip key={m} style={tag ? { color: tag.color, background: tag.bg, borderColor: tag.border } : {}}>
+                    {m}
+                  </Chip>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)', fontSize: 11, color: 'var(--eb-muted)', marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+            {isToday
+              ? <><Radio size={11} style={{ color: 'var(--eb-cyan)' }} /> Live · intent saved</>
+              : full.finalizedAt
+                ? <><BookOpen size={11} /> Full entry</>
+                : <><FileText size={11} /> Intent only</>
+            }
+          </span>
+          {/* spacer so the delete icon area doesn't overlap text */}
+          <span style={{ width: 28 }} />
+        </div>
+      </Link>
+
+      {/* delete icon — outside Link to avoid invalid HTML nesting */}
+      <button
+        type="button"
+        onClick={e => { e.preventDefault(); setConfirmDelete(true); }}
+        title="Delete entry"
+        style={{
+          position: 'absolute', bottom: 7, right: 10,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--eb-muted)', padding: 4, borderRadius: 4,
+          display: 'flex', alignItems: 'center', transition: 'color .12s',
+          zIndex: 1,
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ff5b6c'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--eb-muted)'; }}
+      >
+        <RiDeleteBin6Line size={13} />
+      </button>
+
+      {/* confirmation dialog */}
+      {confirmDelete && (
+        <div
+          role="presentation"
+          onClick={() => setConfirmDelete(false)}
+          onKeyDown={e => e.key === 'Escape' && setConfirmDelete(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,.55)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <dialog
+            open
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            style={{
+              background: 'var(--eb-panel)', border: '1px solid var(--eb-border)',
+              borderRadius: 12, padding: '24px 28px', width: 320, maxWidth: '90vw',
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Delete journal entry?</div>
+            <div style={{ fontSize: 13, color: 'var(--eb-muted-2)', lineHeight: 1.5 }}>
+              This will permanently delete the entry for <strong>{dk}</strong>. This action cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid var(--eb-border)', background: 'transparent', color: 'var(--eb-muted-2)', cursor: 'pointer', fontSize: 13 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+                style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: deleteMutation.isPending ? .6 : 1 }}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </dialog>
+        </div>
+      )}
+    </div>
   );
 }
 
