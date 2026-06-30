@@ -3751,52 +3751,46 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
         </div>
       </div>
 
+      {/* Delete entry button — bottom-right of page content */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+        <button
+          type="button"
+          onClick={() => setDeleteConfirm(true)}
+          title="Delete this journal entry"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '9px 18px',
+            borderRadius: 9,
+            border: '1px solid rgba(239,68,68,.35)',
+            background: 'rgba(239,68,68,.08)',
+            color: '#ef4444',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'background .15s, border-color .15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.18)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.6)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.08)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.35)';
+          }}
+        >
+          <RiDeleteBin6Line size={16} />
+          Delete entry
+        </button>
+      </div>
+
       <JournalContextPanel
         open={contextOpen}
         onClose={() => setContextOpen(false)}
         stats={stats}
       />
-
-      {/* Delete entry button — fixed bottom-right */}
-      <button
-        type="button"
-        onClick={() => setDeleteConfirm(true)}
-        title="Delete this journal entry"
-        style={{
-          position: 'fixed',
-          bottom: 28,
-          right: 28,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 7,
-          padding: '9px 16px',
-          borderRadius: 99,
-          border: '1px solid rgba(239,68,68,.35)',
-          background: 'rgba(239,68,68,.10)',
-          color: '#ef4444',
-          fontSize: 12.5,
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          backdropFilter: 'blur(8px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,.35)',
-          transition: 'background .15s, border-color .15s, transform .1s',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.20)';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.6)';
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.10)';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.35)';
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-        }}
-      >
-        <RiDeleteBin6Line size={15} />
-        Delete entry
-      </button>
 
       {/* Delete confirmation dialog */}
       {deleteConfirm && (
