@@ -10,7 +10,6 @@ import type { Position } from '@/features/positions';
 import { api } from '@/lib/api-client';
 import { z } from 'zod';
 import Link from 'next/link';
-import { RiDeleteBin6Line } from 'react-icons/ri';
 import {
   ArrowLeft,
   Compass,
@@ -3749,41 +3748,6 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
             </Panel>
           </div>
         </div>
-      </div>
-
-      {/* Delete entry button — bottom-right of page content */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
-        <button
-          type="button"
-          onClick={() => setDeleteConfirm(true)}
-          title="Delete this journal entry"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 7,
-            padding: '9px 18px',
-            borderRadius: 9,
-            border: '1px solid rgba(239,68,68,.35)',
-            background: 'rgba(239,68,68,.08)',
-            color: '#ef4444',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'background .15s, border-color .15s',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.18)';
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.6)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,.08)';
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,.35)';
-          }}
-        >
-          <RiDeleteBin6Line size={16} />
-          Delete entry
-        </button>
       </div>
 
       <JournalContextPanel

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RiDeleteBin6Line } from 'react-icons/ri';
@@ -423,8 +424,8 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
         <RiDeleteBin6Line size={13} />
       </button>
 
-      {/* confirmation dialog */}
-      {confirmDelete && (
+      {/* confirmation dialog — portalled to body so it's always viewport-centred */}
+      {confirmDelete && createPortal(
         <div
           role="presentation"
           onClick={() => setConfirmDelete(false)}
@@ -467,7 +468,8 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
               </button>
             </div>
           </dialog>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -564,8 +566,8 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
         <RiDeleteBin6Line size={13} />
       </button>
 
-      {/* confirmation dialog */}
-      {confirmDelete && (
+      {/* confirmation dialog — portalled to body so it's always viewport-centred */}
+      {confirmDelete && createPortal(
         <div
           role="presentation"
           onClick={() => setConfirmDelete(false)}
@@ -608,7 +610,8 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
               </button>
             </div>
           </dialog>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
     );
