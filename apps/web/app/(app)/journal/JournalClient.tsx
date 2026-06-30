@@ -493,44 +493,124 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
 
   const isPinned = entry.pinned === true;
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const qc = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: () => journalApi.deleteEntry(dk),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journal'] });
+      toast.success('Journal entry deleted');
+    },
+    onError: () => toast.error('Failed to delete entry'),
+  });
+
   return (
-    <Link href={`/journal/${dk}`} style={{
-        display: 'grid',
-        gridTemplateColumns: '10px 84px 1fr 40px auto 20px 18px',
-        gap: 14, alignItems: 'center',
-        padding: '11px 16px',
-        background,
-        textDecoration: 'none', color: 'inherit', cursor: 'pointer',
-        transition: 'background .1s',
-        borderBottom: '1px solid var(--eb-border)',
-      }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
-        <div style={{ fontFamily: 'var(--font-mono, monospace)' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>{mon} {day}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>{dow}{isToday ? ' · today' : ''}</div>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          {excerpt
-            ? <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{excerpt}</div>
-            : <div style={{ fontSize: 12.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>No entry yet</div>
+    <div style={{ position: 'relative' }}>
+      <Link href={`/journal/${dk}`} style={{
+          display: 'grid',
+          gridTemplateColumns: '10px 84px 1fr 40px auto 20px 32px',
+          gap: 14, alignItems: 'center',
+          padding: '11px 16px',
+          background,
+          textDecoration: 'none', color: 'inherit', cursor: 'pointer',
+          transition: 'background .1s',
+          borderBottom: '1px solid var(--eb-border)',
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+          <div style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--eb-text)' }}>{mon} {day}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>{dow}{isToday ? ' · today' : ''}</div>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            {excerpt
+              ? <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{excerpt}</div>
+              : <div style={{ fontSize: 12.5, color: 'var(--eb-muted)', fontStyle: 'italic' }}>No entry yet</div>
+            }
+            {full.sleepHours != null && (
+              <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>😴 {Number(full.sleepHours).toFixed(1)}h sleep</div>
+            )}
+            {entry.tradeCount > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>⏱ {entry.tradeCount} trade{entry.tradeCount !== 1 ? 's' : ''}</div>
+            )}
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: discColor, textAlign: 'right' }}>
+            {disc != null ? `D ${disc}` : '—'}
+          </div>
+          {entry.bias
+            ? <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>
+            : <span />
           }
-          {full.sleepHours != null && (
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>😴 {Number(full.sleepHours).toFixed(1)}h sleep</div>
-          )}
-          {entry.tradeCount > 0 && (
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginTop: 2 }}>⏱ {entry.tradeCount} trade{entry.tradeCount !== 1 ? 's' : ''}</div>
-          )}
+          <PinButton date={dk} pinned={isPinned} />
+          {/* spacer for delete button column */}
+          <span />
+        </Link>
+
+      {/* delete icon — outside Link to avoid invalid HTML nesting */}
+      <button
+        type="button"
+        onClick={e => { e.preventDefault(); setConfirmDelete(true); }}
+        title="Delete entry"
+        style={{
+          position: 'absolute', top: '50%', right: 14,
+          transform: 'translateY(-50%)',
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--eb-muted)', padding: 4, borderRadius: 4,
+          display: 'flex', alignItems: 'center', transition: 'color .12s',
+          zIndex: 1,
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ff5b6c'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--eb-muted)'; }}
+      >
+        <RiDeleteBin6Line size={13} />
+      </button>
+
+      {/* confirmation dialog */}
+      {confirmDelete && (
+        <div
+          role="presentation"
+          onClick={() => setConfirmDelete(false)}
+          onKeyDown={e => e.key === 'Escape' && setConfirmDelete(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,.55)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <dialog
+            open
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            style={{
+              background: 'var(--eb-panel)', border: '1px solid var(--eb-border)',
+              borderRadius: 12, padding: '24px 28px', width: 320, maxWidth: '90vw',
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Delete journal entry?</div>
+            <div style={{ fontSize: 13, color: 'var(--eb-muted-2)', lineHeight: 1.5 }}>
+              This will permanently delete the entry for <strong>{dk}</strong>. This action cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid var(--eb-border)', background: 'transparent', color: 'var(--eb-muted-2)', cursor: 'pointer', fontSize: 13 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+                style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: deleteMutation.isPending ? .6 : 1 }}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </dialog>
         </div>
-        <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: discColor, textAlign: 'right' }}>
-          {disc != null ? `D ${disc}` : '—'}
-        </div>
-        {entry.bias
-          ? <Chip style={biasChip(entry.bias)}>{entry.bias}</Chip>
-          : <span />
-        }
-        <PinButton date={dk} pinned={isPinned} />
-        <ChevronRight size={13} style={{ color: 'var(--eb-border)' }} />
-      </Link>
+      )}
+    </div>
     );
   }
 
