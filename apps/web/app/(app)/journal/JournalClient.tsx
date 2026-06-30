@@ -318,7 +318,9 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
   const deleteMutation = useMutation({
     mutationFn: () => journalApi.deleteEntry(dk),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['journal'] });
+      qc.invalidateQueries({ queryKey: ['journal-recent'] });
+      qc.invalidateQueries({ queryKey: ['journal-stats'] });
+      qc.invalidateQueries({ queryKey: ['journal-entry'] });
       toast.success('Journal entry deleted');
       setConfirmDelete(false);
     },
@@ -500,7 +502,9 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
   const deleteMutation = useMutation({
     mutationFn: () => journalApi.deleteEntry(dk),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['journal'] });
+      qc.invalidateQueries({ queryKey: ['journal-recent'] });
+      qc.invalidateQueries({ queryKey: ['journal-stats'] });
+      qc.invalidateQueries({ queryKey: ['journal-entry'] });
       toast.success('Journal entry deleted');
       setConfirmDelete(false);
     },
