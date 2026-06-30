@@ -1026,7 +1026,7 @@ function CompoundCalc() {
 const SESSIONS = [
   { name: 'Asia session', start: 0, end: 8, hours: '00:00 → 08:00 UTC' },
   { name: 'EU session', start: 8, end: 16, hours: '08:00 → 16:00 UTC' },
-  { name: 'US session', start: 14, end: 22, hours: '14:00 → 22:00 UTC · overlap 14–16' },
+  { name: 'US session', start: 14, end: 24, hours: '14:00 → 00:00 UTC · overlap 14–16' },
 ] as const;
 
 function fmtDuration(totalMinutes: number): string {

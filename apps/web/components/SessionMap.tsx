@@ -45,10 +45,10 @@ const SESSIONS = [
     color: '#a78bfa',
     colorGlow: 'rgba(167,139,250,.32)',
     colorDim: 'rgba(167,139,250,.10)',
-    gradientDim: 'linear-gradient(180deg,rgba(139,92,246,.13) 0%,rgba(109,40,217,.03) 100%)',
-    gradientActive: 'linear-gradient(180deg,rgba(167,139,250,.28) 0%,rgba(139,92,246,.10) 100%)',
-    borderDim: 'rgba(167,139,250,.16)',
-    borderActive: 'rgba(167,139,250,.48)',
+    gradientDim: 'linear-gradient(180deg,rgba(139,92,246,.22) 0%,rgba(109,40,217,.08) 100%)',
+    gradientActive: 'linear-gradient(180deg,rgba(167,139,250,.38) 0%,rgba(139,92,246,.16) 100%)',
+    borderDim: 'rgba(167,139,250,.28)',
+    borderActive: 'rgba(167,139,250,.55)',
     insetGlow: 'rgba(167,139,250,.22)',
   },
   {
@@ -59,24 +59,24 @@ const SESSIONS = [
     color: '#fbbf24',
     colorGlow: 'rgba(251,191,36,.32)',
     colorDim: 'rgba(251,191,36,.10)',
-    gradientDim: 'linear-gradient(180deg,rgba(245,158,11,.13) 0%,rgba(217,119,6,.03) 100%)',
-    gradientActive: 'linear-gradient(180deg,rgba(251,191,36,.26) 0%,rgba(245,158,11,.09) 100%)',
-    borderDim: 'rgba(251,191,36,.16)',
-    borderActive: 'rgba(251,191,36,.48)',
+    gradientDim: 'linear-gradient(180deg,rgba(245,158,11,.22) 0%,rgba(217,119,6,.08) 100%)',
+    gradientActive: 'linear-gradient(180deg,rgba(251,191,36,.38) 0%,rgba(245,158,11,.16) 100%)',
+    borderDim: 'rgba(251,191,36,.28)',
+    borderActive: 'rgba(251,191,36,.55)',
     insetGlow: 'rgba(251,191,36,.20)',
   },
   {
     id: 'us',
     label: 'US',
-    startHour: 16,
+    startHour: 14,
     endHour: 24,
     color: '#34d399',
     colorGlow: 'rgba(52,211,153,.32)',
     colorDim: 'rgba(52,211,153,.10)',
-    gradientDim: 'linear-gradient(180deg,rgba(16,185,129,.13) 0%,rgba(5,150,105,.03) 100%)',
-    gradientActive: 'linear-gradient(180deg,rgba(52,211,153,.26) 0%,rgba(16,185,129,.09) 100%)',
-    borderDim: 'rgba(52,211,153,.16)',
-    borderActive: 'rgba(52,211,153,.48)',
+    gradientDim: 'linear-gradient(180deg,rgba(16,185,129,.22) 0%,rgba(5,150,105,.08) 100%)',
+    gradientActive: 'linear-gradient(180deg,rgba(52,211,153,.38) 0%,rgba(16,185,129,.16) 100%)',
+    borderDim: 'rgba(52,211,153,.28)',
+    borderActive: 'rgba(52,211,153,.55)',
     insetGlow: 'rgba(52,211,153,.20)',
   },
 ] as const;
@@ -95,8 +95,9 @@ function pct(minutes: number) {
 
 function getActiveSession(utcHour: number) {
   if (utcHour < 8) return SESSIONS[0];
-  if (utcHour < 16) return SESSIONS[1];
-  return SESSIONS[2];
+  if (utcHour < 16) return SESSIONS[1]; // EU takes priority during overlap 14–16
+  if (utcHour < 24) return SESSIONS[2];
+  return SESSIONS[0];
 }
 
 function fmtUtc(h: number, m: number) {
@@ -121,7 +122,7 @@ function labelColor(session: (typeof SESSIONS)[number], isDark: boolean) {
 
 function getNextSession(utcHour: number, utcMinute: number) {
   const activeIdx = utcHour < 8 ? 0 : utcHour < 16 ? 1 : 2;
-  const next = SESSIONS[(activeIdx + 1) % SESSIONS.length] ?? SESSIONS[0];
+  const next = SESSIONS[(activeIdx + 1) % 3] ?? SESSIONS[0];
   const nowMins = utcHour * 60 + utcMinute;
   const opensMins = next.startHour * 60;
   const minsUntil = opensMins > nowMins ? opensMins - nowMins : 1440 - nowMins + opensMins;
@@ -178,7 +179,7 @@ export function SessionMap({ events = [], noTradeWindows = [], compact = false }
   const nowMinutes = minutesOfDay(utcH, utcM);
   const nowPct = pct(nowMinutes);
   const activeSess = getActiveSession(utcH);
-  const barHeight = compact ? 62 : 80;
+  const barHeight = compact ? 72 : 80;
 
   return (
     <div
