@@ -320,6 +320,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['journal'] });
       toast.success('Journal entry deleted');
+      setConfirmDelete(false);
     },
     onError: () => toast.error('Failed to delete entry'),
   });
@@ -501,6 +502,7 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['journal'] });
       toast.success('Journal entry deleted');
+      setConfirmDelete(false);
     },
     onError: () => toast.error('Failed to delete entry'),
   });
