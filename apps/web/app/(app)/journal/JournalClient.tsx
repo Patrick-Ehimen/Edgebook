@@ -436,8 +436,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <dialog
-            open
+          <div
             onClick={e => e.stopPropagation()}
             onKeyDown={e => e.stopPropagation()}
             style={{
@@ -467,7 +466,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
               </button>
             </div>
-          </dialog>
+          </div>
         </div>,
         document.body,
       )}
@@ -578,8 +577,7 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <dialog
-            open
+          <div
             onClick={e => e.stopPropagation()}
             onKeyDown={e => e.stopPropagation()}
             style={{
@@ -609,7 +607,7 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
               </button>
             </div>
-          </dialog>
+          </div>
         </div>,
         document.body,
       )}
