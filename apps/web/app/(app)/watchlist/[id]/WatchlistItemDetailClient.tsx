@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Check,
   ChevronDown,
   ClipboardList,
@@ -840,6 +842,7 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
 
   const [editing, setEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   const [draft, setDraft] = useState<{
     horizon: Horizon;
@@ -852,6 +855,18 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
     keyLevelsJson: KeyLevel[];
     images: string[];
   } | null>(null);
+
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const images = item?.images ?? [];
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null);
+      if (e.key === 'ArrowRight') setLightboxIdx((i) => (i !== null ? Math.min(i + 1, images.length - 1) : i));
+      if (e.key === 'ArrowLeft') setLightboxIdx((i) => (i !== null ? Math.max(i - 1, 0) : i));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIdx, item?.images]);
 
   const { data: prices = {} } = usePrices(item ? [item.symbol] : []);
   const priceData = item ? prices[item.symbol] : undefined;
@@ -1620,8 +1635,10 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
                   }}
                 >
                   {item.images.map((img, idx) => (
-                    <div
+                    <button
                       key={idx}
+                      type="button"
+                      onClick={() => setLightboxIdx(idx)}
                       style={{
                         position: 'relative',
                         width: '100%',
@@ -1629,6 +1646,10 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
                         borderRadius: 8,
                         overflow: 'hidden',
                         border: '1px solid var(--eb-border)',
+                        cursor: 'zoom-in',
+                        padding: 0,
+                        background: 'none',
+                        display: 'block',
                       }}
                     >
                       <img
@@ -1643,7 +1664,7 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
                           objectFit: 'cover',
                         }}
                       />
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -1749,6 +1770,123 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxIdx !== null && item.images[lightboxIdx] && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close lightbox"
+          onClick={() => setLightboxIdx(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setLightboxIdx(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,.88)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <img
+            src={item.images[lightboxIdx]}
+            alt={`Watchlist chart ${lightboxIdx + 1} of ${item.images.length}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              borderRadius: 10,
+              objectFit: 'contain',
+              boxShadow: '0 24px 80px rgba(0,0,0,.6)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setLightboxIdx(null)}
+            style={{
+              position: 'fixed',
+              top: 16,
+              right: 16,
+              background: 'rgba(255,255,255,.1)',
+              border: '1px solid rgba(255,255,255,.15)',
+              borderRadius: '50%',
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={16} />
+          </button>
+          {lightboxIdx > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx - 1); }}
+              style={{
+                position: 'fixed',
+                left: 16,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,.1)',
+                border: '1px solid rgba(255,255,255,.15)',
+                borderRadius: '50%',
+                width: 40,
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          {lightboxIdx < item.images.length - 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx + 1); }}
+              style={{
+                position: 'fixed',
+                right: 16,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,.1)',
+                border: '1px solid rgba(255,255,255,.15)',
+                borderRadius: '50%',
+                width: 40,
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <ChevronRight size={20} />
+            </button>
+          )}
+          {item.images.length > 1 && (
+            <div
+              style={{
+                position: 'fixed',
+                bottom: 20,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: 12,
+                color: 'rgba(255,255,255,.5)',
+                fontFamily: '"JetBrains Mono",monospace',
+              }}
+            >
+              {lightboxIdx + 1} / {item.images.length}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Delete dialog */}
       <Dialog
