@@ -1640,28 +1640,25 @@ export function WatchlistItemDetailClient({ id }: { id: string }) {
                       type="button"
                       onClick={() => setLightboxIdx(idx)}
                       style={{
-                        position: 'relative',
                         width: '100%',
-                        paddingBottom: '100%',
+                        aspectRatio: '1 / 1',
+                        padding: 0,
                         borderRadius: 8,
                         overflow: 'hidden',
                         border: '1px solid var(--eb-border)',
                         cursor: 'zoom-in',
-                        padding: 0,
                         background: 'none',
                         display: 'block',
                       }}
                     >
                       <img
                         src={img}
-                        alt={`Watchlist ${idx + 1}`}
+                        alt={`Watchlist chart ${idx + 1}`}
                         style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover',
+                          display: 'block',
                         }}
                       />
                     </button>
