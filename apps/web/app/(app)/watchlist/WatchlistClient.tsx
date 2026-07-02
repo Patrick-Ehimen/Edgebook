@@ -32,6 +32,7 @@ import {
   Eye,
   FileText,
   HelpCircle,
+  Image,
   Moon,
   NotebookPen,
   Plus,
@@ -39,6 +40,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
   X,
   Zap,
   Calendar,
@@ -98,17 +100,21 @@ function getMeta(symbol: string) {
 const TAG_COLORS = [
   { bg: 'rgba(249,115,22,.15)', color: '#f97316', border: 'rgba(249,115,22,.3)' },
   { bg: 'rgba(139,92,246,.15)', color: '#a78bfa', border: 'rgba(139,92,246,.3)' },
-  { bg: 'rgba(6,182,212,.15)',  color: '#22d3ee', border: 'rgba(6,182,212,.3)'  },
+  { bg: 'rgba(6,182,212,.15)', color: '#22d3ee', border: 'rgba(6,182,212,.3)' },
   { bg: 'rgba(236,72,153,.15)', color: '#f43f5e', border: 'rgba(236,72,153,.3)' },
   { bg: 'rgba(16,185,129,.15)', color: '#34d399', border: 'rgba(16,185,129,.3)' },
   { bg: 'rgba(59,130,246,.15)', color: '#60a5fa', border: 'rgba(59,130,246,.3)' },
-  { bg: 'rgba(234,179,8,.15)',  color: '#fbbf24', border: 'rgba(234,179,8,.3)'  },
-  { bg: 'rgba(239,68,68,.15)',  color: '#f87171', border: 'rgba(239,68,68,.3)'  },
+  { bg: 'rgba(234,179,8,.15)', color: '#fbbf24', border: 'rgba(234,179,8,.3)' },
+  { bg: 'rgba(239,68,68,.15)', color: '#f87171', border: 'rgba(239,68,68,.3)' },
   { bg: 'rgba(20,184,166,.15)', color: '#2dd4bf', border: 'rgba(20,184,166,.3)' },
   { bg: 'rgba(217,70,239,.15)', color: '#e879f9', border: 'rgba(217,70,239,.3)' },
 ];
 
-const TAG_FALLBACK = { bg: 'var(--eb-panel-2)', color: 'var(--eb-muted-2)', border: 'var(--eb-border)' };
+const TAG_FALLBACK = {
+  bg: 'var(--eb-panel-2)',
+  color: 'var(--eb-muted-2)',
+  border: 'var(--eb-border)',
+};
 function tagColor(tag: string) {
   let h = 0;
   for (let i = 0; i < tag.length; i++) h = (Math.imul(h, 31) + tag.charCodeAt(i)) | 0;
@@ -362,13 +368,19 @@ function AlertDot({ text, type }: { text: string; type: 'hit' | 'warn' | 'armed'
 
 // ─── Day card ────────────────────────────────────────────────────────────────
 
-function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
+function DayCard({
+  token,
+  onRemove,
+  onNavigate,
+}: { token: DayToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   const b = BIAS[token.bias];
   return (
     <div
       className="wl-card"
       onClick={() => onNavigate(token.id)}
-      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onNavigate(token.id);
+      }}
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -414,7 +426,8 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
               fontFamily: '"JetBrains Mono",monospace',
             }}
           >
-            {token.setupTag.replace(/^[^·]+·\s*/, '')} · added {token.addedAt}{token.exchange !== '—' ? ` · ${token.exchange}` : ''}
+            {token.setupTag.replace(/^[^·]+·\s*/, '')} · added {token.addedAt}
+            {token.exchange !== '—' ? ` · ${token.exchange}` : ''}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -442,7 +455,10 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginLeft: 6 }}>
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(token.id);
+            }}
             title="Remove"
             style={{
               background: 'transparent',
@@ -468,7 +484,14 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {token.playbookNames.map((name) => {
                 const tc = tagColor(name);
-                return <Chip key={name} style={{ color: tc.color, background: tc.bg, borderColor: tc.border }}>{name}</Chip>;
+                return (
+                  <Chip
+                    key={name}
+                    style={{ color: tc.color, background: tc.bg, borderColor: tc.border }}
+                  >
+                    {name}
+                  </Chip>
+                );
               })}
             </div>
           )}
@@ -476,7 +499,20 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {token.tags.map((tag) => {
                 const tc = tagColor(tag);
-                return <Chip key={tag} style={{ fontSize: 9.5, padding: '1px 6px', color: tc.color, background: tc.bg, borderColor: tc.border }}>{tag}</Chip>;
+                return (
+                  <Chip
+                    key={tag}
+                    style={{
+                      fontSize: 9.5,
+                      padding: '1px 6px',
+                      color: tc.color,
+                      background: tc.bg,
+                      borderColor: tc.border,
+                    }}
+                  >
+                    {tag}
+                  </Chip>
+                );
               })}
             </div>
           )}
@@ -495,29 +531,75 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
             {token.keyLevelsData.map((lvl) => {
               const t = lvl.type.toUpperCase().charAt(0);
               const COLORS: Record<string, { color: string; bg: string; border: string }> = {
-                S: { color: 'var(--green)',     bg: 'rgba(0,168,107,.06)',   border: 'rgba(0,168,107,.25)'   },
-                R: { color: 'var(--eb-red)',    bg: 'rgba(255,91,108,.06)',  border: 'rgba(255,91,108,.25)'  },
-                T: { color: 'var(--eb-cyan)',   bg: 'rgba(6,182,212,.06)',   border: 'rgba(6,182,212,.25)'   },
-                K: { color: 'var(--eb-purple)', bg: 'rgba(139,92,246,.06)', border: 'rgba(139,92,246,.25)'  },
+                S: {
+                  color: 'var(--green)',
+                  bg: 'rgba(0,168,107,.06)',
+                  border: 'rgba(0,168,107,.25)',
+                },
+                R: {
+                  color: 'var(--eb-red)',
+                  bg: 'rgba(255,91,108,.06)',
+                  border: 'rgba(255,91,108,.25)',
+                },
+                T: {
+                  color: 'var(--eb-cyan)',
+                  bg: 'rgba(6,182,212,.06)',
+                  border: 'rgba(6,182,212,.25)',
+                },
+                K: {
+                  color: 'var(--eb-purple)',
+                  bg: 'rgba(139,92,246,.06)',
+                  border: 'rgba(139,92,246,.25)',
+                },
               };
               const LABELS: Record<string, string> = {
-                S: 'Support · entry', R: 'Stop loss', T: 'Target', K: 'Key level',
+                S: 'Support · entry',
+                R: 'Stop loss',
+                T: 'Target',
+                K: 'Key level',
               };
-              const c = COLORS[t] ?? { color: 'var(--eb-muted-2)', bg: 'var(--eb-panel-2)', border: 'var(--eb-border)' };
+              const c = COLORS[t] ?? {
+                color: 'var(--eb-muted-2)',
+                bg: 'var(--eb-panel-2)',
+                border: 'var(--eb-border)',
+              };
               const lbl = LABELS[t] ?? lvl.type;
               return (
                 <div
                   key={`${lvl.type}-${lvl.price}`}
-                  style={{ padding: '8px 10px', background: c.bg, borderRadius: 8, border: `1px solid ${c.border}` }}
+                  style={{
+                    padding: '8px 10px',
+                    background: c.bg,
+                    borderRadius: 8,
+                    border: `1px solid ${c.border}`,
+                  }}
                 >
-                  <div style={{ fontSize: 9.5, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>
+                  <div
+                    style={{
+                      fontSize: 9.5,
+                      color: 'var(--eb-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '.06em',
+                      fontWeight: 600,
+                    }}
+                  >
                     {lbl}
                   </div>
-                  <div style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 13, fontWeight: 600, marginTop: 2, color: c.color }}>
+                  <div
+                    style={{
+                      fontFamily: '"JetBrains Mono",monospace',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginTop: 2,
+                      color: c.color,
+                    }}
+                  >
                     {lvl.price || '—'}
                   </div>
                   {lvl.label && (
-                    <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 1 }}>{lvl.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginTop: 1 }}>
+                      {lvl.label}
+                    </div>
                   )}
                 </div>
               );
@@ -599,13 +681,19 @@ function DayCard({ token, onRemove, onNavigate }: { token: DayToken; onRemove: (
 
 // ─── Week card ────────────────────────────────────────────────────────────────
 
-function WeekCard({ token, onRemove, onNavigate }: { token: WeekToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
+function WeekCard({
+  token,
+  onRemove,
+  onNavigate,
+}: { token: WeekToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   const b = BIAS[token.bias];
   return (
     <div
       className="wl-card"
       onClick={() => onNavigate(token.id)}
-      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onNavigate(token.id);
+      }}
       style={{
         background: 'var(--eb-panel)',
         border: '1px solid var(--eb-border)',
@@ -662,7 +750,10 @@ function WeekCard({ token, onRemove, onNavigate }: { token: WeekToken; onRemove:
         </div>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(token.id);
+          }}
           title="Remove"
           style={{
             background: 'transparent',
@@ -704,7 +795,19 @@ function WeekCard({ token, onRemove, onNavigate }: { token: WeekToken; onRemove:
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {token.playbookNames.map((name) => {
               const tc = tagColor(name);
-              return <Chip key={name} style={{ fontSize: 10, color: tc.color, background: tc.bg, borderColor: tc.border }}>{name}</Chip>;
+              return (
+                <Chip
+                  key={name}
+                  style={{
+                    fontSize: 10,
+                    color: tc.color,
+                    background: tc.bg,
+                    borderColor: tc.border,
+                  }}
+                >
+                  {name}
+                </Chip>
+              );
             })}
           </div>
         )}
@@ -745,12 +848,18 @@ function WeekCard({ token, onRemove, onNavigate }: { token: WeekToken; onRemove:
 
 // ─── Month row ────────────────────────────────────────────────────────────────
 
-function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
+function MonthRow({
+  token,
+  onRemove,
+  onNavigate,
+}: { token: MonthToken; onRemove: (id: string) => void; onNavigate: (id: string) => void }) {
   return (
     <div
       className="wl-month-row"
       onClick={() => onNavigate(token.id)}
-      onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(token.id); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onNavigate(token.id);
+      }}
       style={{
         display: 'grid',
         gridTemplateColumns: 'auto auto 1fr auto auto auto auto',
@@ -799,7 +908,19 @@ function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {token.playbookNames.map((name) => {
                   const tc = tagColor(name);
-                  return <Chip key={name} style={{ fontSize: 10, color: tc.color, background: tc.bg, borderColor: tc.border }}>{name}</Chip>;
+                  return (
+                    <Chip
+                      key={name}
+                      style={{
+                        fontSize: 10,
+                        color: tc.color,
+                        background: tc.bg,
+                        borderColor: tc.border,
+                      }}
+                    >
+                      {name}
+                    </Chip>
+                  );
                 })}
               </div>
             )}
@@ -807,7 +928,20 @@ function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {token.tags.map((tag) => {
                   const tc = tagColor(tag);
-                  return <Chip key={tag} style={{ fontSize: 9.5, padding: '1px 6px', color: tc.color, background: tc.bg, borderColor: tc.border }}>{tag}</Chip>;
+                  return (
+                    <Chip
+                      key={tag}
+                      style={{
+                        fontSize: 9.5,
+                        padding: '1px 6px',
+                        color: tc.color,
+                        background: tc.bg,
+                        borderColor: tc.border,
+                      }}
+                    >
+                      {tag}
+                    </Chip>
+                  );
                 })}
               </div>
             )}
@@ -843,7 +977,10 @@ function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove
       <div style={{ display: 'flex', gap: 3 }}>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onRemove(token.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(token.id);
+          }}
           title="Remove"
           style={{
             background: 'transparent',
@@ -865,7 +1002,11 @@ function MonthRow({ token, onRemove, onNavigate }: { token: MonthToken; onRemove
 
 // ─── Playbook Picker ─────────────────────────────────────────────────────────
 
-interface LinkedPlaybook { id: string; name: string; status: string; }
+interface LinkedPlaybook {
+  id: string;
+  name: string;
+  status: string;
+}
 
 function PlaybookPicker({
   selected,
@@ -880,9 +1021,7 @@ function PlaybookPicker({
   const ref = useRef<HTMLDivElement>(null);
 
   const selectedIds = new Set(selected.map((p) => p.id));
-  const filtered = playbooks.filter((p) =>
-    p.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered = playbooks.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
 
   const toggle = (p: LinkedPlaybook) => {
     if (selectedIds.has(p.id)) {
@@ -903,14 +1042,14 @@ function PlaybookPicker({
         : { background: 'var(--eb-panel-2)', color: 'var(--eb-muted)' };
 
   const PLAYBOOK_COLORS: { bg: string; border: string; icon: string }[] = [
-    { bg: 'rgba(99,102,241,.12)',  border: 'rgba(99,102,241,.4)',  icon: '#818cf8' },
-    { bg: 'rgba(245,165,36,.10)',  border: 'rgba(245,165,36,.35)', icon: '#f5a524' },
-    { bg: 'rgba(236,72,153,.10)',  border: 'rgba(236,72,153,.35)', icon: '#f472b6' },
-    { bg: 'rgba(20,184,166,.10)',  border: 'rgba(20,184,166,.35)', icon: '#2dd4bf' },
-    { bg: 'rgba(249,115,22,.10)',  border: 'rgba(249,115,22,.35)', icon: '#fb923c' },
-    { bg: 'rgba(139,92,246,.12)',  border: 'rgba(139,92,246,.4)',  icon: '#a78bfa' },
-    { bg: 'rgba(59,130,246,.10)',  border: 'rgba(59,130,246,.35)', icon: '#60a5fa' },
-    { bg: 'rgba(239,68,68,.10)',   border: 'rgba(239,68,68,.35)',  icon: '#f87171' },
+    { bg: 'rgba(99,102,241,.12)', border: 'rgba(99,102,241,.4)', icon: '#818cf8' },
+    { bg: 'rgba(245,165,36,.10)', border: 'rgba(245,165,36,.35)', icon: '#f5a524' },
+    { bg: 'rgba(236,72,153,.10)', border: 'rgba(236,72,153,.35)', icon: '#f472b6' },
+    { bg: 'rgba(20,184,166,.10)', border: 'rgba(20,184,166,.35)', icon: '#2dd4bf' },
+    { bg: 'rgba(249,115,22,.10)', border: 'rgba(249,115,22,.35)', icon: '#fb923c' },
+    { bg: 'rgba(139,92,246,.12)', border: 'rgba(139,92,246,.4)', icon: '#a78bfa' },
+    { bg: 'rgba(59,130,246,.10)', border: 'rgba(59,130,246,.35)', icon: '#60a5fa' },
+    { bg: 'rgba(239,68,68,.10)', border: 'rgba(239,68,68,.35)', icon: '#f87171' },
   ];
 
   const FALLBACK_COLOR = PLAYBOOK_COLORS[0] as { bg: string; border: string; icon: string };
@@ -928,37 +1067,105 @@ function PlaybookPicker({
           {selected.map((p) => {
             const pc = playbookColor(p.id);
             return (
-            <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px 4px 10px', borderRadius: 8, background: pc.bg, border: `1px solid ${pc.border}`, fontSize: 12, color: 'var(--eb-text)' }}>
-              <ClipboardList size={11} style={{ color: pc.icon }} />
-              {p.name}
-              <button
-                type="button"
-                onMouseDown={() => remove(p.id)}
-                style={{ background: 'transparent', border: 0, color: 'var(--eb-muted)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+              <span
+                key={p.id}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 8px 4px 10px',
+                  borderRadius: 8,
+                  background: pc.bg,
+                  border: `1px solid ${pc.border}`,
+                  fontSize: 12,
+                  color: 'var(--eb-text)',
+                }}
               >
-                <X size={11} />
-              </button>
-            </span>
+                <ClipboardList size={11} style={{ color: pc.icon }} />
+                {p.name}
+                <button
+                  type="button"
+                  onMouseDown={() => remove(p.id)}
+                  style={{
+                    background: 'transparent',
+                    border: 0,
+                    color: 'var(--eb-muted)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={11} />
+                </button>
+              </span>
             );
           })}
         </div>
       )}
       <div style={{ position: 'relative' }}>
-        <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', pointerEvents: 'none' }} />
+        <Search
+          size={13}
+          style={{
+            position: 'absolute',
+            left: 11,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--eb-muted)',
+            pointerEvents: 'none',
+          }}
+        />
         <input
           type="text"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={isLoading ? 'Loading playbooks…' : 'Search and add playbooks…'}
-          style={{ width: '100%', background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)', borderRadius: 8, padding: '8px 12px 8px 32px', color: 'var(--eb-text)', outline: 0, fontSize: 12.5, fontFamily: 'inherit', boxSizing: 'border-box' }}
+          style={{
+            width: '100%',
+            background: 'var(--eb-panel-2)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 8,
+            padding: '8px 12px 8px 32px',
+            color: 'var(--eb-text)',
+            outline: 0,
+            fontSize: 12.5,
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+          }}
         />
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--eb-panel)', border: '1px solid var(--eb-border)', borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,.4)', zIndex: 60, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 4,
+            background: 'var(--eb-panel)',
+            border: '1px solid var(--eb-border)',
+            borderRadius: 10,
+            boxShadow: '0 12px 32px rgba(0,0,0,.4)',
+            zIndex: 60,
+            overflow: 'hidden',
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}
+        >
           {filtered.length === 0 ? (
-            <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--eb-muted)', textAlign: 'center' }}>
+            <div
+              style={{
+                padding: '12px 14px',
+                fontSize: 12,
+                color: 'var(--eb-muted)',
+                textAlign: 'center',
+              }}
+            >
               {isLoading ? 'Loading…' : 'No playbooks found'}
             </div>
           ) : (
@@ -969,13 +1176,45 @@ function PlaybookPicker({
                   key={p.id}
                   type="button"
                   onMouseDown={() => toggle({ id: p.id, name: p.name, status: p.status })}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', background: isSelected ? 'rgba(0,168,107,.06)' : 'transparent', border: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 14px',
+                    background: isSelected ? 'rgba(0,168,107,.06)' : 'transparent',
+                    border: 0,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'inherit',
+                  }}
                 >
-                  <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${isSelected ? 'var(--green)' : 'var(--eb-border)'}`, background: isSelected ? 'var(--green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 4,
+                      border: `1.5px solid ${isSelected ? 'var(--green)' : 'var(--eb-border)'}`,
+                      background: isSelected ? 'var(--green)' : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
                     {isSelected && <Check size={10} style={{ color: '#06140f' }} />}
                   </div>
                   <span style={{ flex: 1, fontSize: 13, color: 'var(--eb-text)' }}>{p.name}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 99, letterSpacing: '.04em', ...statusStyle(p.status) }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: 99,
+                      letterSpacing: '.04em',
+                      ...statusStyle(p.status),
+                    }}
+                  >
                     {p.status}
                   </span>
                 </button>
@@ -990,7 +1229,11 @@ function PlaybookPicker({
 
 // ─── Add Token Modal ──────────────────────────────────────────────────────────
 
-interface KeyLevel { type: string; price: string; label: string; }
+interface KeyLevel {
+  type: string;
+  price: string;
+  label: string;
+}
 
 interface ModalState {
   symbol: string;
@@ -1002,6 +1245,7 @@ interface ModalState {
   conviction: number;
   convictionReason: string;
   notes: string;
+  images: string[];
 }
 
 function AddTokenModal({
@@ -1024,6 +1268,7 @@ function AddTokenModal({
     conviction: 3,
     convictionReason: '',
     notes: '',
+    images: [],
   });
   const [search, setSearch] = useState('');
 
@@ -1240,8 +1485,26 @@ function AddTokenModal({
               >
                 {form.symbol}
                 <Chip>Perp</Chip>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', boxShadow: '0 0 6px var(--green)' }} />
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--green)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--green)',
+                      display: 'inline-block',
+                      boxShadow: '0 0 6px var(--green)',
+                    }}
+                  />
                   Active
                 </span>
               </div>
@@ -1382,19 +1645,43 @@ function AddTokenModal({
             </div>
 
             {/* ── Linked playbook ── */}
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
               3 · Linked playbook
             </div>
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', marginBottom: 8, lineHeight: 1.5 }}>
-              {'When you click "log trade" from the watchlist card, this playbook\'s checklist auto-loads.'}
+            <div
+              style={{ fontSize: 11, color: 'var(--eb-muted)', marginBottom: 8, lineHeight: 1.5 }}
+            >
+              {
+                'When you click "log trade" from the watchlist card, this playbook\'s checklist auto-loads.'
+              }
             </div>
             <PlaybookPicker
               selected={form.playbooks}
-              onChange={(playbooks: LinkedPlaybook[]) => setForm((f: ModalState) => ({ ...f, playbooks }))}
+              onChange={(playbooks: LinkedPlaybook[]) =>
+                setForm((f: ModalState) => ({ ...f, playbooks }))
+              }
             />
 
             {/* ── Conviction ── */}
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
               4 · Conviction
             </div>
             <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
@@ -1403,38 +1690,111 @@ function AddTokenModal({
                   type="button"
                   key={v}
                   onClick={() => setForm((f: ModalState) => ({ ...f, conviction: v }))}
-                  style={{ background: 'transparent', border: 0, cursor: 'pointer', fontSize: 22, color: v <= form.conviction ? '#fbbf24' : 'var(--eb-border)', lineHeight: 1, padding: '2px 4px' }}
+                  style={{
+                    background: 'transparent',
+                    border: 0,
+                    cursor: 'pointer',
+                    fontSize: 22,
+                    color: v <= form.conviction ? '#fbbf24' : 'var(--eb-border)',
+                    lineHeight: 1,
+                    padding: '2px 4px',
+                  }}
                 >
                   ★
                 </button>
               ))}
-              <span style={{ alignSelf: 'center', fontSize: 11, color: 'var(--eb-muted)', marginLeft: 4 }}>{form.conviction}/5</span>
+              <span
+                style={{
+                  alignSelf: 'center',
+                  fontSize: 11,
+                  color: 'var(--eb-muted)',
+                  marginLeft: 4,
+                }}
+              >
+                {form.conviction}/5
+              </span>
             </div>
             <input
               type="text"
               value={form.convictionReason}
-              onChange={(e) => setForm((f: ModalState) => ({ ...f, convictionReason: e.target.value }))}
+              onChange={(e) =>
+                setForm((f: ModalState) => ({ ...f, convictionReason: e.target.value }))
+              }
               placeholder="Why this conviction level? e.g. HTF + daily aligned"
-              style={{ width: '100%', background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--eb-text)', outline: 0, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14 }}
+              style={{
+                width: '100%',
+                background: 'var(--eb-panel-2)',
+                border: '1px solid var(--eb-border)',
+                borderRadius: 8,
+                padding: '7px 12px',
+                color: 'var(--eb-text)',
+                outline: 0,
+                fontSize: 12,
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                marginBottom: 14,
+              }}
             />
 
             {/* ── Tags ── */}
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
               5 · Tags
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: form.tags.length ? 7 : 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 5,
+                marginBottom: form.tags.length ? 7 : 0,
+              }}
+            >
               {form.tags.map((tag) => {
                 const tc = tagColor(tag);
                 return (
                   <span
                     key={tag}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px 3px 10px', borderRadius: 99, background: tc.bg, border: `1px solid ${tc.border}`, color: tc.color, fontSize: 11.5, fontWeight: 500 }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 8px 3px 10px',
+                      borderRadius: 99,
+                      background: tc.bg,
+                      border: `1px solid ${tc.border}`,
+                      color: tc.color,
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                    }}
                   >
                     {tag}
                     <button
                       type="button"
-                      onClick={() => setForm((f: ModalState) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }))}
-                      style={{ background: 'transparent', border: 0, color: tc.color, cursor: 'pointer', padding: 0, lineHeight: 1, opacity: .7, display: 'flex', alignItems: 'center' }}
+                      onClick={() =>
+                        setForm((f: ModalState) => ({
+                          ...f,
+                          tags: f.tags.filter((t) => t !== tag),
+                        }))
+                      }
+                      style={{
+                        background: 'transparent',
+                        border: 0,
+                        color: tc.color,
+                        cursor: 'pointer',
+                        padding: 0,
+                        lineHeight: 1,
+                        opacity: 0.7,
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
                     >
                       <X size={10} />
                     </button>
@@ -1450,19 +1810,39 @@ function AddTokenModal({
                 if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
                   e.preventDefault();
                   const t = tagInput.trim().replace(/,$/, '');
-                  if (t && !form.tags.includes(t)) setForm((f: ModalState) => ({ ...f, tags: [...f.tags, t] }));
+                  if (t && !form.tags.includes(t))
+                    setForm((f: ModalState) => ({ ...f, tags: [...f.tags, t] }));
                   setTagInput('');
                 } else if (e.key === 'Backspace' && !tagInput && form.tags.length) {
                   setForm((f: ModalState) => ({ ...f, tags: f.tags.slice(0, -1) }));
                 }
               }}
               placeholder="Type a tag and press Enter…"
-              style={{ width: '100%', background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--eb-text)', outline: 0, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14 }}
+              style={{
+                width: '100%',
+                background: 'var(--eb-panel-2)',
+                border: '1px solid var(--eb-border)',
+                borderRadius: 8,
+                padding: '7px 12px',
+                color: 'var(--eb-text)',
+                outline: 0,
+                fontSize: 12,
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                marginBottom: 14,
+              }}
             />
 
             {/* ── Notes ── */}
             <div
-              style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
             >
               6 · Notes
             </div>
@@ -1485,21 +1865,189 @@ function AddTokenModal({
                 boxSizing: 'border-box',
               }}
             />
+
+            {/* ── Images ── */}
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+                marginTop: 14,
+              }}
+            >
+              7 · Images
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                marginBottom: 8,
+                lineHeight: 1.5,
+              }}
+            >
+              Add chart screenshots or reference images (max 10)
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              {form.images.map((img, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    position: 'relative',
+                    width: 100,
+                    height: 100,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: '1px solid var(--eb-border)',
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`Upload ${idx + 1}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        images: f.images.filter((_, i) => i !== idx),
+                      }))
+                    }
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: 'rgba(0,0,0,.6)',
+                      border: 0,
+                      borderRadius: '50%',
+                      width: 20,
+                      height: 20,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label
+                htmlFor="image-upload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 7,
+                  border: '1px dashed var(--eb-border)',
+                  background: 'var(--eb-panel-2)',
+                  color: 'var(--eb-muted)',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <Image size={13} /> Add image
+              </label>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  files.forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const dataUrl = ev.target?.result as string;
+                      setForm((f) => ({
+                        ...f,
+                        images: [...f.images, dataUrl],
+                      }));
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                  e.target.value = '';
+                }}
+              />
+              {form.images.length > 0 && (
+                <span style={{ fontSize: 10.5, color: 'var(--eb-muted)' }}>
+                  {form.images.length}/10 images
+                </span>
+              )}
+            </div>
           </div>
 
           {/* RIGHT */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-muted-2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--eb-muted-2)',
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
               6 · Key levels
             </div>
             {(() => {
-              const knownColors: Record<string, { border: string; bg: string; color: string; typeBg: string }> = {
-                S: { border: 'rgba(0,168,107,.3)',   bg: 'rgba(0,168,107,.06)',   color: 'var(--green)',     typeBg: 'rgba(0,168,107,.15)' },
-                R: { border: 'rgba(255,91,108,.3)',  bg: 'rgba(255,91,108,.06)',  color: 'var(--eb-red)',    typeBg: 'rgba(255,91,108,.15)' },
-                T: { border: 'rgba(6,182,212,.3)',   bg: 'rgba(6,182,212,.06)',   color: 'var(--eb-cyan)',   typeBg: 'rgba(6,182,212,.15)' },
-                K: { border: 'rgba(139,92,246,.3)',  bg: 'rgba(139,92,246,.06)',  color: 'var(--eb-purple)', typeBg: 'rgba(139,92,246,.15)' },
+              const knownColors: Record<
+                string,
+                { border: string; bg: string; color: string; typeBg: string }
+              > = {
+                S: {
+                  border: 'rgba(0,168,107,.3)',
+                  bg: 'rgba(0,168,107,.06)',
+                  color: 'var(--green)',
+                  typeBg: 'rgba(0,168,107,.15)',
+                },
+                R: {
+                  border: 'rgba(255,91,108,.3)',
+                  bg: 'rgba(255,91,108,.06)',
+                  color: 'var(--eb-red)',
+                  typeBg: 'rgba(255,91,108,.15)',
+                },
+                T: {
+                  border: 'rgba(6,182,212,.3)',
+                  bg: 'rgba(6,182,212,.06)',
+                  color: 'var(--eb-cyan)',
+                  typeBg: 'rgba(6,182,212,.15)',
+                },
+                K: {
+                  border: 'rgba(139,92,246,.3)',
+                  bg: 'rgba(139,92,246,.06)',
+                  color: 'var(--eb-purple)',
+                  typeBg: 'rgba(139,92,246,.15)',
+                },
               };
-              const neutral = { border: 'var(--eb-border)', bg: 'var(--eb-panel-3)', color: 'var(--eb-muted-2)', typeBg: 'var(--eb-panel-2)' };
+              const neutral = {
+                border: 'var(--eb-border)',
+                bg: 'var(--eb-panel-3)',
+                color: 'var(--eb-muted-2)',
+                typeBg: 'var(--eb-panel-2)',
+              };
               const getColor = (t: string) => knownColors[t.toUpperCase().charAt(0)] ?? neutral;
 
               const sPrice = form.keyLevels.find((l) => l.type.toUpperCase() === 'S')?.price || '';
@@ -1508,53 +2056,131 @@ function AddTokenModal({
               const sVal = Number.parseFloat(sPrice.replace(/,/g, ''));
               const rVal = Number.parseFloat(rPrice.replace(/,/g, ''));
               const tVal = Number.parseFloat(tPrice.replace(/,/g, ''));
-              const showRR = sPrice && rPrice && tPrice && !Number.isNaN(sVal) && !Number.isNaN(rVal) && !Number.isNaN(tVal);
+              const showRR =
+                sPrice &&
+                rPrice &&
+                tPrice &&
+                !Number.isNaN(sVal) &&
+                !Number.isNaN(rVal) &&
+                !Number.isNaN(tVal);
               return (
                 <>
                   {form.keyLevels.map((level, i) => {
                     const c = getColor(level.type);
                     return (
-                      <div key={`level-${i}`} style={{ display: 'grid', gridTemplateColumns: '80px 90px 1fr auto', gap: 5, marginBottom: 6, alignItems: 'center' }}>
+                      <div
+                        key={`level-${i}`}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '80px 90px 1fr auto',
+                          gap: 5,
+                          marginBottom: 6,
+                          alignItems: 'center',
+                        }}
+                      >
                         <input
                           type="text"
                           value={level.type}
-                          onChange={(e) => setForm((f: ModalState) => ({
-                            ...f,
-                            keyLevels: f.keyLevels.map((l, j): KeyLevel =>
-                              j === i ? { type: e.target.value, price: l.price, label: l.label } : l
-                            ),
-                          }))}
+                          onChange={(e) =>
+                            setForm((f: ModalState) => ({
+                              ...f,
+                              keyLevels: f.keyLevels.map(
+                                (l, j): KeyLevel =>
+                                  j === i
+                                    ? { type: e.target.value, price: l.price, label: l.label }
+                                    : l,
+                              ),
+                            }))
+                          }
                           placeholder="level"
-                          style={{ background: c.typeBg, border: `1px solid ${c.border}`, borderRadius: 7, padding: '6px 6px', color: c.color, outline: 0, fontSize: 11, fontWeight: 600, textAlign: 'center', fontFamily: '"JetBrains Mono",monospace', boxSizing: 'border-box' }}
+                          style={{
+                            background: c.typeBg,
+                            border: `1px solid ${c.border}`,
+                            borderRadius: 7,
+                            padding: '6px 6px',
+                            color: c.color,
+                            outline: 0,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            fontFamily: '"JetBrains Mono",monospace',
+                            boxSizing: 'border-box',
+                          }}
                         />
                         <input
                           type="text"
                           value={level.price}
-                          onChange={(e) => setForm((f: ModalState) => ({
-                            ...f,
-                            keyLevels: f.keyLevels.map((l, j): KeyLevel =>
-                              j === i ? { type: l.type, price: e.target.value, label: l.label } : l
-                            ),
-                          }))}
+                          onChange={(e) =>
+                            setForm((f: ModalState) => ({
+                              ...f,
+                              keyLevels: f.keyLevels.map(
+                                (l, j): KeyLevel =>
+                                  j === i
+                                    ? { type: l.type, price: e.target.value, label: l.label }
+                                    : l,
+                              ),
+                            }))
+                          }
                           placeholder="price"
-                          style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 7, padding: '6px 8px', color: c.color, outline: 0, fontSize: 12, fontFamily: '"JetBrains Mono",monospace', boxSizing: 'border-box' }}
+                          style={{
+                            background: c.bg,
+                            border: `1px solid ${c.border}`,
+                            borderRadius: 7,
+                            padding: '6px 8px',
+                            color: c.color,
+                            outline: 0,
+                            fontSize: 12,
+                            fontFamily: '"JetBrains Mono",monospace',
+                            boxSizing: 'border-box',
+                          }}
                         />
                         <input
                           type="text"
                           value={level.label}
-                          onChange={(e) => setForm((f: ModalState) => ({
-                            ...f,
-                            keyLevels: f.keyLevels.map((l, j): KeyLevel =>
-                              j === i ? { type: l.type, price: l.price, label: e.target.value } : l
-                            ),
-                          }))}
+                          onChange={(e) =>
+                            setForm((f: ModalState) => ({
+                              ...f,
+                              keyLevels: f.keyLevels.map(
+                                (l, j): KeyLevel =>
+                                  j === i
+                                    ? { type: l.type, price: l.price, label: e.target.value }
+                                    : l,
+                              ),
+                            }))
+                          }
                           placeholder="description"
-                          style={{ background: 'var(--eb-panel-3)', border: '1px solid var(--eb-border)', borderRadius: 7, padding: '6px 8px', color: 'var(--eb-text)', outline: 0, fontSize: 12, boxSizing: 'border-box' }}
+                          style={{
+                            background: 'var(--eb-panel-3)',
+                            border: '1px solid var(--eb-border)',
+                            borderRadius: 7,
+                            padding: '6px 8px',
+                            color: 'var(--eb-text)',
+                            outline: 0,
+                            fontSize: 12,
+                            boxSizing: 'border-box',
+                          }}
                         />
                         <button
                           type="button"
-                          onClick={() => setForm((f: ModalState) => ({ ...f, keyLevels: f.keyLevels.filter((_, j) => j !== i) }))}
-                          style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(255,91,108,.1)', border: '1px solid rgba(255,91,108,.2)', color: 'var(--eb-red)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                          onClick={() =>
+                            setForm((f: ModalState) => ({
+                              ...f,
+                              keyLevels: f.keyLevels.filter((_, j) => j !== i),
+                            }))
+                          }
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 6,
+                            background: 'rgba(255,91,108,.1)',
+                            border: '1px solid rgba(255,91,108,.2)',
+                            color: 'var(--eb-red)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
                         >
                           <X size={12} />
                         </button>
@@ -1563,22 +2189,67 @@ function AddTokenModal({
                   })}
                   <button
                     type="button"
-                    onClick={() => setForm((f: ModalState) => ({ ...f, keyLevels: [...f.keyLevels, { type: '', price: '', label: '' }] }))}
-                    style={{ width: '100%', padding: '6px 0', borderRadius: 7, background: 'var(--eb-panel-3)', border: '1px dashed var(--eb-border)', color: 'var(--eb-muted-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}
+                    onClick={() =>
+                      setForm((f: ModalState) => ({
+                        ...f,
+                        keyLevels: [...f.keyLevels, { type: '', price: '', label: '' }],
+                      }))
+                    }
+                    style={{
+                      width: '100%',
+                      padding: '6px 0',
+                      borderRadius: 7,
+                      background: 'var(--eb-panel-3)',
+                      border: '1px dashed var(--eb-border)',
+                      color: 'var(--eb-muted-2)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      marginBottom: 10,
+                    }}
                   >
                     <Plus size={12} /> Add level
                   </button>
                   {showRR && (
-                    <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,168,107,.06)', border: '1px solid rgba(0,168,107,.2)', fontSize: 11.5, color: 'var(--eb-muted-2)', marginTop: 4 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: 'rgba(0,168,107,.06)',
+                        border: '1px solid rgba(0,168,107,.2)',
+                        fontSize: 11.5,
+                        color: 'var(--eb-muted-2)',
+                        marginTop: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 4,
+                        }}
+                      >
                         <span>Risk (S→R)</span>
-                        <span style={{ fontFamily: '"JetBrains Mono",monospace', color: 'var(--eb-text)' }}>
+                        <span
+                          style={{
+                            fontFamily: '"JetBrains Mono",monospace',
+                            color: 'var(--eb-text)',
+                          }}
+                        >
                           {Math.abs(sVal - rVal).toFixed(4)}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>Reward (S→T)</span>
-                        <span style={{ fontFamily: '"JetBrains Mono",monospace', color: 'var(--green)' }}>
+                        <span
+                          style={{
+                            fontFamily: '"JetBrains Mono",monospace',
+                            color: 'var(--green)',
+                          }}
+                        >
                           {Math.abs(tVal - sVal).toFixed(4)}
                         </span>
                       </div>
@@ -2037,7 +2708,10 @@ function FilledState({
   const [biasFilter, setBiasFilter] = useState<'all' | Bias>('all');
   const { data: marketCtx, refetch: refetchMarket } = useMarketContext();
 
-  const handleRefresh = () => { onRefresh(); void refetchMarket(); };
+  const handleRefresh = () => {
+    onRefresh();
+    void refetchMarket();
+  };
   const [utcTime, setUtcTime] = useState(() => {
     const now = new Date();
     return `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')} UTC`;
@@ -2060,12 +2734,19 @@ function FilledState({
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setUtcTime(`${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')} UTC`);
+      setUtcTime(
+        `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')} UTC`,
+      );
     };
     const ms = (60 - new Date().getUTCSeconds()) * 1000;
-    const first = setTimeout(() => { tick(); }, ms);
+    const first = setTimeout(() => {
+      tick();
+    }, ms);
     const interval = setInterval(tick, 60_000);
-    return () => { clearTimeout(first); clearInterval(interval); };
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, []);
 
   const sectionH = (title: React.ReactNode, sub: string, right?: React.ReactNode) => (
@@ -2155,7 +2836,15 @@ function FilledState({
     </button>
   );
 
-  const horizonTabs: Array<{ key: Horizon | 'all'; Icon: React.ElementType; label: string; sub: string; count: number; accent: string; accentBg: string }> = [
+  const horizonTabs: Array<{
+    key: Horizon | 'all';
+    Icon: React.ElementType;
+    label: string;
+    sub: string;
+    count: number;
+    accent: string;
+    accentBg: string;
+  }> = [
     {
       key: 'all',
       Icon: Eye,
@@ -2377,18 +3066,55 @@ function FilledState({
       </div>
 
       {/* Bias filter strip */}
-      <div style={{ display: 'flex', gap: 5, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        {([
-          { key: 'all',     label: 'All' },
-          { key: 'long',    label: 'Long' },
-          { key: 'short',   label: 'Short' },
-          { key: 'neutral', label: 'Neutral' },
-          { key: 'watch',   label: 'Watch' },
-        ] as const).map(({ key, label }) => {
+      <div
+        style={{
+          display: 'flex',
+          gap: 5,
+          marginBottom: 12,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        {(
+          [
+            { key: 'all', label: 'All' },
+            { key: 'long', label: 'Long' },
+            { key: 'short', label: 'Short' },
+            { key: 'neutral', label: 'Neutral' },
+            { key: 'watch', label: 'Watch' },
+          ] as const
+        ).map(({ key, label }) => {
           const on = biasFilter === key;
-          const accent = key === 'long' ? 'var(--green)' : key === 'short' ? 'var(--eb-red)' : key === 'neutral' ? 'var(--eb-muted-2)' : key === 'watch' ? 'var(--eb-cyan)' : 'var(--green)';
-          const accentBg = key === 'long' ? 'rgba(0,168,107,.08)' : key === 'short' ? 'rgba(255,91,108,.08)' : key === 'neutral' ? 'var(--eb-panel-2)' : key === 'watch' ? 'rgba(6,182,212,.08)' : 'rgba(0,168,107,.08)';
-          const accentBorder = key === 'long' ? 'rgba(0,168,107,.3)' : key === 'short' ? 'rgba(255,91,108,.3)' : key === 'neutral' ? 'var(--eb-border)' : key === 'watch' ? 'rgba(6,182,212,.3)' : 'rgba(0,168,107,.3)';
+          const accent =
+            key === 'long'
+              ? 'var(--green)'
+              : key === 'short'
+                ? 'var(--eb-red)'
+                : key === 'neutral'
+                  ? 'var(--eb-muted-2)'
+                  : key === 'watch'
+                    ? 'var(--eb-cyan)'
+                    : 'var(--green)';
+          const accentBg =
+            key === 'long'
+              ? 'rgba(0,168,107,.08)'
+              : key === 'short'
+                ? 'rgba(255,91,108,.08)'
+                : key === 'neutral'
+                  ? 'var(--eb-panel-2)'
+                  : key === 'watch'
+                    ? 'rgba(6,182,212,.08)'
+                    : 'rgba(0,168,107,.08)';
+          const accentBorder =
+            key === 'long'
+              ? 'rgba(0,168,107,.3)'
+              : key === 'short'
+                ? 'rgba(255,91,108,.3)'
+                : key === 'neutral'
+                  ? 'var(--eb-border)'
+                  : key === 'watch'
+                    ? 'rgba(6,182,212,.3)'
+                    : 'rgba(0,168,107,.3)';
           return (
             <button
               type="button"
@@ -2431,9 +3157,11 @@ function FilledState({
             </>,
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
-            {dayTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => (
-              <DayCard key={tok.id} token={tok} onRemove={onRemoveDay} onNavigate={onNavigate} />
-            ))}
+            {dayTokens
+              .filter((t) => biasFilter === 'all' || t.bias === biasFilter)
+              .map((tok) => (
+                <DayCard key={tok.id} token={tok} onRemove={onRemoveDay} onNavigate={onNavigate} />
+              ))}
           </div>
           {addBtn('Add another token for today', onAddDay)}
         </>
@@ -2458,9 +3186,16 @@ function FilledState({
             `HTF setups developing · ${weekTokens.length} tokens`,
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-            {weekTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => (
-              <WeekCard key={tok.id} token={tok} onRemove={onRemoveWeek} onNavigate={onNavigate} />
-            ))}
+            {weekTokens
+              .filter((t) => biasFilter === 'all' || t.bias === biasFilter)
+              .map((tok) => (
+                <WeekCard
+                  key={tok.id}
+                  token={tok}
+                  onRemove={onRemoveWeek}
+                  onNavigate={onNavigate}
+                />
+              ))}
           </div>
           {addBtn('Add weekly token', onAddWeek)}
         </>
@@ -2494,12 +3229,26 @@ function FilledState({
           >
             {monthTokens.length === 0 ? (
               <div
-                style={{ padding: '20px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}
+                style={{
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: 'var(--eb-muted)',
+                  fontSize: 13,
+                }}
               >
                 No monthly theses yet · add your first long-horizon idea
               </div>
             ) : (
-              monthTokens.filter((t) => biasFilter === 'all' || t.bias === biasFilter).map((tok) => <MonthRow key={tok.id} token={tok} onRemove={onRemoveMonth} onNavigate={onNavigate} />)
+              monthTokens
+                .filter((t) => biasFilter === 'all' || t.bias === biasFilter)
+                .map((tok) => (
+                  <MonthRow
+                    key={tok.id}
+                    token={tok}
+                    onRemove={onRemoveMonth}
+                    onNavigate={onNavigate}
+                  />
+                ))
             )}
           </div>
           {addBtn('Add long-horizon thesis', onAddMonth)}
@@ -2539,7 +3288,10 @@ function dbItemToDayToken(item: WatchlistItemRow, p?: PriceData): DayToken {
     alertText: 'Set up',
     alertType: 'armed',
     keyLevelsData: item.keyLevelsJson as Array<{ type: string; price: string; label: string }>,
-    note: [item.notes, item.convictionReason ? `Conviction: ${item.convictionReason}` : ''].filter(Boolean).join(' · ') || 'Added manually — configure levels and alerts.',
+    note:
+      [item.notes, item.convictionReason ? `Conviction: ${item.convictionReason}` : '']
+        .filter(Boolean)
+        .join(' · ') || 'Added manually — configure levels and alerts.',
     isAiNote: false,
     conviction: item.conviction,
     funding: '—',
@@ -2553,19 +3305,29 @@ function dbItemToDayToken(item: WatchlistItemRow, p?: PriceData): DayToken {
 
 function dbItemToWeekToken(item: WatchlistItemRow, p?: PriceData): WeekToken {
   const kl = item.keyLevelsJson as Array<{ type: string; price: string }>;
-  const levelsSummary = kl.filter((l) => l.price).map((l) => `${l.price} ${l.type}`).join(' · ') || '—';
+  const levelsSummary =
+    kl
+      .filter((l) => l.price)
+      .map((l) => `${l.price} ${l.type}`)
+      .join(' · ') || '—';
   return {
     id: item.id,
     symbol: item.symbol,
     bias: item.bias as Bias,
-    timeframe: (() => { const d = new Date(item.createdAt); return `Added ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')} UTC`; })(),
+    timeframe: (() => {
+      const d = new Date(item.createdAt);
+      return `Added ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+    })(),
     price: p?.price ?? '—',
     change7d: p?.change7d ?? '—',
     positive7d: p?.positive7d ?? true,
     thesis: item.notes || 'Added manually — add thesis when ready.',
     tags: item.tags.map((t) => {
       const tc = tagColor(t);
-      return { text: t, style: { background: tc.bg, color: tc.color, border: `1px solid ${tc.border}` } };
+      return {
+        text: t,
+        style: { background: tc.bg, color: tc.color, border: `1px solid ${tc.border}` },
+      };
     }),
     keyLevels: levelsSummary,
     conviction: item.conviction,
@@ -2643,7 +3405,9 @@ function WatchlistSkeleton() {
       </div>
 
       {/* Horizon tabs skeleton — 4 tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}
+      >
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
@@ -2657,7 +3421,16 @@ function WatchlistSkeleton() {
               gap: 14,
             }}
           >
-            <div style={{ width: 44, height: 44, borderRadius: 11, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 11,
+                background: 'var(--eb-panel-2)',
+                animation: 'eb-pulse 1.6s ease-in-out infinite',
+                flexShrink: 0,
+              }}
+            />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <Sk h={12} w="60%" r={4} />
               <Sk h={10} w="80%" r={3} />
@@ -2678,7 +3451,9 @@ function WatchlistSkeleton() {
         <Sk h={17} w={240} r={5} />
         <Sk h={17} w={100} r={5} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 14 }}>
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 14 }}
+      >
         {[0, 1].map((i) => (
           <div
             key={i}
@@ -2691,21 +3466,40 @@ function WatchlistSkeleton() {
             }}
           >
             <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: 'var(--eb-panel-2)',
+                  animation: 'eb-pulse 1.6s ease-in-out infinite',
+                  flexShrink: 0,
+                }}
+              />
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <Sk h={14} w="50%" r={4} />
                 <Sk h={10} w="80%" r={3} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}
+              >
                 <Sk h={18} w={70} r={4} />
                 <Sk h={10} w={50} r={3} />
               </div>
             </div>
-            <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div
+              style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}
+            >
               <Sk h={60} r={8} />
               <Sk h={38} r={8} />
             </div>
-            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)' }}>
+            <div
+              style={{
+                padding: '10px 16px',
+                borderTop: '1px solid var(--eb-border)',
+                background: 'var(--eb-panel-2)',
+              }}
+            >
               <Sk h={10} w="40%" r={3} />
             </div>
           </div>
@@ -2730,12 +3524,23 @@ function WatchlistSkeleton() {
             }}
           >
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 9 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--eb-panel-2)', animation: 'eb-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 7,
+                  background: 'var(--eb-panel-2)',
+                  animation: 'eb-pulse 1.6s ease-in-out infinite',
+                  flexShrink: 0,
+                }}
+              />
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <Sk h={12} w="50%" r={4} />
                 <Sk h={9} w="70%" r={3} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}
+              >
                 <Sk h={14} w={56} r={4} />
                 <Sk h={9} w={40} r={3} />
               </div>
@@ -2763,9 +3568,12 @@ export function WatchlistClient() {
   const deleteItem = useDeleteWatchlistItem();
   const clearAll = useClearWatchlist();
 
-  const handleNavigate = useCallback((id: string) => {
-    router.push(`/watchlist/${id}`);
-  }, [router]);
+  const handleNavigate = useCallback(
+    (id: string) => {
+      router.push(`/watchlist/${id}`);
+    },
+    [router],
+  );
 
   type ConfirmState =
     | { type: 'item'; id: string; symbol: string }
@@ -2773,10 +3581,13 @@ export function WatchlistClient() {
     | null;
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
-  const requestDelete = useCallback((id: string) => {
-    const item = watchlistItems.find((i) => i.id === id);
-    setConfirmState({ type: 'item', id, symbol: item?.symbol ?? id });
-  }, [watchlistItems]);
+  const requestDelete = useCallback(
+    (id: string) => {
+      const item = watchlistItems.find((i) => i.id === id);
+      setConfirmState({ type: 'item', id, symbol: item?.symbol ?? id });
+    },
+    [watchlistItems],
+  );
 
   const requestClearAll = useCallback(() => {
     setConfirmState({ type: 'all', count: watchlistItems.length });
@@ -2793,15 +3604,24 @@ export function WatchlistClient() {
   const { data: prices = {}, refetch: refetchPrices } = usePrices(symbols);
 
   const dayTokens = useMemo(
-    () => watchlistItems.filter((i) => i.horizon === 'day').map((i) => dbItemToDayToken(i, prices[i.symbol])),
+    () =>
+      watchlistItems
+        .filter((i) => i.horizon === 'day')
+        .map((i) => dbItemToDayToken(i, prices[i.symbol])),
     [watchlistItems, prices],
   );
   const weekTokens = useMemo(
-    () => watchlistItems.filter((i) => i.horizon === 'week').map((i) => dbItemToWeekToken(i, prices[i.symbol])),
+    () =>
+      watchlistItems
+        .filter((i) => i.horizon === 'week')
+        .map((i) => dbItemToWeekToken(i, prices[i.symbol])),
     [watchlistItems, prices],
   );
   const monthTokens = useMemo(
-    () => watchlistItems.filter((i) => i.horizon === 'month').map((i) => dbItemToMonthToken(i, prices[i.symbol])),
+    () =>
+      watchlistItems
+        .filter((i) => i.horizon === 'month')
+        .map((i) => dbItemToMonthToken(i, prices[i.symbol])),
     [watchlistItems, prices],
   );
 
@@ -2824,6 +3644,7 @@ export function WatchlistClient() {
       tags: formState.tags,
       playbookNames: formState.playbooks.map((p) => p.name),
       keyLevelsJson: formState.keyLevels,
+      images: formState.images,
       ...(formState.notes && { notes: formState.notes }),
       ...(formState.convictionReason && { convictionReason: formState.convictionReason }),
     });
@@ -2936,7 +3757,9 @@ export function WatchlistClient() {
           onAddDay={() => openModal('day')}
           onAddWeek={() => openModal('week')}
           onAddMonth={() => openModal('month')}
-          onRefresh={() => { void refetchPrices(); }}
+          onRefresh={() => {
+            void refetchPrices();
+          }}
           onNavigate={handleNavigate}
           totalCount={totalCount}
         />
@@ -2952,11 +3775,18 @@ export function WatchlistClient() {
         />
       )}
 
-      <Dialog open={confirmState !== null} onOpenChange={(open) => { if (!open) setConfirmState(null); }}>
+      <Dialog
+        open={confirmState !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmState(null);
+        }}
+      >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
-              {confirmState?.type === 'all' ? 'Clear entire watchlist?' : `Remove ${confirmState?.type === 'item' ? confirmState.symbol : ''}?`}
+              {confirmState?.type === 'all'
+                ? 'Clear entire watchlist?'
+                : `Remove ${confirmState?.type === 'item' ? confirmState.symbol : ''}?`}
             </DialogTitle>
             <DialogDescription>
               {confirmState?.type === 'all'
@@ -3001,7 +3831,6 @@ export function WatchlistClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </>
   );
 }
