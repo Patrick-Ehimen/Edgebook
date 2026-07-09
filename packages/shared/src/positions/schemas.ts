@@ -23,6 +23,12 @@ export const CreateFillInput = z.object({
   tp: decimalPositive('Take profit').optional(),
   conviction: z.number().int().min(1).max(5).optional(),
   moods: z.array(z.string().max(50)).max(20).optional(),
+  leverage: z.coerce
+    .number()
+    .int()
+    .min(1, 'Leverage must be at least 1x.')
+    .max(125, 'Leverage must be 125x or less.')
+    .optional(),
 });
 export type CreateFillInput = z.infer<typeof CreateFillInput>;
 

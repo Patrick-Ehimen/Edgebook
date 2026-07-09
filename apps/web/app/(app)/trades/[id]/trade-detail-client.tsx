@@ -1,18 +1,36 @@
 'use client';
 
-import { positionsApi, useDeletePosition, useLogFill, usePosition, useUpdatePosition } from '@/features/positions';
-import type { PositionDetail } from '@/features/positions';
-import type { CheckState } from '@/features/positions';
 import { usePlaybook, usePlaybooks } from '@/features/playbooks';
 import type { ChecklistItem } from '@/features/playbooks';
+import {
+  positionsApi,
+  useDeletePosition,
+  useLogFill,
+  usePosition,
+  useUpdatePosition,
+} from '@/features/positions';
+import type { PositionDetail } from '@/features/positions';
+import type { CheckState } from '@/features/positions';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  AlertTriangle,
+  Brain,
+  Check,
+  CheckSquare,
+  ClipboardList,
+  FileSearch,
+  NotebookPen,
+  Paperclip,
+  Plus,
+  Star,
+  Tag,
+  Target,
+  Trash2,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  AlertTriangle, Brain, Check, CheckSquare, ClipboardList, FileSearch, Paperclip,
-  Plus, NotebookPen, Star, Tag, Target, Trash2, X,
-} from 'lucide-react';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -65,6 +83,14 @@ function utcDate(iso: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+function leverageColor(lev: number): string {
+  if (lev <= 3) return 'var(--green)';
+  if (lev <= 10) return 'var(--eb-cyan)';
+  if (lev <= 25) return 'var(--eb-yellow)';
+  if (lev <= 50) return '#f97316';
+  return 'var(--eb-red)';
 }
 
 // ─── Shared style constants ───────────────────────────────────────────────────
@@ -232,14 +258,14 @@ function EmptyHint({ text }: { text: string }) {
 // ─── Tag color ───────────────────────────────────────────────────────────────
 
 const TAG_PALETTE = [
-  { bg: 'rgba(139,92,246,.15)', border: 'rgba(139,92,246,.35)', color: '#c4b5fd' },  // purple
-  { bg: 'rgba(0,214,143,.12)',  border: 'rgba(0,214,143,.30)',  color: '#6ee7b7' },  // green
-  { bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)',  color: '#67e8f9' },  // cyan
-  { bg: 'rgba(245,158,11,.12)', border: 'rgba(245,158,11,.30)', color: '#fcd34d' },  // amber
-  { bg: 'rgba(239,68,68,.12)',  border: 'rgba(239,68,68,.30)',  color: '#fca5a5' },  // red
-  { bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)', color: '#f9a8d4' },  // pink
-  { bg: 'rgba(99,102,241,.15)', border: 'rgba(99,102,241,.35)', color: '#a5b4fc' },  // indigo
-  { bg: 'rgba(20,184,166,.12)', border: 'rgba(20,184,166,.30)', color: '#5eead4' },  // teal
+  { bg: 'rgba(139,92,246,.15)', border: 'rgba(139,92,246,.35)', color: '#c4b5fd' }, // purple
+  { bg: 'rgba(0,214,143,.12)', border: 'rgba(0,214,143,.30)', color: '#6ee7b7' }, // green
+  { bg: 'rgba(6,182,212,.12)', border: 'rgba(6,182,212,.30)', color: '#67e8f9' }, // cyan
+  { bg: 'rgba(245,158,11,.12)', border: 'rgba(245,158,11,.30)', color: '#fcd34d' }, // amber
+  { bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.30)', color: '#fca5a5' }, // red
+  { bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)', color: '#f9a8d4' }, // pink
+  { bg: 'rgba(99,102,241,.15)', border: 'rgba(99,102,241,.35)', color: '#a5b4fc' }, // indigo
+  { bg: 'rgba(20,184,166,.12)', border: 'rgba(20,184,166,.30)', color: '#5eead4' }, // teal
 ];
 
 function tagColor(tag: string) {
@@ -250,15 +276,24 @@ function tagColor(tag: string) {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-function Sk({ h = 14, w, r = 6, style: s }: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
+function Sk({
+  h = 14,
+  w,
+  r = 6,
+  style: s,
+}: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
   return (
-    <div style={{
-      height: h, width: w ?? '100%', borderRadius: r,
-      background: 'var(--eb-panel-2)',
-      animation: 'eb-sk 1.6s ease-in-out infinite',
-      flexShrink: 0,
-      ...s,
-    }} />
+    <div
+      style={{
+        height: h,
+        width: w ?? '100%',
+        borderRadius: r,
+        background: 'var(--eb-panel-2)',
+        animation: 'eb-sk 1.6s ease-in-out infinite',
+        flexShrink: 0,
+        ...s,
+      }}
+    />
   );
 }
 
@@ -275,14 +310,16 @@ function TradeDetailSkeleton() {
       <style>{'@keyframes eb-sk{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
 
       {/* Sticky page head */}
-      <div style={{
-        padding: '20px 26px 14px',
-        borderBottom: '1px solid var(--eb-border)',
-        background: 'var(--eb-panel)',
-        position: 'sticky',
-        top: 53,
-        zIndex: 4,
-      }}>
+      <div
+        style={{
+          padding: '20px 26px 14px',
+          borderBottom: '1px solid var(--eb-border)',
+          background: 'var(--eb-panel)',
+          position: 'sticky',
+          top: 53,
+          zIndex: 4,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
           <div>
             <Sk h={28} w={140} r={6} />
@@ -305,20 +342,25 @@ function TradeDetailSkeleton() {
       </div>
 
       {/* KPI strip */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: 10,
-        padding: '14px 26px 0',
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: 10,
+          padding: '14px 26px 0',
+        }}
+      >
         {Array.from({ length: 7 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
-          <div key={i} style={{
-            background: 'var(--eb-panel)',
-            border: '1px solid var(--eb-border)',
-            borderRadius: 10,
-            padding: '10px 12px',
-          }}>
+          <div
+            key={i}
+            style={{
+              background: 'var(--eb-panel)',
+              border: '1px solid var(--eb-border)',
+              borderRadius: 10,
+              padding: '10px 12px',
+            }}
+          >
             <Sk h={10} w="55%" r={3} />
             <Sk h={20} w="75%" r={5} style={{ marginTop: 5 }} />
             <Sk h={9} w="50%" r={3} style={{ marginTop: 4 }} />
@@ -327,26 +369,43 @@ function TradeDetailSkeleton() {
       </div>
 
       {/* Two-column body */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 340px',
-        gap: 14,
-        padding: '14px 26px 60px',
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 340px',
+          gap: 14,
+          padding: '14px 26px 60px',
+        }}
+      >
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
           {/* Pre-trade plan panel */}
           <div style={skPanel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Sk h={12} w={120} r={4} />
               <Sk h={20} w={55} r={99} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}
+            >
               <Sk h={74} r={6} />
               <Sk h={74} r={6} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
+                marginBottom: 10,
+              }}
+            >
               <Sk h={32} r={6} />
               <Sk h={32} r={6} />
               <Sk h={32} r={6} />
@@ -356,7 +415,14 @@ function TradeDetailSkeleton() {
 
           {/* Attachments panel */}
           <div style={skPanel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Sk h={12} w={100} r={4} />
               <Sk h={12} w={80} r={4} />
             </div>
@@ -365,12 +431,21 @@ function TradeDetailSkeleton() {
 
           {/* Post-trade reflection panel */}
           <div style={skPanel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Sk h={12} w={160} r={4} />
               <Sk h={22} w={40} r={7} />
             </div>
             <Sk h={80} r={6} style={{ marginBottom: 10 }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}
+            >
               <Sk h={74} r={6} />
               <Sk h={74} r={6} />
             </div>
@@ -381,12 +456,10 @@ function TradeDetailSkeleton() {
               <Sk h={32} r={6} />
             </div>
           </div>
-
         </div>
 
         {/* Right column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
           {/* Summary panel */}
           <div style={skPanel}>
             <div style={{ marginBottom: 10 }}>
@@ -402,7 +475,14 @@ function TradeDetailSkeleton() {
 
           {/* Conviction & State panel */}
           <div style={skPanel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Sk h={12} w={140} r={4} />
               <Sk h={20} w={50} r={99} />
             </div>
@@ -432,18 +512,26 @@ function TradeDetailSkeleton() {
 
           {/* Tags panel */}
           <div style={skPanel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Sk h={12} w={50} r={4} />
               <Sk h={11} w={70} r={4} />
             </div>
-            <div style={{
-              height: 36,
-              borderRadius: 7,
-              border: '1px solid var(--eb-border)',
-              background: 'var(--eb-panel-2)',
-            }} />
+            <div
+              style={{
+                height: 36,
+                borderRadius: 7,
+                border: '1px solid var(--eb-border)',
+                background: 'var(--eb-panel-2)',
+              }}
+            />
           </div>
-
         </div>
       </div>
     </>
@@ -566,8 +654,8 @@ function openQty(position: PositionDetail): string {
 
 function openingFill(position: PositionDetail) {
   if (position.fills.length === 0) return null;
-  const sorted = [...position.fills].sort((a, b) =>
-    new Date(a.fill.executedAt).getTime() - new Date(b.fill.executedAt).getTime(),
+  const sorted = [...position.fills].sort(
+    (a, b) => new Date(a.fill.executedAt).getTime() - new Date(b.fill.executedAt).getTime(),
   );
   const first = sorted[0];
   return first ? first.fill : null;
@@ -575,8 +663,8 @@ function openingFill(position: PositionDetail) {
 
 function closingFill(position: PositionDetail) {
   if (position.fills.length < 2) return null;
-  const sorted = [...position.fills].sort((a, b) =>
-    new Date(b.fill.executedAt).getTime() - new Date(a.fill.executedAt).getTime(),
+  const sorted = [...position.fills].sort(
+    (a, b) => new Date(b.fill.executedAt).getTime() - new Date(a.fill.executedAt).getTime(),
   );
   const last = sorted[0];
   return last ? last.fill : null;
@@ -633,12 +721,9 @@ function CloseTradeDialog({
     return (move / risk).toFixed(2);
   }
 
-  const rFromExit = perfMode === 'price' && exitPrice && slValid
-    ? priceToR(Number(exitPrice)) : '';
-  const mfeR = perfMode === 'price' && mfePrice && slValid
-    ? priceToR(Number(mfePrice)) : '';
-  const maeR = perfMode === 'price' && maePrice && slValid
-    ? priceToR(Number(maePrice)) : '';
+  const rFromExit = perfMode === 'price' && exitPrice && slValid ? priceToR(Number(exitPrice)) : '';
+  const mfeR = perfMode === 'price' && mfePrice && slValid ? priceToR(Number(mfePrice)) : '';
+  const maeR = perfMode === 'price' && maePrice && slValid ? priceToR(Number(maePrice)) : '';
 
   // Live P&L preview
   const pnlPreview = (() => {
@@ -652,11 +737,16 @@ function CloseTradeDialog({
 
   async function handleSubmit() {
     if (!exitPrice.trim() || Number.isNaN(Number(exitPrice))) {
-      setError('Avg exit price is required.'); return;
+      setError('Avg exit price is required.');
+      return;
     }
-    if (!exitTime.trim()) { setError('Exit time is required.'); return; }
+    if (!exitTime.trim()) {
+      setError('Exit time is required.');
+      return;
+    }
     if (!qty.trim() || Number.isNaN(Number(qty))) {
-      setError('Quantity is required.'); return;
+      setError('Quantity is required.');
+      return;
     }
     setError('');
     setSaving(true);
@@ -709,67 +799,117 @@ function CloseTradeDialog({
     const finalMae = perfMode === 'price' ? maeR : mae.trim();
     const hasMetrics = finalR || finalMfe || finalMae;
     if (hasMetrics) {
-      positionsApi.list(accountId).then((list) => {
-        const newPos = list
-          .filter((p) => p.symbol === position.symbol && p.status === 'closed')
-          .sort((a, b) => new Date(b.closedAt ?? '').getTime() - new Date(a.closedAt ?? '').getTime())[0];
-        if (newPos) {
-          positionsApi.updateMetrics(accountId, newPos.id, {
-            rRealized: finalR || undefined,
-            mfe: finalMfe || undefined,
-            mae: finalMae || undefined,
-          }).catch(() => { /* non-fatal */ });
-        }
-      }).catch(() => { /* non-fatal */ });
+      positionsApi
+        .list(accountId)
+        .then((list) => {
+          const newPos = list
+            .filter((p) => p.symbol === position.symbol && p.status === 'closed')
+            .sort(
+              (a, b) => new Date(b.closedAt ?? '').getTime() - new Date(a.closedAt ?? '').getTime(),
+            )[0];
+          if (newPos) {
+            positionsApi
+              .updateMetrics(accountId, newPos.id, {
+                rRealized: finalR || undefined,
+                mfe: finalMfe || undefined,
+                mae: finalMae || undefined,
+              })
+              .catch(() => {
+                /* non-fatal */
+              });
+          }
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
     }
   }
 
   const inp: React.CSSProperties = {
     background: 'var(--eb-input, var(--eb-panel-2))',
     border: '1px solid var(--eb-border)',
-    borderRadius: 7, padding: '7px 10px',
-    color: 'var(--eb-text)', fontSize: 12.5,
-    fontFamily: 'inherit', outline: 0, width: '100%',
+    borderRadius: 7,
+    padding: '7px 10px',
+    color: 'var(--eb-text)',
+    fontSize: 12.5,
+    fontFamily: 'inherit',
+    outline: 0,
+    width: '100%',
     boxSizing: 'border-box',
   };
   const monoInp: React.CSSProperties = {
-    ...inp, fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+    ...inp,
+    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
   };
   const lbl: React.CSSProperties = {
-    fontSize: 10.5, color: 'var(--eb-muted)', textTransform: 'uppercase',
-    letterSpacing: '.06em', fontWeight: 600, marginBottom: 4, display: 'block',
+    fontSize: 10.5,
+    color: 'var(--eb-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '.06em',
+    fontWeight: 600,
+    marginBottom: 4,
+    display: 'block',
   };
 
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(4,7,12,.65)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        zIndex: 100, padding: '48px 16px', overflowY: 'auto',
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(4,7,12,.65)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '48px 16px',
+        overflowY: 'auto',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         style={{
-          width: 'min(640px, 100%)', background: 'var(--eb-panel)',
-          border: '1px solid var(--eb-border)', borderRadius: 14,
-          boxShadow: '0 24px 60px rgba(0,0,0,.55)', overflow: 'hidden',
+          width: 'min(640px, 100%)',
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 14,
+          boxShadow: '0 24px 60px rgba(0,0,0,.55)',
+          overflow: 'hidden',
         }}
-        role="dialog" aria-modal="true" aria-label="Close trade"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Close trade"
       >
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '14px 18px', borderBottom: '1px solid var(--eb-border)',
-          background: 'linear-gradient(180deg,var(--eb-panel-2),var(--eb-panel))',
-        }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-            background: 'linear-gradient(135deg,#00d68f,#06b6d4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#06140f', fontWeight: 800, fontSize: 14,
-          }}><Check size={14} /></div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '14px 18px',
+            borderBottom: '1px solid var(--eb-border)',
+            background: 'linear-gradient(180deg,var(--eb-panel-2),var(--eb-panel))',
+          }}
+        >
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              flexShrink: 0,
+              background: 'linear-gradient(135deg,#00d68f,#06b6d4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#06140f',
+              fontWeight: 800,
+              fontSize: 14,
+            }}
+          >
+            <Check size={14} />
+          </div>
           <div>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
               Close trade — {position.symbol}
@@ -779,30 +919,71 @@ function CloseTradeDialog({
             </p>
           </div>
           <button
-            type="button" onClick={onClose} aria-label="Close"
-            style={{ marginLeft: 'auto', background: 'transparent', border: 0, color: 'var(--eb-muted)', cursor: 'pointer', padding: '4px 6px', borderRadius: 5, display: 'flex' }}
-          ><X size={14} /></button>
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 0,
+              color: 'var(--eb-muted)',
+              cursor: 'pointer',
+              padding: '4px 6px',
+              borderRadius: 5,
+              display: 'flex',
+            }}
+          >
+            <X size={14} />
+          </button>
         </div>
 
         {/* Body */}
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
           {/* Row 1: Qty · Avg exit · Exit time */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1.4fr', gap: 10 }}>
             <div>
               <label style={lbl}>Qty (contracts)</label>
-              <input style={monoInp} value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" />
+              <input
+                style={monoInp}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                inputMode="decimal"
+              />
             </div>
             <div>
               <label style={lbl}>Avg exit price</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
-                <input style={{ ...monoInp, paddingLeft: 20 }} value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} placeholder="0.00" inputMode="decimal" autoFocus />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 9,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--eb-muted)',
+                    fontSize: 11.5,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  $
+                </span>
+                <input
+                  style={{ ...monoInp, paddingLeft: 20 }}
+                  value={exitPrice}
+                  onChange={(e) => setExitPrice(e.target.value)}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                  autoFocus
+                />
               </div>
             </div>
             <div>
               <label style={lbl}>Exit time (UTC)</label>
-              <input style={monoInp} placeholder="2026-05-18 14:30" value={exitTime} onChange={(e) => setExitTime(e.target.value)} />
+              <input
+                style={monoInp}
+                placeholder="2026-05-18 14:30"
+                value={exitTime}
+                onChange={(e) => setExitTime(e.target.value)}
+              />
             </div>
           </div>
 
@@ -811,37 +992,102 @@ function CloseTradeDialog({
             <div>
               <label style={lbl}>Fees</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
-                <input style={{ ...monoInp, paddingLeft: 20 }} value={fee} onChange={(e) => setFee(e.target.value)} placeholder="0.00" inputMode="decimal" />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 9,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--eb-muted)',
+                    fontSize: 11.5,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  $
+                </span>
+                <input
+                  style={{ ...monoInp, paddingLeft: 20 }}
+                  value={fee}
+                  onChange={(e) => setFee(e.target.value)}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                />
               </div>
             </div>
             <div>
               <label style={lbl}>Funding paid/received</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
-                <input style={{ ...monoInp, paddingLeft: 20 }} value={funding} onChange={(e) => setFunding(e.target.value)} placeholder="-0.00" inputMode="decimal" />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 9,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--eb-muted)',
+                    fontSize: 11.5,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  $
+                </span>
+                <input
+                  style={{ ...monoInp, paddingLeft: 20 }}
+                  value={funding}
+                  onChange={(e) => setFunding(e.target.value)}
+                  placeholder="-0.00"
+                  inputMode="decimal"
+                />
               </div>
             </div>
           </div>
 
           {/* Row 3: Performance — R or Price mode */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 8,
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  color: 'var(--eb-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '.05em',
+                  fontWeight: 600,
+                }}
+              >
                 Performance (optional)
               </p>
-              <div style={{ display: 'inline-flex', background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)', borderRadius: 6, padding: 2, gap: 2 }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  background: 'var(--eb-panel-2)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 6,
+                  padding: 2,
+                  gap: 2,
+                }}
+              >
                 {(['r', 'price'] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setPerfMode(m)}
                     style={{
-                      padding: '3px 10px', borderRadius: 4, border: 0,
+                      padding: '3px 10px',
+                      borderRadius: 4,
+                      border: 0,
                       background: perfMode === m ? 'var(--eb-panel)' : 'transparent',
                       color: perfMode === m ? 'var(--eb-text)' : 'var(--eb-muted)',
-                      fontSize: 11, fontWeight: perfMode === m ? 600 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 11,
+                      fontWeight: perfMode === m ? 600 : 400,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
                       boxShadow: perfMode === m ? '0 1px 3px rgba(0,0,0,.2)' : 'none',
                     }}
                   >
@@ -856,7 +1102,19 @@ function CloseTradeDialog({
               <div style={{ marginBottom: 10 }}>
                 <label style={lbl}>Stop loss price</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 9,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--eb-muted)',
+                      fontSize: 11.5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    $
+                  </span>
                   <input
                     style={{ ...monoInp, paddingLeft: 20 }}
                     value={slPrice}
@@ -866,7 +1124,16 @@ function CloseTradeDialog({
                   />
                 </div>
                 {slPrice && !slValid && (
-                  <span style={{ fontSize: 10.5, color: 'var(--eb-red)', marginTop: 2, display: 'block' }}>Enter a valid SL price to compute R</span>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      color: 'var(--eb-red)',
+                      marginTop: 2,
+                      display: 'block',
+                    }}
+                  >
+                    Enter a valid SL price to compute R
+                  </span>
                 )}
               </div>
             )}
@@ -877,18 +1144,50 @@ function CloseTradeDialog({
                 <label style={lbl}>R-multiple</label>
                 {perfMode === 'r' ? (
                   <>
-                    <input style={monoInp} value={rRealized} onChange={(e) => setRRealized(e.target.value)} placeholder="e.g. 1.84" inputMode="decimal" />
-                    <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 2, display: 'block' }}>Realized R achieved</span>
+                    <input
+                      style={monoInp}
+                      value={rRealized}
+                      onChange={(e) => setRRealized(e.target.value)}
+                      placeholder="e.g. 1.84"
+                      inputMode="decimal"
+                    />
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
+                      Realized R achieved
+                    </span>
                   </>
                 ) : (
                   <>
-                    <div style={{
-                      ...monoInp, display: 'flex', alignItems: 'center',
-                      color: rFromExit ? (Number(rFromExit) >= 0 ? 'var(--green)' : 'var(--eb-red)') : 'var(--eb-muted)',
-                    }}>
+                    <div
+                      style={{
+                        ...monoInp,
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: rFromExit
+                          ? Number(rFromExit) >= 0
+                            ? 'var(--green)'
+                            : 'var(--eb-red)'
+                          : 'var(--eb-muted)',
+                      }}
+                    >
                       {rFromExit ? `${Number(rFromExit) >= 0 ? '+' : ''}${rFromExit}R` : '—'}
                     </div>
-                    <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 2, display: 'block' }}>From exit price + SL</span>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
+                      From exit price + SL
+                    </span>
                   </>
                 )}
               </div>
@@ -898,16 +1197,56 @@ function CloseTradeDialog({
                 <label style={lbl}>{perfMode === 'price' ? 'MFE price' : 'MFE'}</label>
                 {perfMode === 'r' ? (
                   <>
-                    <input style={monoInp} value={mfe} onChange={(e) => setMfe(e.target.value)} placeholder="e.g. 2.31" inputMode="decimal" />
-                    <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 2, display: 'block' }}>Peak in your favour (R)</span>
+                    <input
+                      style={monoInp}
+                      value={mfe}
+                      onChange={(e) => setMfe(e.target.value)}
+                      placeholder="e.g. 2.31"
+                      inputMode="decimal"
+                    />
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
+                      Peak in your favour (R)
+                    </span>
                   </>
                 ) : (
                   <>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
-                      <input style={{ ...monoInp, paddingLeft: 20 }} value={mfePrice} onChange={(e) => setMfePrice(e.target.value)} placeholder="peak high" inputMode="decimal" />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 9,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--eb-muted)',
+                          fontSize: 11.5,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        $
+                      </span>
+                      <input
+                        style={{ ...monoInp, paddingLeft: 20 }}
+                        value={mfePrice}
+                        onChange={(e) => setMfePrice(e.target.value)}
+                        placeholder="peak high"
+                        inputMode="decimal"
+                      />
                     </div>
-                    <span style={{ fontSize: 10.5, color: mfeR ? 'var(--green)' : 'var(--eb-muted)', marginTop: 2, display: 'block' }}>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: mfeR ? 'var(--green)' : 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
                       {mfeR ? `= +${mfeR}R` : 'Peak in your favour'}
                     </span>
                   </>
@@ -919,16 +1258,56 @@ function CloseTradeDialog({
                 <label style={lbl}>{perfMode === 'price' ? 'MAE price' : 'MAE'}</label>
                 {perfMode === 'r' ? (
                   <>
-                    <input style={monoInp} value={mae} onChange={(e) => setMae(e.target.value)} placeholder="e.g. -0.54" inputMode="decimal" />
-                    <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', marginTop: 2, display: 'block' }}>Peak against you (R)</span>
+                    <input
+                      style={monoInp}
+                      value={mae}
+                      onChange={(e) => setMae(e.target.value)}
+                      placeholder="e.g. -0.54"
+                      inputMode="decimal"
+                    />
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
+                      Peak against you (R)
+                    </span>
                   </>
                 ) : (
                   <>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--eb-muted)', fontSize: 11.5, pointerEvents: 'none' }}>$</span>
-                      <input style={{ ...monoInp, paddingLeft: 20 }} value={maePrice} onChange={(e) => setMaePrice(e.target.value)} placeholder="peak low" inputMode="decimal" />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 9,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--eb-muted)',
+                          fontSize: 11.5,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        $
+                      </span>
+                      <input
+                        style={{ ...monoInp, paddingLeft: 20 }}
+                        value={maePrice}
+                        onChange={(e) => setMaePrice(e.target.value)}
+                        placeholder="peak low"
+                        inputMode="decimal"
+                      />
                     </div>
-                    <span style={{ fontSize: 10.5, color: maeR ? 'var(--eb-red)' : 'var(--eb-muted)', marginTop: 2, display: 'block' }}>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: maeR ? 'var(--eb-red)' : 'var(--eb-muted)',
+                        marginTop: 2,
+                        display: 'block',
+                      }}
+                    >
                       {maeR ? `= ${maeR}R` : 'Peak against you'}
                     </span>
                   </>
@@ -950,18 +1329,33 @@ function CloseTradeDialog({
 
           {/* Live P&L preview */}
           {pnlPreview !== null && (
-            <div style={{
-              display: 'flex', gap: 14, padding: '9px 12px', borderRadius: 8,
-              background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)',
-              fontSize: 12,
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 14,
+                padding: '9px 12px',
+                borderRadius: 8,
+                background: 'var(--eb-panel-2)',
+                border: '1px solid var(--eb-border)',
+                fontSize: 12,
+              }}
+            >
               <span style={{ color: 'var(--eb-muted)' }}>Avg entry</span>
               <strong style={{ fontFamily: 'monospace' }}>${fmt(position.avgEntry)}</strong>
-              <span style={{ color: 'var(--eb-muted)', marginLeft: 'auto' }}>Gross P&L preview</span>
-              <strong style={{
-                fontFamily: 'monospace',
-                color: Number(pnlPreview) > 0 ? 'var(--green)' : Number(pnlPreview) < 0 ? 'var(--eb-red)' : 'var(--eb-muted)',
-              }}>
+              <span style={{ color: 'var(--eb-muted)', marginLeft: 'auto' }}>
+                Gross P&L preview
+              </span>
+              <strong
+                style={{
+                  fontFamily: 'monospace',
+                  color:
+                    Number(pnlPreview) > 0
+                      ? 'var(--green)'
+                      : Number(pnlPreview) < 0
+                        ? 'var(--eb-red)'
+                        : 'var(--eb-muted)',
+                }}
+              >
                 {Number(pnlPreview) >= 0 ? '+' : ''}${pnlPreview}
               </strong>
             </div>
@@ -969,39 +1363,72 @@ function CloseTradeDialog({
 
           {/* Error */}
           {error && (
-            <div style={{
-              padding: '9px 12px', borderRadius: 8,
-              background: 'rgba(255,91,108,.06)', border: '1px solid rgba(255,91,108,.25)',
-              fontSize: 12.5, color: 'var(--eb-red)', display: 'flex', alignItems: 'center', gap: 7,
-            }}>
+            <div
+              style={{
+                padding: '9px 12px',
+                borderRadius: 8,
+                background: 'rgba(255,91,108,.06)',
+                border: '1px solid rgba(255,91,108,.25)',
+                fontSize: 12.5,
+                color: 'var(--eb-red)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+              }}
+            >
               <AlertTriangle size={13} /> {error}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-          padding: '12px 18px', borderTop: '1px solid var(--eb-border)',
-          background: 'var(--eb-panel-2)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
+            padding: '12px 18px',
+            borderTop: '1px solid var(--eb-border)',
+            background: 'var(--eb-panel-2)',
+          }}
+        >
           <span style={{ fontSize: 11.5, color: 'var(--eb-muted)', marginRight: 'auto' }}>
             ⌘ Enter to save
           </span>
           <button
-            type="button" onClick={onClose} disabled={isPending}
-            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--eb-border)', background: 'transparent', color: 'var(--eb-muted-2)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            style={{
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: '1px solid var(--eb-border)',
+              background: 'transparent',
+              color: 'var(--eb-muted-2)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
           >
             Cancel
           </button>
           <button
-            type="button" onClick={handleSubmit} disabled={isPending}
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
             style={{
-              padding: '7px 20px', borderRadius: 8,
+              padding: '7px 20px',
+              borderRadius: 8,
               border: '1px solid #00b67a',
-              background: isPending ? 'rgba(0,214,143,.4)' : 'linear-gradient(180deg,#00d68f,#00b67a)',
-              color: '#06140f', fontSize: 12.5, fontWeight: 600,
-              cursor: isPending ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+              background: isPending
+                ? 'rgba(0,214,143,.4)'
+                : 'linear-gradient(180deg,#00d68f,#00b67a)',
+              color: '#06140f',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             {isPending ? 'Closing…' : 'Close trade'}
@@ -1028,13 +1455,18 @@ function ConfirmDeletePopup({
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
+        position: 'fixed',
+        inset: 0,
         background: 'rgba(4,7,12,.6)',
         backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 100,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
     >
       <div
         style={{
@@ -1050,33 +1482,45 @@ function ConfirmDeletePopup({
         aria-label="Confirm delete"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'rgba(255,91,108,.14)',
-            border: '1px solid rgba(255,91,108,.30)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--eb-red)',
-          }}><Trash2 size={15} /></span>
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              flexShrink: 0,
+              background: 'rgba(255,91,108,.14)',
+              border: '1px solid rgba(255,91,108,.30)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--eb-red)',
+            }}
+          >
+            <Trash2 size={15} />
+          </span>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--eb-text)' }}>
             Delete trade
           </h3>
         </div>
 
-        <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
-          This will permanently delete{' '}
-          <strong style={{ color: 'var(--eb-text)' }}>{symbol}</strong>{' '}
+        <p
+          style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}
+        >
+          This will permanently delete <strong style={{ color: 'var(--eb-text)' }}>{symbol}</strong>{' '}
           and all its fills. This cannot be undone.
         </p>
 
-        <div style={{
-          margin: '16px 0 0',
-          padding: '10px 12px',
-          borderRadius: 8,
-          background: 'rgba(255,91,108,.06)',
-          border: '1px solid rgba(255,91,108,.20)',
-          fontSize: 12,
-          color: 'var(--eb-red)',
-        }}>
+        <div
+          style={{
+            margin: '16px 0 0',
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: 'rgba(255,91,108,.06)',
+            border: '1px solid rgba(255,91,108,.20)',
+            fontSize: 12,
+            color: 'var(--eb-red)',
+          }}
+        >
           All fills linked to this position will be removed.
         </div>
 
@@ -1086,11 +1530,14 @@ function ConfirmDeletePopup({
             onClick={onCancel}
             disabled={isPending}
             style={{
-              padding: '8px 16px', borderRadius: 8,
+              padding: '8px 16px',
+              borderRadius: 8,
               border: '1px solid var(--eb-border)',
               background: 'transparent',
-              color: 'var(--eb-muted-2)', fontSize: 13,
-              cursor: 'pointer', fontFamily: 'inherit',
+              color: 'var(--eb-muted-2)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Cancel
@@ -1100,11 +1547,15 @@ function ConfirmDeletePopup({
             onClick={onConfirm}
             disabled={isPending}
             style={{
-              padding: '8px 18px', borderRadius: 8,
+              padding: '8px 18px',
+              borderRadius: 8,
               border: '1px solid rgba(255,91,108,.5)',
               background: isPending ? 'rgba(255,91,108,.3)' : 'rgba(255,91,108,.18)',
-              color: 'var(--eb-red)', fontSize: 13, fontWeight: 600,
-              cursor: isPending ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+              color: 'var(--eb-red)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             {isPending ? 'Deleting…' : 'Yes, delete'}
@@ -1154,7 +1605,9 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
     });
   }
 
-  const passCount = checklistItems.filter((item) => (checkStates[item.id] ?? 'none') === 'done').length;
+  const passCount = checklistItems.filter(
+    (item) => (checkStates[item.id] ?? 'none') === 'done',
+  ).length;
 
   // Tags state
   const [tags, setTags] = useState<string[]>(position.tags ?? []);
@@ -1162,7 +1615,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
 
   async function addTag(raw: string) {
     const tag = raw.trim().toLowerCase().replace(/\s+/g, '-');
-    if (!tag || tags.includes(tag)) { setTagInput(''); return; }
+    if (!tag || tags.includes(tag)) {
+      setTagInput('');
+      return;
+    }
     const next = [...tags, tag];
     setTags(next);
     setTagInput('');
@@ -1213,7 +1669,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
   // Use saveChecklistRef (stable mutate ref) — including updateMetrics in deps causes an
   // infinite save loop because useMutation returns a new object after each mutation.
   useEffect(() => {
-    if (imagesSavedRef.current) { imagesSavedRef.current = false; return; }
+    if (imagesSavedRef.current) {
+      imagesSavedRef.current = false;
+      return;
+    }
     saveChecklistRef.current({ images });
   }, [images]);
 
@@ -1226,7 +1685,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
       reader.onload = (ev) => {
         const result = ev.target?.result;
         if (typeof result === 'string') {
-          setImages((prev) => prev.length >= MAX_IMAGES ? prev : [...prev, result]);
+          setImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, result]));
         }
       };
       reader.readAsDataURL(file);
@@ -1259,17 +1718,28 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           type="button"
           onClick={() => setLightbox(null)}
           style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(6px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 200, cursor: 'zoom-out',
-            border: 0, padding: 0,
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 200,
+            cursor: 'zoom-out',
+            border: 0,
+            padding: 0,
           }}
         >
           <img
             src={lightbox}
             alt="Attachment preview"
-            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 24px 60px rgba(0,0,0,.7)' }}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              borderRadius: 10,
+              boxShadow: '0 24px 60px rgba(0,0,0,.7)',
+            }}
           />
         </button>
       )}
@@ -1306,9 +1776,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
         }}
         className="dark:bg-[#10151d] bg-white"
       >
-        <div
-          style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}
-        >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           {/* title */}
           <div>
             <h1
@@ -1348,18 +1816,48 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               >
                 {fmt(position.qtyMax, 4)}
               </span>
+              {position.leverage !== null && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 5,
+                    letterSpacing: '.02em',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    background: `${leverageColor(position.leverage)}24`,
+                    color: leverageColor(position.leverage),
+                  }}
+                >
+                  {position.leverage}×
+                </span>
+              )}
             </h1>
-            <div style={{ color: 'var(--eb-muted)', fontSize: 12.5, marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: '2px 14px', alignItems: 'center' }}>
+            <div
+              style={{
+                color: 'var(--eb-muted)',
+                fontSize: 12.5,
+                marginTop: 4,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '2px 14px',
+                alignItems: 'center',
+              }}
+            >
               <span>
                 Opened:{' '}
-                <strong style={{ color: 'var(--eb-text)', fontFamily: 'var(--font-mono, monospace)' }}>
+                <strong
+                  style={{ color: 'var(--eb-text)', fontFamily: 'var(--font-mono, monospace)' }}
+                >
                   {utcDate(position.openedAt)} {utcTime(position.openedAt)} UTC
                 </strong>
               </span>
               <span>
                 Close:{' '}
                 {position.closedAt ? (
-                  <strong style={{ color: 'var(--eb-text)', fontFamily: 'var(--font-mono, monospace)' }}>
+                  <strong
+                    style={{ color: 'var(--eb-text)', fontFamily: 'var(--font-mono, monospace)' }}
+                  >
                     {utcDate(position.closedAt)} {utcTime(position.closedAt)} UTC
                   </strong>
                 ) : (
@@ -1376,10 +1874,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 {position.closedAt ? (
                   <strong style={{ color: 'var(--eb-text)' }}>{hold}</strong>
                 ) : (
-                  <strong
-                    className="pulse-dot"
-                    style={{ color: 'var(--green)' }}
-                  >
+                  <strong className="pulse-dot" style={{ color: 'var(--green)' }}>
                     Running
                   </strong>
                 )}
@@ -1403,9 +1898,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               flexWrap: 'wrap',
             }}
           >
-            {position.rRealized && (
-              <span style={chipGreen}>{fmtR(position.rRealized)}</span>
-            )}
+            {position.rRealized && <span style={chipGreen}>{fmtR(position.rRealized)}</span>}
             <span
               style={{
                 ...chip,
@@ -1470,12 +1963,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           padding: '14px 26px 0',
         }}
       >
-        <Kpi
-          label="Net P&L"
-          value={pnl.text}
-          sub="After fees + funding"
-          color={pnl.color}
-        />
+        <Kpi label="Net P&L" value={pnl.text} sub="After fees + funding" color={pnl.color} />
         <Kpi
           label="R-multiple"
           value={fmtR(position.rRealized)}
@@ -1509,9 +1997,7 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           label="Fees"
           value={`$${fmt(position.fees)}`}
           sub="Maker + taker"
-          color={
-            Number.parseFloat(position.fees ?? '0') > 0 ? 'var(--eb-muted)' : undefined
-          }
+          color={Number.parseFloat(position.fees ?? '0') > 0 ? 'var(--eb-muted)' : undefined}
         />
         <Kpi
           label="Funding"
@@ -1546,11 +2032,14 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
       >
         {/* ── LEFT COLUMN ─────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
           {/* Pre-trade plan */}
           <div style={panel}>
             <PanelH3
-              left={<><ClipboardList size={13} /> Pre-trade plan</>}
+              left={
+                <>
+                  <ClipboardList size={13} /> Pre-trade plan
+                </>
+              }
               right={<span style={chip}>Locked at open</span>}
             />
             <div
@@ -1580,24 +2069,49 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
+                marginBottom: 10,
+              }}
+            >
               <div>
                 <label style={fieldLabel}>Planned entry</label>
                 <input style={inputStyle} readOnly value={fmt(firstFill?.price)} placeholder="—" />
               </div>
               <div>
                 <label style={fieldLabel}>Planned stop</label>
-                <input style={inputStyle} readOnly value={firstFill?.sl ? `$${fmt(firstFill.sl)}` : ''} placeholder="—" />
+                <input
+                  style={inputStyle}
+                  readOnly
+                  value={firstFill?.sl ? `$${fmt(firstFill.sl)}` : ''}
+                  placeholder="—"
+                />
               </div>
               <div>
                 <label style={fieldLabel}>Planned target</label>
-                <input style={inputStyle} readOnly value={firstFill?.tp ? `$${fmt(firstFill.tp)}` : ''} placeholder="—" />
+                <input
+                  style={inputStyle}
+                  readOnly
+                  value={firstFill?.tp ? `$${fmt(firstFill.tp)}` : ''}
+                  placeholder="—"
+                />
               </div>
             </div>
             <div>
               <label style={fieldLabel}>
                 Notes
-                <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--eb-muted)', marginLeft: 6 }}>
+                <span
+                  style={{
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    fontWeight: 400,
+                    color: 'var(--eb-muted)',
+                    marginLeft: 6,
+                  }}
+                >
                   — trade narrative, observations
                 </span>
               </label>
@@ -1613,7 +2127,12 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Attachments */}
           <div style={panel}>
             <PanelH3
-              left={<><Paperclip size={13} /> Attachments{images.length > 0 ? ` · ${images.length} / ${MAX_IMAGES}` : ''}</>}
+              left={
+                <>
+                  <Paperclip size={13} /> Attachments
+                  {images.length > 0 ? ` · ${images.length} / ${MAX_IMAGES}` : ''}
+                </>
+              }
               right={
                 images.length < MAX_IMAGES ? (
                   <span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>paste or drag</span>
@@ -1651,7 +2170,15 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                   <button
                     type="button"
                     onClick={() => setLightbox(src)}
-                    style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in', borderRadius: 8 }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: 0,
+                      border: 0,
+                      background: 'none',
+                      cursor: 'zoom-in',
+                      borderRadius: 8,
+                    }}
                   >
                     <img
                       src={src}
@@ -1670,12 +2197,22 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                     type="button"
                     onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
                     style={{
-                      position: 'absolute', top: 4, right: 4,
-                      background: 'rgba(0,0,0,.55)', border: 0, borderRadius: 4,
-                      color: '#fff', cursor: 'pointer', padding: '3px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: 'rgba(0,0,0,.55)',
+                      border: 0,
+                      borderRadius: 4,
+                      color: '#fff',
+                      cursor: 'pointer',
+                      padding: '3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
-                  ><X size={10} /></button>
+                  >
+                    <X size={10} />
+                  </button>
                 </div>
               ))}
 
@@ -1683,7 +2220,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               {images.length < MAX_IMAGES && (
                 <button
                   type="button"
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -1722,7 +2262,11 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Post-trade reflection */}
           <div style={panel}>
             <PanelH3
-              left={<><NotebookPen size={13} /> Post-trade reflection</>}
+              left={
+                <>
+                  <NotebookPen size={13} /> Post-trade reflection
+                </>
+              }
               right={
                 reflectionDirty ? (
                   <button
@@ -1730,10 +2274,16 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                     onClick={saveReflection}
                     disabled={updateMetrics.isPending}
                     style={{
-                      padding: '4px 12px', borderRadius: 7, fontSize: 11.5, fontWeight: 600,
+                      padding: '4px 12px',
+                      borderRadius: 7,
+                      fontSize: 11.5,
+                      fontWeight: 600,
                       border: '1px solid #00b67a',
-                      background: updateMetrics.isPending ? 'rgba(0,214,143,.3)' : 'linear-gradient(180deg,#00d68f,#00b67a)',
-                      color: '#06140f', cursor: updateMetrics.isPending ? 'not-allowed' : 'pointer',
+                      background: updateMetrics.isPending
+                        ? 'rgba(0,214,143,.3)'
+                        : 'linear-gradient(180deg,#00d68f,#00b67a)',
+                      color: '#06140f',
+                      cursor: updateMetrics.isPending ? 'not-allowed' : 'pointer',
                       fontFamily: 'inherit',
                     }}
                   >
@@ -1749,7 +2299,15 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             <div style={{ marginBottom: 10 }}>
               <label style={fieldLabel}>
                 Post-trade notes
-                <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--eb-muted)', marginLeft: 6 }}>
+                <span
+                  style={{
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    fontWeight: 400,
+                    color: 'var(--eb-muted)',
+                    marginLeft: 6,
+                  }}
+                >
                   — from close
                 </span>
               </label>
@@ -1762,7 +2320,9 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
             </div>
 
             {/* What went right / wrong */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}
+            >
               <div>
                 <label style={fieldLabel}>What went right</label>
                 <textarea
@@ -1828,12 +2388,10 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
               </div>
             </div>
           </div>
-
         </div>
 
         {/* ── RIGHT COLUMN ────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
           {/* Summary */}
           <div style={panel}>
             <PanelH3 left="Summary" />
@@ -1890,7 +2448,11 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Conviction & state */}
           <div style={panel}>
             <PanelH3
-              left={<><Brain size={13} /> Conviction & state</>}
+              left={
+                <>
+                  <Brain size={13} /> Conviction & state
+                </>
+              }
               right={<span style={chip}>At open</span>}
             />
 
@@ -1914,7 +2476,8 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 })}
                 {firstFill?.conviction != null ? (
                   <span style={{ color: 'var(--eb-muted)', fontSize: 11.5 }}>
-                    {['very low', 'low', 'medium', 'high', 'very high'][firstFill.conviction - 1]} conviction
+                    {['very low', 'low', 'medium', 'high', 'very high'][firstFill.conviction - 1]}{' '}
+                    conviction
                   </span>
                 ) : (
                   <span style={{ color: 'var(--eb-muted)', fontSize: 11.5 }}>not recorded</span>
@@ -1933,7 +2496,9 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                       <span
                         key={m}
                         style={{
-                          fontSize: 11.5, padding: '3px 9px', borderRadius: 99,
+                          fontSize: 11.5,
+                          padding: '3px 9px',
+                          borderRadius: 99,
                           border: `1px solid ${isWarn ? 'rgba(245,165,36,.35)' : 'rgba(139,92,246,.35)'}`,
                           background: isWarn ? 'rgba(245,165,36,.15)' : 'rgba(139,92,246,.15)',
                           color: isWarn ? 'var(--yellow, #f5a524)' : '#c4b5fd',
@@ -1945,18 +2510,28 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                   })}
                 </div>
               ) : (
-                <div style={{ color: 'var(--eb-muted)', fontSize: 12, fontStyle: 'italic', marginTop: 4 }}>
+                <div
+                  style={{
+                    color: 'var(--eb-muted)',
+                    fontSize: 12,
+                    fontStyle: 'italic',
+                    marginTop: 4,
+                  }}
+                >
                   Not recorded
                 </div>
               )}
             </div>
-
           </div>
 
           {/* Playbook */}
           <div style={panel}>
             <PanelH3
-              left={<><Target size={13} /> Playbook</>}
+              left={
+                <>
+                  <Target size={13} /> Playbook
+                </>
+              }
               right={
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   {position.playbookId && (
@@ -1994,30 +2569,50 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 value={position.playbookId ?? ''}
                 onChange={(e) => {
                   const val = e.target.value || null;
-                  const prev = qc.getQueryData<PositionDetail>(['position', accountId, position.id]);
+                  const prev = qc.getQueryData<PositionDetail>([
+                    'position',
+                    accountId,
+                    position.id,
+                  ]);
                   qc.setQueryData(
                     ['position', accountId, position.id],
-                    (old: PositionDetail | undefined) => old ? { ...old, playbookId: val } : old,
+                    (old: PositionDetail | undefined) => (old ? { ...old, playbookId: val } : old),
                   );
                   setShowPlaybookPicker(false);
-                  updateMetrics.mutate({ playbookId: val }, {
-                    onError: () => {
-                      qc.setQueryData(['position', accountId, position.id], prev);
-                      setShowPlaybookPicker(true);
+                  updateMetrics.mutate(
+                    { playbookId: val },
+                    {
+                      onError: () => {
+                        qc.setQueryData(['position', accountId, position.id], prev);
+                        setShowPlaybookPicker(true);
+                      },
                     },
-                  });
+                  );
                 }}
               >
                 <option value="">— no playbook —</option>
                 {(allPlaybooks ?? []).map((pb) => (
-                  <option key={pb.id} value={pb.id}>{pb.name}</option>
+                  <option key={pb.id} value={pb.id}>
+                    {pb.name}
+                  </option>
                 ))}
               </select>
             ) : position.playbookId ? (
               <div style={{ fontSize: 12.5, color: 'var(--eb-text)', fontWeight: 500 }}>
-                {linkedPlaybook?.name ?? allPlaybooks?.find((p) => p.id === position.playbookId)?.name ?? position.playbookId}
+                {linkedPlaybook?.name ??
+                  allPlaybooks?.find((p) => p.id === position.playbookId)?.name ??
+                  position.playbookId}
                 {linkedPlaybook?.status === 'paused' && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--eb-muted)', fontWeight: 400 }}>(paused)</span>
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      fontSize: 11,
+                      color: 'var(--eb-muted)',
+                      fontWeight: 400,
+                    }}
+                  >
+                    (paused)
+                  </span>
                 )}
               </div>
             ) : (
@@ -2028,15 +2623,36 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Pre-trade checklist */}
           <div style={panel}>
             <PanelH3
-              left={<><CheckSquare size={13} /> Pre-trade checklist</>}
+              left={
+                <>
+                  <CheckSquare size={13} /> Pre-trade checklist
+                </>
+              }
               right={
                 checklistItems.length > 0 ? (
-                  <span style={{
-                    ...chip,
-                    color: passCount === checklistItems.length ? 'var(--green)' : passCount > 0 ? 'var(--yellow, #f5a524)' : 'var(--eb-muted-2)',
-                    borderColor: passCount === checklistItems.length ? 'rgba(0,214,143,.30)' : passCount > 0 ? 'rgba(245,165,36,.30)' : 'var(--eb-border)',
-                    background: passCount === checklistItems.length ? 'rgba(0,214,143,.08)' : passCount > 0 ? 'rgba(245,165,36,.08)' : 'var(--eb-panel-2)',
-                  }}>
+                  <span
+                    style={{
+                      ...chip,
+                      color:
+                        passCount === checklistItems.length
+                          ? 'var(--green)'
+                          : passCount > 0
+                            ? 'var(--yellow, #f5a524)'
+                            : 'var(--eb-muted-2)',
+                      borderColor:
+                        passCount === checklistItems.length
+                          ? 'rgba(0,214,143,.30)'
+                          : passCount > 0
+                            ? 'rgba(245,165,36,.30)'
+                            : 'var(--eb-border)',
+                      background:
+                        passCount === checklistItems.length
+                          ? 'rgba(0,214,143,.08)'
+                          : passCount > 0
+                            ? 'rgba(245,165,36,.08)'
+                            : 'var(--eb-panel-2)',
+                    }}
+                  >
                     {passCount}/{checklistItems.length} passed
                   </span>
                 ) : undefined
@@ -2066,7 +2682,8 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                         gap: 8,
                         width: '100%',
                         padding: '7px 0',
-                        borderBottom: i < checklistItems.length - 1 ? '1px dashed var(--eb-border)' : 'none',
+                        borderBottom:
+                          i < checklistItems.length - 1 ? '1px dashed var(--eb-border)' : 'none',
                         background: 'transparent',
                         border: 0,
                         borderBottomStyle: i < checklistItems.length - 1 ? 'dashed' : undefined,
@@ -2077,28 +2694,40 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                         textAlign: 'left',
                       }}
                     >
-                      <span style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 4,
-                        border: `1.5px solid ${isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'var(--eb-muted)'}`,
-                        background: isDone ? 'rgba(0,214,143,.18)' : isMiss ? 'rgba(255,91,108,.18)' : 'transparent',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 10,
-                        color: isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'transparent',
-                        flexShrink: 0,
-                        transition: 'background .1s, border-color .1s',
-                      }}>
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 4,
+                          border: `1.5px solid ${isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'var(--eb-muted)'}`,
+                          background: isDone
+                            ? 'rgba(0,214,143,.18)'
+                            : isMiss
+                              ? 'rgba(255,91,108,.18)'
+                              : 'transparent',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 10,
+                          color: isDone ? 'var(--green)' : isMiss ? 'var(--eb-red)' : 'transparent',
+                          flexShrink: 0,
+                          transition: 'background .1s, border-color .1s',
+                        }}
+                      >
                         {isDone ? '✓' : isMiss ? '✕' : ''}
                       </span>
-                      <span style={{
-                        fontSize: 12.5,
-                        color: isDone ? 'var(--eb-text)' : isMiss ? 'var(--eb-muted)' : 'var(--eb-text)',
-                        textDecoration: isMiss ? 'line-through' : 'none',
-                        lineHeight: 1.4,
-                      }}>
+                      <span
+                        style={{
+                          fontSize: 12.5,
+                          color: isDone
+                            ? 'var(--eb-text)'
+                            : isMiss
+                              ? 'var(--eb-muted)'
+                              : 'var(--eb-text)',
+                          textDecoration: isMiss ? 'line-through' : 'none',
+                          lineHeight: 1.4,
+                        }}
+                      >
                         {item.label}
                       </span>
                     </button>
@@ -2111,7 +2740,11 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
           {/* Tags */}
           <div style={panel}>
             <PanelH3
-              left={<><Tag size={13} /> Tags</>}
+              left={
+                <>
+                  <Tag size={13} /> Tags
+                </>
+              }
               right={<span style={{ color: 'var(--eb-muted)', fontSize: 11 }}>Enter to add</span>}
             />
             <div
@@ -2133,9 +2766,15 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                   <span
                     key={tag}
                     style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      fontSize: 11.5, padding: '3px 8px', borderRadius: 99,
-                      background: c.bg, border: `1px solid ${c.border}`, color: c.color,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 11.5,
+                      padding: '3px 8px',
+                      borderRadius: 99,
+                      background: c.bg,
+                      border: `1px solid ${c.border}`,
+                      color: c.color,
                     }}
                   >
                     {tag}
@@ -2143,11 +2782,18 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                       type="button"
                       onClick={() => removeTag(tag)}
                       style={{
-                        background: 'none', border: 0, color: c.color,
-                        cursor: 'pointer', padding: 0, lineHeight: 1,
-                        opacity: 0.7, display: 'flex',
+                        background: 'none',
+                        border: 0,
+                        color: c.color,
+                        cursor: 'pointer',
+                        padding: 0,
+                        lineHeight: 1,
+                        opacity: 0.7,
+                        display: 'flex',
                       }}
-                    ><X size={10} /></button>
+                    >
+                      <X size={10} />
+                    </button>
                   </span>
                 );
               })}
@@ -2155,19 +2801,26 @@ function Detail({ position, accountId }: { position: PositionDetail; accountId: 
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); }
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTag(tagInput);
+                  }
                 }}
                 placeholder={tags.length === 0 ? 'Add tag…' : ''}
                 style={{
-                  flex: 1, minWidth: 80,
-                  background: 'transparent', border: 0,
-                  color: 'var(--eb-text)', outline: 0,
-                  fontSize: 12, fontFamily: 'inherit', padding: '2px 5px',
+                  flex: 1,
+                  minWidth: 80,
+                  background: 'transparent',
+                  border: 0,
+                  color: 'var(--eb-text)',
+                  outline: 0,
+                  fontSize: 12,
+                  fontFamily: 'inherit',
+                  padding: '2px 5px',
                 }}
               />
             </div>
           </div>
-
         </div>
       </div>
     </>

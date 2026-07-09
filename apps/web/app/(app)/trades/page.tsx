@@ -2,14 +2,13 @@
 
 import { AddAccountDialog, useAccounts } from '@/features/accounts';
 import { usePlaybooks } from '@/features/playbooks';
-import { positionsApi } from '@/features/positions';
+import { useAllPositions } from '@/features/positions';
 import { useLogTrade } from '@/providers/log-trade-provider';
 import { useSelectedAccount } from '@/providers/selected-account-provider';
-import { useQueries } from '@tanstack/react-query';
-import { TradeCalendar } from '../_components/TradeCalendar';
 import { CalendarDays, FileUp, LayoutList, Link2, PenLine } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { TradeCalendar } from '../_components/TradeCalendar';
 
 const PLAYBOOK_PALETTE: { text: string; bg: string; border: string }[] = [
   { text: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' },
@@ -17,17 +16,22 @@ const PLAYBOOK_PALETTE: { text: string; bg: string; border: string }[] = [
   { text: '#34d399', bg: 'rgba(16,185,129,.12)', border: 'rgba(16,185,129,.30)' },
   { text: '#f472b6', bg: 'rgba(236,72,153,.12)', border: 'rgba(236,72,153,.30)' },
   { text: '#fb923c', bg: 'rgba(249,115,22,.12)', border: 'rgba(249,115,22,.30)' },
-  { text: '#facc15', bg: 'rgba(234,179,8,.12)',  border: 'rgba(234,179,8,.30)'  },
-  { text: '#22d3ee', bg: 'rgba(6,182,212,.12)',  border: 'rgba(6,182,212,.30)'  },
-  { text: '#f87171', bg: 'rgba(239,68,68,.12)',  border: 'rgba(239,68,68,.30)'  },
+  { text: '#facc15', bg: 'rgba(234,179,8,.12)', border: 'rgba(234,179,8,.30)' },
+  { text: '#22d3ee', bg: 'rgba(6,182,212,.12)', border: 'rgba(6,182,212,.30)' },
+  { text: '#f87171', bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.30)' },
 ];
 
 function playbookColor(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return PLAYBOOK_PALETTE[hash % PLAYBOOK_PALETTE.length] ?? { text: '#60a5fa', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.30)' };
+  return (
+    PLAYBOOK_PALETTE[hash % PLAYBOOK_PALETTE.length] ?? {
+      text: '#60a5fa',
+      bg: 'rgba(59,130,246,.12)',
+      border: 'rgba(59,130,246,.30)',
+    }
+  );
 }
-
 
 const PAGE_SIZE = 50;
 
@@ -45,6 +49,14 @@ function fmtPnl(n: string | null | undefined) {
     text: `${v >= 0 ? '+' : ''}${v.toFixed(2)}`,
     color: v > 0 ? 'var(--green)' : v < 0 ? 'var(--eb-red)' : 'var(--eb-muted)',
   };
+}
+
+function leverageColor(lev: number): string {
+  if (lev <= 3) return 'var(--green)';
+  if (lev <= 10) return 'var(--eb-cyan)';
+  if (lev <= 25) return 'var(--eb-yellow)';
+  if (lev <= 50) return '#f97316';
+  return 'var(--eb-red)';
 }
 
 function holdTime(openedAt: string, closedAt: string | null) {
@@ -90,41 +102,43 @@ export default function TradesPage() {
 
   // Filters
   const [filterSymbol, setFilterSymbol] = useState('');
+  const [filterLeverage, setFilterLeverage] = useState('');
   const [filterSide, setFilterSide] = useState<'any' | 'long' | 'short'>('any');
   const [filterStatus, setFilterStatus] = useState<'any' | 'open' | 'closed'>('any');
   const [filterResult, setFilterResult] = useState<'any' | 'win' | 'loss'>('any');
   const [filterDate, setFilterDate] = useState<'all' | '7d' | '30d' | '90d'>('all');
 
-  // Fetch positions for all accounts in parallel
-  const positionQueries = useQueries({
-    queries: (accounts ?? []).map((a) => ({
-      queryKey: ['positions', a.id],
-      queryFn: () => positionsApi.list(a.id),
-      enabled: (accounts?.length ?? 0) > 0,
-    })),
-  });
-
-  const loadingPositions = positionQueries.some((q) => q.isLoading);
+  // Fetch positions for all accounts in parallel, newest-opened first
+  const { data: allPositions, isLoading: loadingPositions } = useAllPositions(accounts);
   const loading = loadingAccounts || loadingPositions;
-
-  const allPositions = useMemo(
-    () => positionQueries.flatMap((q) => q.data ?? []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [positionQueries.map((q) => q.dataUpdatedAt).join(',')],
-  );
 
   const hasAccounts = (accounts?.length ?? 0) > 0;
 
   // Reset to first page whenever account or filters change
-  useEffect(() => { setPage(0); }, [selectedAccountId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
+  useEffect(() => {
+    setPage(0);
+  }, [
+    selectedAccountId,
+    filterSymbol,
+    filterLeverage,
+    filterSide,
+    filterStatus,
+    filterResult,
+    filterDate,
+  ]);
 
   const filtered = useMemo(() => {
-    let list = selectedAccountId === 'all'
-      ? allPositions
-      : allPositions.filter((p) => p.accountId === selectedAccountId);
+    let list =
+      selectedAccountId === 'all'
+        ? allPositions
+        : allPositions.filter((p) => p.accountId === selectedAccountId);
     if (filterSymbol.trim()) {
       const q = filterSymbol.trim().toUpperCase();
       list = list.filter((p) => p.symbol.toUpperCase().includes(q));
+    }
+    if (filterLeverage.trim()) {
+      const lev = Number.parseInt(filterLeverage.trim(), 10);
+      list = list.filter((p) => p.leverage === lev);
     }
     if (filterSide !== 'any') list = list.filter((p) => p.side === filterSide);
     if (filterStatus !== 'any') list = list.filter((p) => p.status === filterStatus);
@@ -141,9 +155,24 @@ export default function TradesPage() {
       list = list.filter((p) => new Date(p.openedAt).getTime() >= cutoff);
     }
     return list;
-  }, [allPositions, selectedAccountId, filterSymbol, filterSide, filterStatus, filterResult, filterDate]);
+  }, [
+    allPositions,
+    selectedAccountId,
+    filterSymbol,
+    filterLeverage,
+    filterSide,
+    filterStatus,
+    filterResult,
+    filterDate,
+  ]);
 
-  const isFiltered = filterSymbol.trim() || filterSide !== 'any' || filterStatus !== 'any' || filterResult !== 'any' || filterDate !== 'all';
+  const isFiltered =
+    filterSymbol.trim() ||
+    filterLeverage.trim() ||
+    filterSide !== 'any' ||
+    filterStatus !== 'any' ||
+    filterResult !== 'any' ||
+    filterDate !== 'all';
 
   const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -161,7 +190,14 @@ export default function TradesPage() {
         Workspace / Trade log
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 18,
+        }}
+      >
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: 'var(--eb-text)' }}>
           Trade log
         </h1>
@@ -170,12 +206,17 @@ export default function TradesPage() {
             type="button"
             onClick={() => setCsvOpen(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '6px 11px', borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 11px',
+              borderRadius: 8,
               border: '1px solid var(--eb-border)',
               background: 'var(--eb-panel-2)',
-              color: 'var(--eb-muted-2)', fontSize: 12,
-              fontFamily: 'inherit', cursor: 'pointer',
+              color: 'var(--eb-muted-2)',
+              fontSize: 12,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
             }}
           >
             <FileUp size={12} />
@@ -227,25 +268,48 @@ export default function TradesPage() {
           {/* Filter bar + view toggle */}
           {allPositions.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <div style={{ flex: 1, minWidth: 0, visibility: view === 'calendar' ? 'hidden' : 'visible' }}>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  visibility: view === 'calendar' ? 'hidden' : 'visible',
+                }}
+              >
                 <FilterBar
-                  symbol={filterSymbol} onSymbol={setFilterSymbol}
-                  side={filterSide} onSide={setFilterSide}
-                  status={filterStatus} onStatus={setFilterStatus}
-                  result={filterResult} onResult={setFilterResult}
-                  date={filterDate} onDate={setFilterDate}
+                  symbol={filterSymbol}
+                  onSymbol={setFilterSymbol}
+                  leverage={filterLeverage}
+                  onLeverage={setFilterLeverage}
+                  side={filterSide}
+                  onSide={setFilterSide}
+                  status={filterStatus}
+                  onStatus={setFilterStatus}
+                  result={filterResult}
+                  onResult={setFilterResult}
+                  date={filterDate}
+                  onDate={setFilterDate}
                   matchCount={filtered.length}
                   onClear={() => {
-                    setFilterSymbol(''); setFilterSide('any');
-                    setFilterStatus('any'); setFilterResult('any'); setFilterDate('all');
+                    setFilterSymbol('');
+                    setFilterLeverage('');
+                    setFilterSide('any');
+                    setFilterStatus('any');
+                    setFilterResult('any');
+                    setFilterDate('all');
                   }}
                 />
               </div>
-              <div style={{
-                display: 'flex', padding: 3, gap: 2,
-                background: 'var(--eb-panel)', border: '1px solid var(--eb-border)',
-                borderRadius: 8, flexShrink: 0,
-              }}>
+              <div
+                style={{
+                  display: 'flex',
+                  padding: 3,
+                  gap: 2,
+                  background: 'var(--eb-panel)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 8,
+                  flexShrink: 0,
+                }}
+              >
                 {(['list', 'calendar'] as const).map((v) => (
                   <button
                     key={v}
@@ -253,8 +317,12 @@ export default function TradesPage() {
                     title={v === 'list' ? 'List view' : 'Calendar view'}
                     onClick={() => setView(v)}
                     style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '5px 8px', borderRadius: 6, cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
                       border: `1px solid ${view === v ? 'var(--eb-border)' : 'transparent'}`,
                       background: view === v ? 'var(--eb-panel-2)' : 'transparent',
                       color: view === v ? 'var(--eb-text)' : 'var(--eb-muted)',
@@ -269,214 +337,320 @@ export default function TradesPage() {
           )}
 
           {/* Calendar view */}
-          {allPositions.length > 0 && view === 'calendar' && (
-            <TradeCalendar positions={filtered} />
-          )}
+          {allPositions.length > 0 && view === 'calendar' && <TradeCalendar positions={filtered} />}
 
           {/* List view — also shown when no positions (empty state) */}
           {(view === 'list' || allPositions.length === 0) && (
             <>
               {/* Summary strip */}
               {allPositions.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 20,
-                marginBottom: 14,
-                padding: '9px 14px',
-                background: 'var(--eb-panel)',
-                border: '1px solid var(--eb-border)',
-                borderRadius: 9,
-                fontSize: 12.5,
-                color: 'var(--eb-muted)',
-                alignItems: 'center',
-              }}
-            >
-              <span>
-                <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong> trades
-              </span>
-              <span style={{ color: 'var(--eb-border)' }}>·</span>
-              <span>
-                <strong style={{ color: 'var(--green)' }}>{closed.length}</strong> closed
-              </span>
-              <span>
-                <strong style={{ color: openCount > 0 ? '#a78bfa' : 'var(--eb-muted)' }}>{openCount}</strong> open
-              </span>
-              <span style={{ color: 'var(--eb-border)' }}>·</span>
-              <span>
-                <strong style={{ color: 'var(--green)' }}>{wins}W</strong>
-                {' / '}
-                <strong style={{ color: 'var(--eb-red)' }}>{losses}L</strong>
-              </span>
-              {filtered.length > 0 && wins + losses > 0 && (
-                <span>
-                  Win rate{' '}
-                  <strong style={{ color: 'var(--eb-text)' }}>
-                    {((wins / (wins + losses)) * 100).toFixed(0)}%
-                  </strong>
-                </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 20,
+                    marginBottom: 14,
+                    padding: '9px 14px',
+                    background: 'var(--eb-panel)',
+                    border: '1px solid var(--eb-border)',
+                    borderRadius: 9,
+                    fontSize: 12.5,
+                    color: 'var(--eb-muted)',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span>
+                    <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong> trades
+                  </span>
+                  <span style={{ color: 'var(--eb-border)' }}>·</span>
+                  <span>
+                    <strong style={{ color: 'var(--green)' }}>{closed.length}</strong> closed
+                  </span>
+                  <span>
+                    <strong style={{ color: openCount > 0 ? '#a78bfa' : 'var(--eb-muted)' }}>
+                      {openCount}
+                    </strong>{' '}
+                    open
+                  </span>
+                  <span style={{ color: 'var(--eb-border)' }}>·</span>
+                  <span>
+                    <strong style={{ color: 'var(--green)' }}>{wins}W</strong>
+                    {' / '}
+                    <strong style={{ color: 'var(--eb-red)' }}>{losses}L</strong>
+                  </span>
+                  {filtered.length > 0 && wins + losses > 0 && (
+                    <span>
+                      Win rate{' '}
+                      <strong style={{ color: 'var(--eb-text)' }}>
+                        {((wins / (wins + losses)) * 100).toFixed(0)}%
+                      </strong>
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      ...(fmtPnl(pnlTotal.toString()) as React.CSSProperties),
+                    }}
+                  >
+                    Net P&L <strong>{fmtPnl(pnlTotal.toString()).text} USDT</strong>
+                  </span>
+                </div>
               )}
-              <span style={{ marginLeft: 'auto', ...fmtPnl(pnlTotal.toString()) as React.CSSProperties }}>
-                Net P&L{' '}
-                <strong>{fmtPnl(pnlTotal.toString()).text} USDT</strong>
-              </span>
-            </div>
-          )}
 
-          {/* Positions table */}
-          <div
-            style={{
-              background: 'var(--eb-panel)',
-              border: '1px solid var(--eb-border)',
-              borderRadius: 11,
-              overflow: 'hidden',
-            }}
-          >
-            {allPositions.length === 0 ? (
-              <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
-            ) : filtered.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--eb-muted)', fontSize: 13 }}>
-                No trades match the current filters.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['Closed', 'Symbol', 'Side', 'Qty', 'Avg entry', 'Avg exit', 'R-multiple', 'MFE', 'Net P&L', 'Hold', 'Playbook', 'Status'].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map((pos) => {
-                      const pnl = fmtPnl(pos.netPnl);
-                      return (
-                        <tr
-                          key={pos.id}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => router.push(`/trades/${pos.id}?account=${pos.accountId}`)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ')
-                              router.push(`/trades/${pos.id}?account=${pos.accountId}`);
-                          }}
-                          tabIndex={0}
-                        >
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)', fontSize: 11.5 }}>
-                            {pos.closedAt ? new Date(pos.closedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
-                          </td>
-                          <td style={{ ...tdStyle, fontWeight: 600 }}>{pos.symbol}</td>
-                          <td style={{ ...tdStyle, color: pos.side === 'long' ? 'var(--green)' : 'var(--eb-red)', fontWeight: 600 }}>
-                            {pos.side.toUpperCase()}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)' }}>
-                            {fmt(pos.qtyMax, 4)}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)' }}>
-                            {fmt(pos.avgEntry)}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: 'var(--eb-muted)' }}>
-                            {fmt(pos.avgExit)}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: (() => { const v = Number.parseFloat(pos.rRealized ?? ''); return pos.rRealized && !Number.isNaN(v) ? (v >= 0 ? 'var(--green)' : 'var(--eb-red)') : 'var(--eb-muted)'; })() }}>
-                            {pos.rRealized && !Number.isNaN(Number.parseFloat(pos.rRealized))
-                              ? `${Number.parseFloat(pos.rRealized) >= 0 ? '+' : ''}${Number.parseFloat(pos.rRealized).toFixed(2)}R`
-                              : '—'}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', color: pos.mfe ? 'var(--green)' : 'var(--eb-muted)' }}>
-                            {pos.mfe && !Number.isNaN(Number.parseFloat(pos.mfe))
-                              ? `+${Number.parseFloat(pos.mfe).toFixed(2)}R`
-                              : '—'}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: pos.status === 'open' ? 'var(--eb-muted)' : pnl.color }}>
-                            {pos.status === 'open' ? '—' : pnl.text}
-                          </td>
-                          <td style={{ ...tdStyle, color: 'var(--eb-muted)' }}>
-                            {holdTime(pos.openedAt, pos.closedAt)}
-                          </td>
-                          <td style={{ ...tdStyle, maxWidth: 140 }}>
-                            {pos.playbookId ? (
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center',
-                                fontSize: 11, padding: '2px 8px', borderRadius: 99,
-                                color: playbookColor(pos.playbookId).text,
-                                background: playbookColor(pos.playbookId).bg,
-                                border: `1px solid ${playbookColor(pos.playbookId).border}`,
-                                maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}>
-                                {playbooks?.find((p) => p.id === pos.playbookId)?.name ?? `${pos.playbookId.slice(0, 10)}…`}
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>
-                            )}
-                          </td>
-                          <td style={tdStyle}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                fontSize: 11,
-                                padding: '2px 8px',
-                                borderRadius: 99,
-                                color: pos.status === 'open' ? 'var(--eb-purple)' : 'var(--eb-muted)',
-                                background: pos.status === 'open' ? 'rgba(139,92,246,.1)' : 'var(--eb-panel-2)',
-                                border: `1px solid ${pos.status === 'open' ? 'rgba(139,92,246,.3)' : 'var(--eb-border)'}`,
-                              }}
-                            >
-                              {pos.status}
-                            </span>
-                          </td>
+              {/* Positions table */}
+              <div
+                style={{
+                  background: 'var(--eb-panel)',
+                  border: '1px solid var(--eb-border)',
+                  borderRadius: 11,
+                  overflow: 'hidden',
+                }}
+              >
+                {allPositions.length === 0 ? (
+                  <EmptyState onConnect={() => setConnectOpen(true)} onLog={logTrade.open} />
+                ) : filtered.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '48px',
+                      textAlign: 'center',
+                      color: 'var(--eb-muted)',
+                      fontSize: 13,
+                    }}
+                  >
+                    No trades match the current filters.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {[
+                            'Closed',
+                            'Symbol',
+                            'Side',
+                            'Qty',
+                            'Avg entry',
+                            'Avg exit',
+                            'Leverage',
+                            'Net P&L',
+                            'Hold',
+                            'Playbook',
+                            'Status',
+                          ].map((h) => (
+                            <th key={h} style={thStyle}>
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {paginated.map((pos) => {
+                          const pnl = fmtPnl(pos.netPnl);
+                          return (
+                            <tr
+                              key={pos.id}
+                              style={{ cursor: 'pointer' }}
+                              onClick={() =>
+                                router.push(`/trades/${pos.id}?account=${pos.accountId}`)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ')
+                                  router.push(`/trades/${pos.id}?account=${pos.accountId}`);
+                              }}
+                              tabIndex={0}
+                            >
+                              <td
+                                style={{
+                                  ...tdStyle,
+                                  fontFamily: 'var(--font-mono, monospace)',
+                                  color: 'var(--eb-muted)',
+                                  fontSize: 11.5,
+                                }}
+                              >
+                                {pos.closedAt ? (
+                                  new Date(pos.closedAt).toLocaleDateString('en-GB', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                  })
+                                ) : (
+                                  <span style={{ color: 'var(--eb-purple)', fontWeight: 600 }}>
+                                    Running
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ ...tdStyle, fontWeight: 600 }}>{pos.symbol}</td>
+                              <td
+                                style={{
+                                  ...tdStyle,
+                                  color: pos.side === 'long' ? 'var(--green)' : 'var(--eb-red)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {pos.side.toUpperCase()}
+                              </td>
+                              <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)' }}>
+                                {fmt(pos.qtyMax, 4)}
+                              </td>
+                              <td style={{ ...tdStyle, fontFamily: 'var(--font-mono, monospace)' }}>
+                                {fmt(pos.avgEntry)}
+                              </td>
+                              <td
+                                style={{
+                                  ...tdStyle,
+                                  fontFamily: 'var(--font-mono, monospace)',
+                                  color: 'var(--eb-muted)',
+                                }}
+                              >
+                                {fmt(pos.avgExit)}
+                              </td>
+                              <td style={tdStyle}>
+                                {pos.leverage ? (
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      padding: '2px 7px',
+                                      borderRadius: 5,
+                                      fontWeight: 700,
+                                      fontFamily: 'var(--font-mono, monospace)',
+                                      background: `${leverageColor(pos.leverage)}24`,
+                                      color: leverageColor(pos.leverage),
+                                    }}
+                                  >
+                                    {pos.leverage}×
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--eb-muted)' }}>—</span>
+                                )}
+                              </td>
+                              <td
+                                style={{
+                                  ...tdStyle,
+                                  fontFamily: 'var(--font-mono, monospace)',
+                                  fontWeight: 600,
+                                  color: pos.status === 'open' ? 'var(--eb-muted)' : pnl.color,
+                                }}
+                              >
+                                {pos.status === 'open' ? '—' : pnl.text}
+                              </td>
+                              <td style={{ ...tdStyle, color: 'var(--eb-muted)' }}>
+                                {holdTime(pos.openedAt, pos.closedAt)}
+                              </td>
+                              <td style={{ ...tdStyle, maxWidth: 140 }}>
+                                {pos.playbookId ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      fontSize: 11,
+                                      padding: '2px 8px',
+                                      borderRadius: 99,
+                                      color: playbookColor(pos.playbookId).text,
+                                      background: playbookColor(pos.playbookId).bg,
+                                      border: `1px solid ${playbookColor(pos.playbookId).border}`,
+                                      maxWidth: 130,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {playbooks?.find((p) => p.id === pos.playbookId)?.name ??
+                                      `${pos.playbookId.slice(0, 10)}…`}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--eb-muted)', fontSize: 12 }}>—</span>
+                                )}
+                              </td>
+                              <td style={tdStyle}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    fontSize: 11,
+                                    padding: '2px 8px',
+                                    borderRadius: 99,
+                                    color:
+                                      pos.status === 'open'
+                                        ? 'var(--eb-purple)'
+                                        : 'var(--eb-muted)',
+                                    background:
+                                      pos.status === 'open'
+                                        ? 'rgba(139,92,246,.1)'
+                                        : 'var(--eb-panel-2)',
+                                    border: `1px solid ${pos.status === 'open' ? 'rgba(139,92,246,.3)' : 'var(--eb-border)'}`,
+                                  }}
+                                >
+                                  {pos.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Pagination */}
-          {pageCount > 1 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: 12,
-              padding: '8px 4px',
-            }}>
-              <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
-                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of{' '}
-                <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong>
-                {isFiltered && <span style={{ color: 'var(--eb-muted)' }}> (filtered)</span>} trades
-              </span>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <PageBtn onClick={() => setPage(0)} disabled={page === 0} label="«" />
-                <PageBtn onClick={() => setPage((p) => p - 1)} disabled={page === 0} label="‹ Prev" />
-                {Array.from({ length: pageCount }, (_, i) => i)
-                  .filter((i) => Math.abs(i - page) <= 2)
-                  .map((i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setPage(i)}
-                      style={{
-                        minWidth: 32, height: 30, borderRadius: 7,
-                        border: `1px solid ${i === page ? 'rgba(0,214,143,.5)' : 'var(--eb-border)'}`,
-                        background: i === page ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
-                        color: i === page ? 'var(--green)' : 'var(--eb-muted-2)',
-                        fontSize: 12, fontWeight: i === page ? 600 : 400,
-                        cursor: 'pointer', fontFamily: 'inherit',
-                      }}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                <PageBtn onClick={() => setPage((p) => p + 1)} disabled={page === pageCount - 1} label="Next ›" />
-                <PageBtn onClick={() => setPage(pageCount - 1)} disabled={page === pageCount - 1} label="»" />
-              </div>
-            </div>
-          )}
+              {/* Pagination */}
+              {pageCount > 1 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 12,
+                    padding: '8px 4px',
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
+                    Showing {page * PAGE_SIZE + 1}–
+                    {Math.min((page + 1) * PAGE_SIZE, filtered.length)} of{' '}
+                    <strong style={{ color: 'var(--eb-text)' }}>{filtered.length}</strong>
+                    {isFiltered && <span style={{ color: 'var(--eb-muted)' }}> (filtered)</span>}{' '}
+                    trades
+                  </span>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <PageBtn onClick={() => setPage(0)} disabled={page === 0} label="«" />
+                    <PageBtn
+                      onClick={() => setPage((p) => p - 1)}
+                      disabled={page === 0}
+                      label="‹ Prev"
+                    />
+                    {Array.from({ length: pageCount }, (_, i) => i)
+                      .filter((i) => Math.abs(i - page) <= 2)
+                      .map((i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPage(i)}
+                          style={{
+                            minWidth: 32,
+                            height: 30,
+                            borderRadius: 7,
+                            border: `1px solid ${i === page ? 'rgba(0,214,143,.5)' : 'var(--eb-border)'}`,
+                            background: i === page ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
+                            color: i === page ? 'var(--green)' : 'var(--eb-muted-2)',
+                            fontSize: 12,
+                            fontWeight: i === page ? 600 : 400,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    <PageBtn
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={page === pageCount - 1}
+                      label="Next ›"
+                    />
+                    <PageBtn
+                      onClick={() => setPage(pageCount - 1)}
+                      disabled={page === pageCount - 1}
+                      label="»"
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
         </>
@@ -490,15 +664,24 @@ export default function TradesPage() {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-function Sk({ h = 14, w, r = 6, style: s }: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
+function Sk({
+  h = 14,
+  w,
+  r = 6,
+  style: s,
+}: { h?: number; w?: string | number; r?: number; style?: React.CSSProperties }) {
   return (
-    <div style={{
-      height: h, width: w ?? '100%', borderRadius: r,
-      background: 'var(--eb-panel-2)',
-      animation: 'eb-sk 1.6s ease-in-out infinite',
-      flexShrink: 0,
-      ...s,
-    }} />
+    <div
+      style={{
+        height: h,
+        width: w ?? '100%',
+        borderRadius: r,
+        background: 'var(--eb-panel-2)',
+        animation: 'eb-sk 1.6s ease-in-out infinite',
+        flexShrink: 0,
+        ...s,
+      }}
+    />
   );
 }
 
@@ -519,14 +702,18 @@ function TradesPageSkeleton() {
       </div>
 
       {/* Summary strip skeleton */}
-      <div style={{
-        display: 'flex', gap: 16, alignItems: 'center',
-        padding: '9px 14px',
-        background: 'var(--eb-panel)',
-        border: '1px solid var(--eb-border)',
-        borderRadius: 9,
-        marginBottom: 14,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          alignItems: 'center',
+          padding: '9px 14px',
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 9,
+          marginBottom: 14,
+        }}
+      >
         {([55, 65, 50, 70, 60, 80, 100] as number[]).map((w, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
           <Sk key={i} h={12} w={w} r={4} />
@@ -534,18 +721,22 @@ function TradesPageSkeleton() {
       </div>
 
       {/* Table skeleton */}
-      <div style={{
-        background: 'var(--eb-panel)',
-        border: '1px solid var(--eb-border)',
-        borderRadius: 11,
-        overflow: 'hidden',
-      }}>
+      <div
+        style={{
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 11,
+          overflow: 'hidden',
+        }}
+      >
         {/* Header row */}
-        <div style={{
-          display: 'flex',
-          padding: '9px 0',
-          borderBottom: '1px solid var(--eb-border)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            padding: '9px 0',
+            borderBottom: '1px solid var(--eb-border)',
+          }}
+        >
           {SK_HDR_W.map((w, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
             <div key={i} style={{ padding: '0 12px', flexShrink: 0 }}>
@@ -556,12 +747,15 @@ function TradesPageSkeleton() {
         {/* Data rows */}
         {Array.from({ length: 15 }, (_, row) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
-          <div key={row} style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '9px 0',
-            borderBottom: '1px solid var(--eb-border)',
-          }}>
+          <div
+            key={row}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '9px 0',
+              borderBottom: '1px solid var(--eb-border)',
+            }}
+          >
             {SK_ROW_W.map((w, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton order
               <div key={i} style={{ padding: '0 12px', flexShrink: 0 }}>
@@ -588,30 +782,54 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(4,7,12,.62)', backdropFilter: 'blur(5px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(4,7,12,.62)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 100,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div style={{
-        width: 480, background: 'var(--eb-panel)',
-        border: '1px solid var(--eb-border)', borderRadius: 14,
-        boxShadow: '0 24px 60px rgba(0,0,0,.5)', overflow: 'hidden',
-      }}>
+      <div
+        style={{
+          width: 480,
+          background: 'var(--eb-panel)',
+          border: '1px solid var(--eb-border)',
+          borderRadius: 14,
+          boxShadow: '0 24px 60px rgba(0,0,0,.5)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '14px 18px', borderBottom: '1px solid var(--eb-border)',
-          background: 'linear-gradient(180deg,var(--eb-panel-2),var(--eb-panel))',
-        }}>
-          <span style={{
-            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-            background: 'var(--eb-panel-2)', border: '1px solid var(--eb-border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14,
-          }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '14px 18px',
+            borderBottom: '1px solid var(--eb-border)',
+            background: 'linear-gradient(180deg,var(--eb-panel-2),var(--eb-panel))',
+          }}
+        >
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 7,
+              flexShrink: 0,
+              background: 'var(--eb-panel-2)',
+              border: '1px solid var(--eb-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+            }}
+          >
             <FileUp size={14} style={{ color: 'var(--eb-muted)' }} />
           </span>
           <div>
@@ -621,8 +839,19 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
             </p>
           </div>
           <button
-            type="button" onClick={onClose} aria-label="Close"
-            style={{ marginLeft: 'auto', background: 'transparent', border: 0, color: 'var(--eb-muted)', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex' }}
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 0,
+              color: 'var(--eb-muted)',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 6,
+              display: 'flex',
+            }}
           >
             ✕
           </button>
@@ -633,17 +862,30 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
           {/* Drop zone */}
           <label
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
               border: `2px dashed ${dragOver ? 'var(--green)' : file ? 'rgba(0,214,143,.5)' : 'var(--eb-border)'}`,
-              borderRadius: 10, padding: '32px 20px', cursor: 'pointer',
-              background: dragOver ? 'rgba(0,214,143,.06)' : file ? 'rgba(0,214,143,.03)' : 'var(--eb-panel-2)',
+              borderRadius: 10,
+              padding: '32px 20px',
+              cursor: 'pointer',
+              background: dragOver
+                ? 'rgba(0,214,143,.06)'
+                : file
+                  ? 'rgba(0,214,143,.03)'
+                  : 'var(--eb-panel-2)',
               transition: 'border-color .15s, background .15s',
             }}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => {
-              e.preventDefault(); setDragOver(false);
+              e.preventDefault();
+              setDragOver(false);
               const f = e.dataTransfer.files[0];
               if (f) handleFile(f);
             }}
@@ -651,7 +893,9 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
             {file ? (
               <>
                 <span style={{ fontSize: 28 }}>📄</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>{file.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>
+                  {file.name}
+                </span>
                 <span style={{ fontSize: 12, color: 'var(--eb-muted)' }}>
                   {(file.size / 1024).toFixed(1)} KB · Click to replace
                 </span>
@@ -660,7 +904,8 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
               <>
                 <span style={{ fontSize: 28 }}>⤓</span>
                 <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--eb-muted-2)' }}>
-                  Drop your CSV here, or <span style={{ color: 'var(--green)', textDecoration: 'underline' }}>browse</span>
+                  Drop your CSV here, or{' '}
+                  <span style={{ color: 'var(--green)', textDecoration: 'underline' }}>browse</span>
                 </span>
                 <span style={{ fontSize: 11.5, color: 'var(--eb-muted)' }}>
                   .csv files only · Binance, Bybit, and generic formats
@@ -668,52 +913,110 @@ function CsvImportDialog({ onClose }: { onClose: () => void }) {
               </>
             )}
             <input
-              type="file" accept=".csv,text/csv" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
             />
           </label>
 
           {/* Format guide */}
           <div style={{ marginTop: 14 }}>
-            <p style={{ fontSize: 11, color: 'var(--eb-muted)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600 }}>
+            <p
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                margin: '0 0 8px',
+                textTransform: 'uppercase',
+                letterSpacing: '.05em',
+                fontWeight: 600,
+              }}
+            >
               Expected columns (generic format)
             </p>
-            <div style={{
-              fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
-              color: 'var(--eb-muted-2)', background: 'var(--eb-panel-2)',
-              border: '1px solid var(--eb-border)', borderRadius: 7,
-              padding: '8px 12px', lineHeight: 1.7,
-            }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 11,
+                color: 'var(--eb-muted-2)',
+                background: 'var(--eb-panel-2)',
+                border: '1px solid var(--eb-border)',
+                borderRadius: 7,
+                padding: '8px 12px',
+                lineHeight: 1.7,
+              }}
+            >
               symbol, side, qty, price, fee, fee_ccy, executed_at
             </div>
           </div>
 
           {/* Coming soon notice */}
-          <div style={{
-            marginTop: 14, padding: '10px 12px', borderRadius: 8,
-            background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.2)',
-            fontSize: 12, color: '#a78bfa', display: 'flex', gap: 8, alignItems: 'flex-start',
-          }}>
+          <div
+            style={{
+              marginTop: 14,
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: 'rgba(167,139,250,.07)',
+              border: '1px solid rgba(167,139,250,.2)',
+              fontSize: 12,
+              color: '#a78bfa',
+              display: 'flex',
+              gap: 8,
+              alignItems: 'flex-start',
+            }}
+          >
             <span style={{ flexShrink: 0 }}>🚧</span>
-            <span>CSV parsing is coming soon. You can select your file now — import will be enabled in the next release.</span>
+            <span>
+              CSV parsing is coming soon. You can select your file now — import will be enabled in
+              the next release.
+            </span>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          display: 'flex', justifyContent: 'flex-end', gap: 8,
-          padding: '12px 18px', borderTop: '1px solid var(--eb-border)',
-          background: 'var(--eb-panel-2)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+            padding: '12px 18px',
+            borderTop: '1px solid var(--eb-border)',
+            background: 'var(--eb-panel-2)',
+          }}
+        >
           <button
-            type="button" onClick={onClose}
-            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--eb-border)', background: 'transparent', color: 'var(--eb-muted-2)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: '1px solid var(--eb-border)',
+              background: 'transparent',
+              color: 'var(--eb-muted-2)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
           >
             Cancel
           </button>
           <button
-            type="button" disabled
-            style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(0,182,122,.4)', background: 'rgba(0,214,143,.12)', color: 'rgba(0,214,143,.5)', fontSize: 12.5, fontWeight: 600, cursor: 'not-allowed', fontFamily: 'inherit' }}
+            type="button"
+            disabled
+            style={{
+              padding: '7px 18px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,182,122,.4)',
+              background: 'rgba(0,214,143,.12)',
+              color: 'rgba(0,214,143,.5)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'not-allowed',
+              fontFamily: 'inherit',
+            }}
           >
             Import trades
           </button>
@@ -755,7 +1058,7 @@ const DATE_OPTS: { value: DateF; label: string }[] = [
 function cycle<T>(opts: { value: T }[], current: T): T {
   const idx = opts.findIndex((o) => o.value === current);
   const next = opts[(idx + 1) % opts.length];
-  return next ? next.value : opts[0]?.value ?? current;
+  return next ? next.value : (opts[0]?.value ?? current);
 }
 
 function FilterChip<T extends string>({
@@ -776,11 +1079,21 @@ function FilterChip<T extends string>({
       type="button"
       onClick={() => onChange(cycle(opts, value))}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 4,
-        padding: '5px 11px', borderRadius: 99, cursor: 'pointer',
-        fontFamily: 'inherit', fontSize: 12, whiteSpace: 'nowrap',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '5px 11px',
+        borderRadius: 99,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 12,
+        whiteSpace: 'nowrap',
         border: `1px solid ${isActive ? (activeColor ?? 'rgba(0,214,143,.45)') : 'var(--eb-border)'}`,
-        background: isActive ? (activeColor ? `${activeColor}18` : 'rgba(0,214,143,.09)') : 'var(--eb-panel-2)',
+        background: isActive
+          ? activeColor
+            ? `${activeColor}18`
+            : 'rgba(0,214,143,.09)'
+          : 'var(--eb-panel-2)',
         color: isActive ? (activeColor ?? 'var(--green)') : 'var(--eb-muted-2)',
         fontWeight: isActive ? 600 : 400,
         transition: 'background .12s, border-color .12s, color .12s',
@@ -792,46 +1105,80 @@ function FilterChip<T extends string>({
 }
 
 function FilterBar({
-  symbol, onSymbol,
-  side, onSide,
-  status, onStatus,
-  result, onResult,
-  date, onDate,
+  symbol,
+  onSymbol,
+  leverage,
+  onLeverage,
+  side,
+  onSide,
+  status,
+  onStatus,
+  result,
+  onResult,
+  date,
+  onDate,
   matchCount,
   onClear,
 }: {
-  symbol: string; onSymbol: (v: string) => void;
-  side: Side; onSide: (v: Side) => void;
-  status: StatusF; onStatus: (v: StatusF) => void;
-  result: ResultF; onResult: (v: ResultF) => void;
-  date: DateF; onDate: (v: DateF) => void;
+  symbol: string;
+  onSymbol: (v: string) => void;
+  leverage: string;
+  onLeverage: (v: string) => void;
+  side: Side;
+  onSide: (v: Side) => void;
+  status: StatusF;
+  onStatus: (v: StatusF) => void;
+  result: ResultF;
+  onResult: (v: ResultF) => void;
+  date: DateF;
+  onDate: (v: DateF) => void;
   matchCount: number;
   onClear: () => void;
 }) {
-  const anyActive = symbol.trim() || side !== 'any' || status !== 'any' || result !== 'any' || date !== 'all';
+  const anyActive =
+    symbol.trim() ||
+    leverage.trim() ||
+    side !== 'any' ||
+    status !== 'any' ||
+    result !== 'any' ||
+    date !== 'all';
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', flexWrap: 'wrap',
-      gap: 6, marginBottom: 10,
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 10,
+      }}
+    >
       {/* Symbol search */}
-      <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '5px 11px', borderRadius: 99,
-        border: `1px solid ${symbol.trim() ? 'rgba(0,214,143,.45)' : 'var(--eb-border)'}`,
-        background: symbol.trim() ? 'rgba(0,214,143,.09)' : 'var(--eb-panel-2)',
-        minWidth: 130,
-      }}>
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 11px',
+          borderRadius: 99,
+          border: `1px solid ${symbol.trim() ? 'rgba(0,214,143,.45)' : 'var(--eb-border)'}`,
+          background: symbol.trim() ? 'rgba(0,214,143,.09)' : 'var(--eb-panel-2)',
+          minWidth: 130,
+        }}
+      >
         <span style={{ fontSize: 11, color: 'var(--eb-muted)', flexShrink: 0 }}>Symbol:</span>
         <input
           value={symbol}
           onChange={(e) => onSymbol(e.target.value)}
           placeholder="any"
           style={{
-            background: 'transparent', border: 0, outline: 0,
+            background: 'transparent',
+            border: 0,
+            outline: 0,
             color: symbol.trim() ? 'var(--green)' : 'var(--eb-muted-2)',
-            fontSize: 12, fontFamily: 'inherit', fontWeight: symbol.trim() ? 600 : 400,
+            fontSize: 12,
+            fontFamily: 'inherit',
+            fontWeight: symbol.trim() ? 600 : 400,
             width: 72,
           }}
         />
@@ -839,32 +1186,107 @@ function FilterBar({
           <button
             type="button"
             onClick={() => onSymbol('')}
-            style={{ background: 'none', border: 0, color: 'var(--green)', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 11 }}
-          >✕</button>
+            style={{
+              background: 'none',
+              border: 0,
+              color: 'var(--green)',
+              cursor: 'pointer',
+              padding: 0,
+              lineHeight: 1,
+              fontSize: 11,
+            }}
+          >
+            ✕
+          </button>
         )}
       </div>
 
-      <FilterChip opts={SIDE_OPTS} value={side} onChange={onSide}
-        activeColor={side === 'long' ? 'var(--green)' : side === 'short' ? 'var(--eb-red)' : undefined}
+      {/* Leverage search */}
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 11px',
+          borderRadius: 99,
+          border: `1px solid ${leverage.trim() ? 'rgba(0,214,143,.45)' : 'var(--eb-border)'}`,
+          background: leverage.trim() ? 'rgba(0,214,143,.09)' : 'var(--eb-panel-2)',
+          minWidth: 100,
+        }}
+      >
+        <span style={{ fontSize: 11, color: 'var(--eb-muted)', flexShrink: 0 }}>Leverage:</span>
+        <input
+          value={leverage}
+          onChange={(e) => onLeverage(e.target.value.replace(/[^0-9]/g, ''))}
+          placeholder="any"
+          inputMode="numeric"
+          style={{
+            background: 'transparent',
+            border: 0,
+            outline: 0,
+            color: leverage.trim() ? 'var(--green)' : 'var(--eb-muted-2)',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            fontWeight: leverage.trim() ? 600 : 400,
+            width: 36,
+          }}
+        />
+        {leverage.trim() && (
+          <button
+            type="button"
+            onClick={() => onLeverage('')}
+            style={{
+              background: 'none',
+              border: 0,
+              color: 'var(--green)',
+              cursor: 'pointer',
+              padding: 0,
+              lineHeight: 1,
+              fontSize: 11,
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <FilterChip
+        opts={SIDE_OPTS}
+        value={side}
+        onChange={onSide}
+        activeColor={
+          side === 'long' ? 'var(--green)' : side === 'short' ? 'var(--eb-red)' : undefined
+        }
       />
-      <FilterChip opts={STATUS_OPTS} value={status} onChange={onStatus}
+      <FilterChip
+        opts={STATUS_OPTS}
+        value={status}
+        onChange={onStatus}
         activeColor="rgba(139,92,246,1)"
       />
-      <FilterChip opts={RESULT_OPTS} value={result} onChange={onResult}
-        activeColor={result === 'win' ? 'var(--green)' : result === 'loss' ? 'var(--eb-red)' : undefined}
+      <FilterChip
+        opts={RESULT_OPTS}
+        value={result}
+        onChange={onResult}
+        activeColor={
+          result === 'win' ? 'var(--green)' : result === 'loss' ? 'var(--eb-red)' : undefined
+        }
       />
-      <FilterChip opts={DATE_OPTS} value={date} onChange={onDate}
-        activeColor="#a78bfa"
-      />
+      <FilterChip opts={DATE_OPTS} value={date} onChange={onDate} activeColor="#a78bfa" />
 
       {anyActive && (
         <button
           type="button"
           onClick={onClear}
           style={{
-            padding: '5px 11px', borderRadius: 99, cursor: 'pointer',
-            border: '1px solid var(--eb-border)', background: 'transparent',
-            color: 'var(--eb-muted)', fontSize: 12, fontFamily: 'inherit',
+            padding: '5px 11px',
+            borderRadius: 99,
+            cursor: 'pointer',
+            border: '1px solid var(--eb-border)',
+            background: 'transparent',
+            color: 'var(--eb-muted)',
+            fontSize: 12,
+            fontFamily: 'inherit',
           }}
         >
           Clear filters
@@ -872,7 +1294,8 @@ function FilterBar({
       )}
 
       <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--eb-muted)' }}>
-        <strong style={{ color: 'var(--eb-text)' }}>{matchCount}</strong> trade{matchCount !== 1 ? 's' : ''}
+        <strong style={{ color: 'var(--eb-text)' }}>{matchCount}</strong> trade
+        {matchCount !== 1 ? 's' : ''}
         {anyActive ? ' matched' : ''}
       </span>
     </div>
@@ -881,18 +1304,25 @@ function FilterBar({
 
 // ─── Pagination button ────────────────────────────────────────────────────────
 
-function PageBtn({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
+function PageBtn({
+  onClick,
+  disabled,
+  label,
+}: { onClick: () => void; disabled: boolean; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: '0 10px', height: 30, borderRadius: 7,
+        padding: '0 10px',
+        height: 30,
+        borderRadius: 7,
         border: '1px solid var(--eb-border)',
         background: 'var(--eb-panel-2)',
         color: disabled ? 'var(--eb-border)' : 'var(--eb-muted-2)',
-        fontSize: 12, cursor: disabled ? 'default' : 'pointer',
+        fontSize: 12,
+        cursor: disabled ? 'default' : 'pointer',
         fontFamily: 'inherit',
       }}
     >
@@ -951,77 +1381,102 @@ function EmptyState({
         </p>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 14,
-        maxWidth: 820,
-        margin: '0 auto',
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14,
+          maxWidth: 820,
+          margin: '0 auto',
+        }}
+      >
         {options.map((opt, i) => {
           const isHovered = hovered === i && !opt.disabled;
           return (
-          <button
-            key={opt.title}
-            type="button"
-            onClick={opt.action}
-            disabled={opt.disabled}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 12,
-              padding: '22px 20px',
-              borderRadius: 12,
-              border: `1.5px solid ${
-                isHovered && !opt.disabled ? 'rgba(0,214,143,.7)'
-                : opt.primary ? 'rgba(0,214,143,.35)'
-                : 'var(--eb-border)'
-              }`,
-              background: opt.primary
-                ? isHovered ? 'rgba(0,214,143,.09)' : 'rgba(0,214,143,.04)'
-                : isHovered ? 'rgba(0,214,143,.04)' : 'var(--eb-panel)',
-              cursor: opt.disabled ? 'default' : 'pointer',
-              opacity: opt.disabled ? 0.5 : 1,
-              textAlign: 'left',
-              fontFamily: 'inherit',
-              transition: 'border-color .15s, background .15s',
-              transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
-              boxShadow: isHovered ? '0 6px 24px rgba(0,0,0,.18)' : 'none',
-            }}
-          >
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: opt.primary ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
-              color: opt.primary ? 'var(--green)' : 'var(--eb-muted)',
-            }}>
-              {opt.icon}
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--eb-text)', marginBottom: 5 }}>
-                {opt.title}
+            <button
+              key={opt.title}
+              type="button"
+              onClick={opt.action}
+              disabled={opt.disabled}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 12,
+                padding: '22px 20px',
+                borderRadius: 12,
+                border: `1.5px solid ${
+                  isHovered && !opt.disabled
+                    ? 'rgba(0,214,143,.7)'
+                    : opt.primary
+                      ? 'rgba(0,214,143,.35)'
+                      : 'var(--eb-border)'
+                }`,
+                background: opt.primary
+                  ? isHovered
+                    ? 'rgba(0,214,143,.09)'
+                    : 'rgba(0,214,143,.04)'
+                  : isHovered
+                    ? 'rgba(0,214,143,.04)'
+                    : 'var(--eb-panel)',
+                cursor: opt.disabled ? 'default' : 'pointer',
+                opacity: opt.disabled ? 0.5 : 1,
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                transition: 'border-color .15s, background .15s',
+                transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                boxShadow: isHovered ? '0 6px 24px rgba(0,0,0,.18)' : 'none',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: opt.primary ? 'rgba(0,214,143,.12)' : 'var(--eb-panel-2)',
+                  color: opt.primary ? 'var(--green)' : 'var(--eb-muted)',
+                }}
+              >
+                {opt.icon}
               </div>
-              <div style={{ fontSize: 12.5, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
-                {opt.desc}
+              <div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: 'var(--eb-text)',
+                    marginBottom: 5,
+                  }}
+                >
+                  {opt.title}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--eb-muted-2)', lineHeight: 1.55 }}>
+                  {opt.desc}
+                </div>
               </div>
-            </div>
-            <div style={{
-              marginTop: 'auto',
-              fontSize: 12,
-              fontWeight: 600,
-              color: opt.primary ? 'var(--green)' : opt.disabled ? 'var(--eb-muted)' : 'var(--eb-muted-2)',
-            }}>
-              {opt.cta}
-            </div>
-          </button>
+              <div
+                style={{
+                  marginTop: 'auto',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: opt.primary
+                    ? 'var(--green)'
+                    : opt.disabled
+                      ? 'var(--eb-muted)'
+                      : 'var(--eb-muted-2)',
+                }}
+              >
+                {opt.cta}
+              </div>
+            </button>
           );
         })}
       </div>
     </div>
   );
 }
-
-

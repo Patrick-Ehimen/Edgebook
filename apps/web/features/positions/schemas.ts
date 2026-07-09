@@ -18,6 +18,7 @@ export const FillShape = z
     tp: z.string().nullable().optional(),
     conviction: z.number().nullable().optional(),
     moods: z.array(z.string()).optional(),
+    leverage: z.number().nullable().optional(),
   })
   .passthrough();
 
@@ -58,6 +59,7 @@ export const PositionSchema = z.object({
   processScore: z.string().nullable(),
   outcomeScore: z.string().nullable(),
   playbookId: z.string().nullable(),
+  leverage: z.number().nullable(),
   sourceHash: z.string(),
   checklistState: z.record(CheckStateSchema).nullable().optional(),
 });

@@ -13,6 +13,7 @@ interface Lot {
 interface ActivePosition {
   side: PositionSide;
   openedAt: Date;
+  leverage: number | null;
   lots: Lot[];
   inventory: Decimal;
   qtyMax: Decimal;
@@ -28,10 +29,11 @@ interface ActivePosition {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeActive(side: PositionSide, openedAt: Date): ActivePosition {
+function makeActive(side: PositionSide, openedAt: Date, leverage: number | null): ActivePosition {
   return {
     side,
     openedAt,
+    leverage,
     lots: [],
     inventory: new Decimal(0),
     qtyMax: new Decimal(0),
@@ -55,9 +57,7 @@ function finalize(pos: ActivePosition, symbol: string, closedAt: Date | null): C
     ? new Decimal(0)
     : pos.totalEntryNotional.div(pos.totalEntryQty);
 
-  const avgExit = pos.totalExitQty.isZero()
-    ? null
-    : pos.totalExitNotional.div(pos.totalExitQty);
+  const avgExit = pos.totalExitQty.isZero() ? null : pos.totalExitNotional.div(pos.totalExitQty);
 
   const netPnl = pos.grossPnl.minus(pos.fees).plus(pos.funding);
 
@@ -74,6 +74,7 @@ function finalize(pos: ActivePosition, symbol: string, closedAt: Date | null): C
     fees: pos.fees.toFixed(),
     funding: pos.funding.toFixed(),
     netPnl: netPnl.toFixed(),
+    leverage: pos.leverage,
     sourceHash: sourceHashFor(pos.fills.map((f) => f.fillId)),
     fills: pos.fills,
   };
@@ -81,11 +82,7 @@ function finalize(pos: ActivePosition, symbol: string, closedAt: Date | null): C
 
 // ─── FIFO matching ────────────────────────────────────────────────────────────
 
-function applyExitFill(
-  pos: ActivePosition,
-  exitQty: Decimal,
-  exitPrice: Decimal,
-): void {
+function applyExitFill(pos: ActivePosition, exitQty: Decimal, exitPrice: Decimal): void {
   let toMatch = exitQty;
 
   while (toMatch.gt(0) && pos.lots.length > 0) {
@@ -113,9 +110,7 @@ function applyExitFill(
 // ─── Per-symbol processing ────────────────────────────────────────────────────
 
 function processSymbol(symbol: string, fills: RawFill[]): ComputedPosition[] {
-  const sorted = [...fills].sort(
-    (a, b) => a.executedAt.getTime() - b.executedAt.getTime(),
-  );
+  const sorted = [...fills].sort((a, b) => a.executedAt.getTime() - b.executedAt.getTime());
 
   const results: ComputedPosition[] = [];
   let active: ActivePosition | null = null;
@@ -127,7 +122,7 @@ function processSymbol(symbol: string, fills: RawFill[]): ComputedPosition[] {
     const funding = fill.fundingFee ? new Decimal(fill.fundingFee) : new Decimal(0);
 
     if (!active) {
-      active = makeActive(fill.side === 'buy' ? 'long' : 'short', fill.executedAt);
+      active = makeActive(fill.side === 'buy' ? 'long' : 'short', fill.executedAt, fill.leverage);
     }
 
     const isEntry =
@@ -163,7 +158,7 @@ function processSymbol(symbol: string, fills: RawFill[]): ComputedPosition[] {
         if (crossQty.gt(0)) {
           // The remainder opens an opposite position; fee already attributed above
           const oppSide: PositionSide = active.side === 'long' ? 'short' : 'long';
-          active = makeActive(oppSide, fill.executedAt);
+          active = makeActive(oppSide, fill.executedAt, fill.leverage);
           active.lots.push({ qty: crossQty, price });
           active.inventory = crossQty;
           active.qtyMax = crossQty;

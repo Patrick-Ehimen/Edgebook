@@ -1,13 +1,5 @@
 'use client';
 
-import { useAccounts } from '@/features/accounts';
-import { useSignOut } from '@/features/auth';
-import { useNotes } from '@/features/notes';
-import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
-import { usePlaybooks } from '@/features/playbooks';
-import { usePositions } from '@/features/positions';
-import { useAuth } from '@/providers/auth-provider';
-import { journalApi } from '@/features/journal';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAccounts } from '@/features/accounts';
+import { useSignOut } from '@/features/auth';
+import { journalApi } from '@/features/journal';
+import { useNotes } from '@/features/notes';
+import { usePlaybooks } from '@/features/playbooks';
+import { useAllPositions } from '@/features/positions';
+import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
+import { useAuth } from '@/providers/auth-provider';
 import { useQuery } from '@tanstack/react-query';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -109,8 +109,10 @@ export default function SidebarNav() {
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const DEFAULT_AVATAR_COLOR = AVATAR_PRESETS[0] as string;
-  const [avatarColor, setAvatarColor] = useState<string>(
-    () => (typeof window !== 'undefined' ? (localStorage.getItem('eb-avatar-color') ?? DEFAULT_AVATAR_COLOR) : DEFAULT_AVATAR_COLOR),
+  const [avatarColor, setAvatarColor] = useState<string>(() =>
+    typeof window !== 'undefined'
+      ? (localStorage.getItem('eb-avatar-color') ?? DEFAULT_AVATAR_COLOR)
+      : DEFAULT_AVATAR_COLOR,
   );
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const { session } = useAuth();
@@ -133,7 +135,7 @@ export default function SidebarNav() {
   };
   const signOut = useSignOut();
   const { data: accounts } = useAccounts();
-  const { data: positions } = usePositions(accounts?.[0]?.id ?? null);
+  const { data: positions } = useAllPositions(accounts);
   const { data: playbooks } = usePlaybooks();
   const { data: notes } = useNotes();
   const { data: journalStats } = useQuery({
@@ -250,214 +252,214 @@ export default function SidebarNav() {
 
       {/* Scrollable nav area */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-      {/* Workspace nav */}
-      <div style={sectionLabel}>Workspace</div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {WORKSPACE.map(({ href, Icon, label }) => (
-          <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{label}</span>
-            {href === '/trades' &&
-              tradeCount > 0 &&
-              pill(
-                tradeCount > 999 ? '999+' : String(tradeCount),
-                'var(--eb-panel-2)',
-                'var(--eb-muted-2)',
-              )}
-            {href === '/playbooks' &&
-              playbookCount > 0 &&
-              pill(String(playbookCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
-            {href === '/watchlist' &&
-              watchlistCount > 0 &&
-              pill(String(watchlistCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
-          </Link>
-        ))}
-      </nav>
-
-      {/* Accounts nav — collapsible */}
-      <button
-        type="button"
-        onClick={() => setAccountsOpen((v) => !v)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          width: '100%',
-          padding: '10px 6px 6px',
-          background: 'transparent',
-          border: 0,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        <span style={{ ...sectionLabel, padding: 0, flex: 1, textAlign: 'left' }}>Accounts</span>
-        {(accounts?.length ?? 0) > 0 && (
-          <span
-            style={{
-              fontSize: 10,
-              padding: '1px 5px',
-              borderRadius: 8,
-              background: 'var(--eb-panel-2)',
-              color: 'var(--eb-muted)',
-              marginRight: 4,
-            }}
-          >
-            {accounts?.length}
-          </span>
-        )}
-        <ChevronDown
-          size={12}
-          style={{
-            color: 'var(--eb-muted)',
-            transform: accountsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform .2s',
-          }}
-        />
-      </button>
-      {accountsOpen && (
+        {/* Workspace nav */}
+        <div style={sectionLabel}>Workspace</div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {(accounts ?? []).map((account) => {
-            const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
-            return (
-              <Link
-                key={account.id}
-                href="/accounts"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 9,
-                  padding: '5px 9px',
-                  borderRadius: 7,
-                  textDecoration: 'none',
-                  background: 'transparent',
-                  color: 'var(--eb-muted-2)',
-                  fontSize: 12,
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
-                    flexShrink: 0,
-                    display: 'inline-block',
-                  }}
-                />
-                <span
-                  style={{
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    flex: 1,
-                  }}
-                >
-                  {account.label}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, flexShrink: 0 }}>
-                  {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
-                </span>
-              </Link>
-            );
-          })}
-          <Link
-            href="/accounts"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 9,
-              padding: '5px 9px',
-              borderRadius: 7,
-              textDecoration: 'none',
-              background: 'transparent',
-              color: 'var(--eb-muted)',
-              fontSize: 12,
-            }}
-          >
-            <Link2 size={12} style={{ flexShrink: 0 }} />
-            <span>Connect account</span>
-          </Link>
+          {WORKSPACE.map(({ href, Icon, label }) => (
+            <Link key={href} href={href} style={linkStyle(isActive(href))}>
+              <Icon size={14} style={{ flexShrink: 0 }} />
+              <span>{label}</span>
+              {href === '/trades' &&
+                tradeCount > 0 &&
+                pill(
+                  tradeCount > 999 ? '999+' : String(tradeCount),
+                  'var(--eb-panel-2)',
+                  'var(--eb-muted-2)',
+                )}
+              {href === '/playbooks' &&
+                playbookCount > 0 &&
+                pill(String(playbookCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
+              {href === '/watchlist' &&
+                watchlistCount > 0 &&
+                pill(String(watchlistCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
+            </Link>
+          ))}
         </nav>
-      )}
 
-      {/* Prop trading nav */}
-      <div style={sectionLabel}>Prop trading</div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {PROP.map(({ href, Icon, label }) => (
-          <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
-
-      {/* Coaching nav */}
-      <div style={sectionLabel}>Coaching</div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {COACHING.map(({ href, Icon, label, badge, badgeColor, badgeText }) => (
-          <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{label}</span>
-            {href === '/journal' && journalCount > 0
-              ? pill(String(journalCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')
-              : href === '/notes' && noteCount > 0
-                ? pill(String(noteCount), 'rgba(0,214,143,.12)', '#00d68f')
-                : badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
-          </Link>
-        ))}
-      </nav>
-
-      {/* Others nav */}
-      <div style={sectionLabel}>Others</div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {OTHERS.map(({ href, Icon, label }) => (
-          <Link key={href} href={href} style={linkStyle(isActive(href))}>
-            <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
-
-      {/* Journal streak — only on /journal */}
-      {pathname.startsWith('/journal') && journalStats && (
-        <>
-          <div style={sectionLabel}>Streak</div>
-          <div style={{ padding: '2px 6px 6px', fontSize: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--eb-muted)' }}>Journal streak</span>
-              <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>
-                {journalStats.streak} day{journalStats.streak !== 1 ? 's' : ''}
-              </b>
-            </div>
-            <div
+        {/* Accounts nav — collapsible */}
+        <button
+          type="button"
+          onClick={() => setAccountsOpen((v) => !v)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            padding: '10px 6px 6px',
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <span style={{ ...sectionLabel, padding: 0, flex: 1, textAlign: 'left' }}>Accounts</span>
+          {(accounts?.length ?? 0) > 0 && (
+            <span
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: 5,
+                fontSize: 10,
+                padding: '1px 5px',
+                borderRadius: 8,
+                background: 'var(--eb-panel-2)',
+                color: 'var(--eb-muted)',
+                marginRight: 4,
               }}
             >
-              <span style={{ color: 'var(--eb-muted)' }}>Discipline avg</span>
-              <b
+              {accounts?.length}
+            </span>
+          )}
+          <ChevronDown
+            size={12}
+            style={{
+              color: 'var(--eb-muted)',
+              transform: accountsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform .2s',
+            }}
+          />
+        </button>
+        {accountsOpen && (
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(accounts ?? []).map((account) => {
+              const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
+              return (
+                <Link
+                  key={account.id}
+                  href="/accounts"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    padding: '5px 9px',
+                    borderRadius: 7,
+                    textDecoration: 'none',
+                    background: 'transparent',
+                    color: 'var(--eb-muted-2)',
+                    fontSize: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
+                      flexShrink: 0,
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                    }}
+                  >
+                    {account.label}
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, flexShrink: 0 }}>
+                    {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
+                  </span>
+                </Link>
+              );
+            })}
+            <Link
+              href="/accounts"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                padding: '5px 9px',
+                borderRadius: 7,
+                textDecoration: 'none',
+                background: 'transparent',
+                color: 'var(--eb-muted)',
+                fontSize: 12,
+              }}
+            >
+              <Link2 size={12} style={{ flexShrink: 0 }} />
+              <span>Connect account</span>
+            </Link>
+          </nav>
+        )}
+
+        {/* Prop trading nav */}
+        <div style={sectionLabel}>Prop trading</div>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {PROP.map(({ href, Icon, label }) => (
+            <Link key={href} href={href} style={linkStyle(isActive(href))}>
+              <Icon size={14} style={{ flexShrink: 0 }} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Coaching nav */}
+        <div style={sectionLabel}>Coaching</div>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {COACHING.map(({ href, Icon, label, badge, badgeColor, badgeText }) => (
+            <Link key={href} href={href} style={linkStyle(isActive(href))}>
+              <Icon size={14} style={{ flexShrink: 0 }} />
+              <span>{label}</span>
+              {href === '/journal' && journalCount > 0
+                ? pill(String(journalCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')
+                : href === '/notes' && noteCount > 0
+                  ? pill(String(noteCount), 'rgba(0,214,143,.12)', '#00d68f')
+                  : badge && badgeColor && badgeText && pill(badge, badgeColor, badgeText)}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Others nav */}
+        <div style={sectionLabel}>Others</div>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {OTHERS.map(({ href, Icon, label }) => (
+            <Link key={href} href={href} style={linkStyle(isActive(href))}>
+              <Icon size={14} style={{ flexShrink: 0 }} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Journal streak — only on /journal */}
+        {pathname.startsWith('/journal') && journalStats && (
+          <>
+            <div style={sectionLabel}>Streak</div>
+            <div style={{ padding: '2px 6px 6px', fontSize: 12 }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span style={{ color: 'var(--eb-muted)' }}>Journal streak</span>
+                <b style={{ color: 'var(--eb-text)', fontVariantNumeric: 'tabular-nums' }}>
+                  {journalStats.streak} day{journalStats.streak !== 1 ? 's' : ''}
+                </b>
+              </div>
+              <div
                 style={{
-                  color:
-                    journalStats.disciplineAvg != null
-                      ? journalStats.disciplineAvg >= 70
-                        ? 'var(--eb-text)'
-                        : journalStats.disciplineAvg >= 40
-                          ? 'var(--eb-yellow)'
-                          : 'var(--eb-red)'
-                      : 'var(--eb-muted-2)',
-                  fontVariantNumeric: 'tabular-nums',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 5,
                 }}
               >
-                {journalStats.disciplineAvg != null ? `${journalStats.disciplineAvg}/100` : '—'}
-              </b>
+                <span style={{ color: 'var(--eb-muted)' }}>Discipline avg</span>
+                <b
+                  style={{
+                    color:
+                      journalStats.disciplineAvg != null
+                        ? journalStats.disciplineAvg >= 70
+                          ? 'var(--eb-text)'
+                          : journalStats.disciplineAvg >= 40
+                            ? 'var(--eb-yellow)'
+                            : 'var(--eb-red)'
+                        : 'var(--eb-muted-2)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {journalStats.disciplineAvg != null ? `${journalStats.disciplineAvg}/100` : '—'}
+                </b>
+              </div>
             </div>
-          </div>
-        </>
-      )}
-
+          </>
+        )}
       </div>
 
       {/* Profile card at bottom */}
@@ -522,7 +524,16 @@ export default function SidebarNav() {
                     width: 160,
                   }}
                 >
-                  <div style={{ fontSize: 10, color: 'var(--eb-muted)', marginBottom: 8, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: 'var(--eb-muted)',
+                      marginBottom: 8,
+                      letterSpacing: '.08em',
+                      textTransform: 'uppercase',
+                      fontWeight: 600,
+                    }}
+                  >
                     Avatar color
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -537,7 +548,10 @@ export default function SidebarNav() {
                           height: 28,
                           borderRadius: '50%',
                           background: color,
-                          border: avatarColor === color ? '2px solid var(--eb-text)' : '2px solid transparent',
+                          border:
+                            avatarColor === color
+                              ? '2px solid var(--eb-text)'
+                              : '2px solid transparent',
                           cursor: 'pointer',
                           padding: 0,
                           outline: avatarColor === color ? '2px solid var(--eb-panel)' : 'none',
@@ -553,7 +567,14 @@ export default function SidebarNav() {
             {/* Name + email → navigates to settings */}
             <Link
               href="/settings"
-              style={{ minWidth: 0, flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9 }}
+              style={{
+                minWidth: 0,
+                flex: 1,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+              }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div
@@ -657,7 +678,10 @@ export default function SidebarNav() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { signOut.mutate(); setShowSignOutDialog(false); }}
+                    onClick={() => {
+                      signOut.mutate();
+                      setShowSignOutDialog(false);
+                    }}
                     disabled={signOut.isPending}
                     style={{
                       flex: 1,
@@ -673,7 +697,10 @@ export default function SidebarNav() {
                       opacity: signOut.isPending ? 0.6 : 1,
                     }}
                   >
-                    <LogOut size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />
+                    <LogOut
+                      size={13}
+                      style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }}
+                    />
                     {signOut.isPending ? 'Signing out…' : 'Sign out'}
                   </button>
                 </DialogFooter>

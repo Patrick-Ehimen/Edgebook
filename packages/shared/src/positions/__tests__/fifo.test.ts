@@ -6,20 +6,22 @@ import type { RawFill } from '../types';
 
 let seq = 1n;
 
-function fill(
-  overrides: Partial<RawFill> & Pick<RawFill, 'side' | 'qty' | 'price'>,
-): RawFill {
+function fill(overrides: Partial<RawFill> & Pick<RawFill, 'side' | 'qty' | 'price'>): RawFill {
   return {
     id: seq++,
     symbol: 'BTC-USDT',
     fee: '0',
     fundingFee: null,
+    leverage: null,
     executedAt: new Date('2024-01-01T00:00:00Z'),
     ...overrides,
   };
 }
 
-function at(iso: string, overrides: Partial<RawFill> & Pick<RawFill, 'side' | 'qty' | 'price'>): RawFill {
+function at(
+  iso: string,
+  overrides: Partial<RawFill> & Pick<RawFill, 'side' | 'qty' | 'price'>,
+): RawFill {
   return fill({ ...overrides, executedAt: new Date(iso) });
 }
 
@@ -208,9 +210,7 @@ describe('sequential positions on same symbol', () => {
 
 describe('open position', () => {
   it('returns an open position with zero grossPnl when never closed', () => {
-    const fills: RawFill[] = [
-      at('2024-01-01T00:00:00Z', { side: 'buy', qty: '1', price: '100' }),
-    ];
+    const fills: RawFill[] = [at('2024-01-01T00:00:00Z', { side: 'buy', qty: '1', price: '100' })];
 
     const [pos] = computePositions(fills);
 

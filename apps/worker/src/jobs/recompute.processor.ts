@@ -31,6 +31,7 @@ export class RecomputeProcessor extends WorkerHost {
       fee: f.fee.toString(),
       fundingFee: f.fundingFee?.toString() ?? null,
       executedAt: f.executedAt,
+      leverage: f.leverage,
     }));
 
     const computed = computePositions(rawFills);
@@ -46,12 +47,13 @@ export class RecomputeProcessor extends WorkerHost {
     const staleRows = existing.filter((p) => !newHashes.has(p.sourceHash));
     const staleIds = staleRows.map((p) => p.id);
 
-    const staleMeta = staleIds.length > 0
-      ? await this.prisma.position.findMany({
-          where: { id: { in: staleIds } },
-          include: { tags: true, notes: { select: { images: true } } },
-        })
-      : [];
+    const staleMeta =
+      staleIds.length > 0
+        ? await this.prisma.position.findMany({
+            where: { id: { in: staleIds } },
+            include: { tags: true, notes: { select: { images: true } } },
+          })
+        : [];
 
     await this.prisma.$transaction(async (tx) => {
       if (staleIds.length > 0) {
@@ -62,9 +64,8 @@ export class RecomputeProcessor extends WorkerHost {
         if (existingByHash.has(pos.sourceHash)) continue;
 
         const newFillIds = new Set(pos.fills.map((f) => f.fillId.toString()));
-        const predecessor = staleMeta.find((s) =>
-          s.sourceHash.split(',').every((id) => newFillIds.has(id)),
-        ) ?? null;
+        const predecessor =
+          staleMeta.find((s) => s.sourceHash.split(',').every((id) => newFillIds.has(id))) ?? null;
 
         const created = await tx.position.create({
           data: {
@@ -81,6 +82,7 @@ export class RecomputeProcessor extends WorkerHost {
             fees: pos.fees,
             funding: pos.funding,
             netPnl: pos.netPnl,
+            leverage: pos.leverage,
             playbookId: predecessor?.playbookId ?? null,
             rPlanned: predecessor?.rPlanned ?? null,
             rRealized: predecessor?.rRealized ?? null,

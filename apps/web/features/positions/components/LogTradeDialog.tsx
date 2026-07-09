@@ -343,6 +343,12 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
       setError('Entry time is required.');
       return;
     }
+    const levTrim = leverage.trim();
+    const levNum = Number.parseInt(levTrim, 10);
+    if (levTrim && (!Number.isInteger(levNum) || levNum < 1 || levNum > 125)) {
+      setError('Leverage must be a whole number between 1 and 125.');
+      return;
+    }
 
     // Tilt guardrail check
     const events = evalTradeRules(
@@ -385,6 +391,7 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
         tp: tp.trim() || undefined,
         conviction: conviction > 0 ? conviction : undefined,
         moods: moods.size > 0 ? [...moods] : undefined,
+        leverage: levTrim ? levNum : undefined,
       };
       await logFill.mutateAsync(body);
 
@@ -637,9 +644,10 @@ export function LogTradeDialog({ open, onOpenChange }: Props) {
               <Field label="Leverage">
                 <input
                   style={monoInp}
-                  placeholder="10×"
+                  placeholder="10"
                   value={leverage}
                   onChange={(e) => setLeverage(e.target.value)}
+                  inputMode="numeric"
                 />
               </Field>
               <Field label="Risk (% acct)">

@@ -259,6 +259,7 @@ model Fill {
   tp              String?
   conviction      Int?
   moods           String[]
+  leverage        Int?
 
   account       Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
   positionFills PositionFill[]
@@ -295,6 +296,7 @@ model Position {
   outcomeScore  Decimal?       @db.Decimal(4, 1)
   playbookId      String?
   conviction      Int?
+  leverage        Int?
   status          PositionStatus
   sourceHash      String
   checklistState  Json?

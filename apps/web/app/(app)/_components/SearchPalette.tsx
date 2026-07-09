@@ -1,7 +1,7 @@
 'use client';
 
 import { useAccounts } from '@/features/accounts';
-import { usePositions } from '@/features/positions';
+import { useAllPositions } from '@/features/positions';
 import type { Position } from '@/features/positions/schemas';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -127,7 +127,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const router = useRouter();
 
   const { data: accounts } = useAccounts();
-  const { data: positions } = usePositions(accounts?.[0]?.id ?? null);
+  const { data: positions } = useAllPositions(accounts);
 
   useEffect(() => {
     setMounted(true);

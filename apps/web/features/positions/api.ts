@@ -39,11 +39,11 @@ export interface CreateFillBody {
   tp?: string | undefined;
   conviction?: number | undefined;
   moods?: string[] | undefined;
+  leverage?: number | undefined;
 }
 
 export const positionsApi = {
-  list: (accountId: string) =>
-    api.get(`/accounts/${accountId}/positions`, PositionListResponse),
+  list: (accountId: string) => api.get(`/accounts/${accountId}/positions`, PositionListResponse),
 
   getById: (accountId: string, positionId: string) =>
     api.get(`/accounts/${accountId}/positions/${positionId}`, PositionDetailSchema),

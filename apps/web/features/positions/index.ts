@@ -1,5 +1,6 @@
 export { positionsApi } from './api';
 export { usePositions } from './hooks/usePositions';
+export { useAllPositions } from './hooks/useAllPositions';
 export { usePosition } from './hooks/usePosition';
 export { useLogFill } from './hooks/useLogFill';
 export { useDeletePosition } from './hooks/useDeletePosition';

@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { AccountForbiddenError, AccountNotFoundError } from '@edgebook/shared/accounts';
-import { type CreateFillInput, type FillSide, type UpdatePositionMetricsType, computePositions } from '@edgebook/shared/positions';
+import {
+  type CreateFillInput,
+  type FillSide,
+  type UpdatePositionMetricsType,
+  computePositions,
+} from '@edgebook/shared/positions';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PositionsService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ─── Fills ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +39,7 @@ export class PositionsService {
         tp: input.tp ?? null,
         conviction: input.conviction ?? null,
         moods: input.moods ?? [],
+        leverage: input.leverage ?? null,
       },
     });
 
@@ -74,6 +78,7 @@ export class PositionsService {
       fee: f.fee.toString(),
       fundingFee: f.fundingFee?.toString() ?? null,
       executedAt: f.executedAt,
+      leverage: f.leverage,
     }));
 
     const computed = computePositions(rawFills);
@@ -92,12 +97,13 @@ export class PositionsService {
     const staleRows = existing.filter((p) => !newHashes.has(p.sourceHash));
     const staleIds = staleRows.map((p) => p.id);
 
-    const staleMeta = staleIds.length > 0
-      ? await this.prisma.position.findMany({
-          where: { id: { in: staleIds } },
-          include: { tags: true, notes: { select: { images: true } } },
-        })
-      : [];
+    const staleMeta =
+      staleIds.length > 0
+        ? await this.prisma.position.findMany({
+            where: { id: { in: staleIds } },
+            include: { tags: true, notes: { select: { images: true } } },
+          })
+        : [];
 
     await this.prisma.$transaction(async (tx) => {
       if (staleIds.length > 0) {
@@ -110,9 +116,8 @@ export class PositionsService {
         // Find a stale position whose fills are a subset of this position's fills.
         // That makes it the direct predecessor (e.g. the open version of a now-closed trade).
         const newFillIds = new Set(pos.fills.map((f) => f.fillId.toString()));
-        const predecessor = staleMeta.find((s) =>
-          s.sourceHash.split(',').every((id) => newFillIds.has(id)),
-        ) ?? null;
+        const predecessor =
+          staleMeta.find((s) => s.sourceHash.split(',').every((id) => newFillIds.has(id))) ?? null;
 
         const created = await tx.position.create({
           data: {
@@ -129,6 +134,7 @@ export class PositionsService {
             fees: pos.fees,
             funding: pos.funding,
             netPnl: pos.netPnl,
+            leverage: pos.leverage,
             playbookId: predecessor?.playbookId ?? null,
             rPlanned: predecessor?.rPlanned ?? null,
             rRealized: predecessor?.rRealized ?? null,
@@ -332,6 +338,7 @@ export class PositionsService {
     tp: string | null;
     conviction: number | null;
     moods: string[];
+    leverage: number | null;
   }) {
     return {
       id: fill.id.toString(),
@@ -354,6 +361,7 @@ export class PositionsService {
       tp: fill.tp,
       conviction: fill.conviction,
       moods: fill.moods,
+      leverage: fill.leverage,
     };
   }
 
@@ -383,6 +391,7 @@ export class PositionsService {
     processScore: { toString(): string } | null;
     outcomeScore: { toString(): string } | null;
     playbookId: string | null;
+    leverage: number | null;
     sourceHash: string;
     checklistState?: unknown;
   }) {
@@ -412,6 +421,7 @@ export class PositionsService {
       processScore: pos.processScore?.toString() ?? null,
       outcomeScore: pos.outcomeScore?.toString() ?? null,
       playbookId: pos.playbookId,
+      leverage: pos.leverage,
       sourceHash: pos.sourceHash,
       checklistState: pos.checklistState ?? null,
     };

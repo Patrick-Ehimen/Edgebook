@@ -31,6 +31,7 @@ export class RecomputeProcessor extends WorkerHost {
       fee: f.fee.toString(),
       fundingFee: f.fundingFee?.toString() ?? null,
       executedAt: f.executedAt,
+      leverage: f.leverage,
     }));
 
     const computed = computePositions(rawFills);
@@ -81,6 +82,7 @@ export class RecomputeProcessor extends WorkerHost {
             fees: pos.fees,
             funding: pos.funding,
             netPnl: pos.netPnl,
+            leverage: pos.leverage,
             playbookId: predecessor?.playbookId ?? null,
             rPlanned: predecessor?.rPlanned ?? null,
             rRealized: predecessor?.rRealized ?? null,
