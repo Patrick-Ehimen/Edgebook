@@ -1,4 +1,4 @@
-import { AddApiKeyInput, CreateAccountInput } from '@edgebook/shared/accounts';
+import { AddApiKeyInput, CreateAccountInput, UpdateAccountInput } from '@edgebook/shared/accounts';
 import {
   Body,
   Controller,
@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseFilters,
   UseGuards,
@@ -35,6 +36,21 @@ export class AccountsController {
   @Get()
   listAccounts(@CurrentUserId() userId: string) {
     return this.accountsService.listAccounts(userId);
+  }
+
+  @Get(':id')
+  getAccount(@Param('id') id: string, @CurrentUserId() userId: string) {
+    return this.accountsService.getAccount(userId, id);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  updateAccount(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateAccountInput)) body: UpdateAccountInput,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.accountsService.updateAccount(userId, id, body);
   }
 
   @Delete(':id')

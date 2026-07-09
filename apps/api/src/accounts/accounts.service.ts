@@ -7,6 +7,7 @@ import {
   type AddApiKeyInput,
   type CreateAccountInput,
   KeyScopeError,
+  type UpdateAccountInput,
 } from '@edgebook/shared/accounts';
 import { Injectable } from '@nestjs/common';
 import { EncryptionService } from '../encryption/encryption.service';
@@ -28,6 +29,7 @@ export class AccountsService {
         accountType: input.accountType,
         category: input.category ?? 'live',
         baseCurrency: input.baseCurrency,
+        startingBalance: input.startingBalance ?? '0',
       },
     });
 
@@ -42,6 +44,37 @@ export class AccountsService {
     });
 
     return accounts.map((a) => this.toAccountShape(a, a._count.apiKeys));
+  }
+
+  async getAccount(userId: string, accountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { _count: { select: { apiKeys: true } } },
+    });
+    if (!account) throw new AccountNotFoundError();
+    if (account.userId !== userId) throw new AccountForbiddenError();
+
+    return this.toAccountShape(account, account._count.apiKeys);
+  }
+
+  async updateAccount(userId: string, accountId: string, input: UpdateAccountInput) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { _count: { select: { apiKeys: true } } },
+    });
+    if (!account) throw new AccountNotFoundError();
+    if (account.userId !== userId) throw new AccountForbiddenError();
+
+    const updated = await this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        ...(input.label !== undefined && { label: input.label }),
+        ...(input.startingBalance !== undefined && { startingBalance: input.startingBalance }),
+      },
+      include: { _count: { select: { apiKeys: true } } },
+    });
+
+    return this.toAccountShape(updated, updated._count.apiKeys);
   }
 
   async deleteAccount(userId: string, accountId: string) {
@@ -132,6 +165,7 @@ export class AccountsService {
       accountType: string;
       category?: string;
       baseCurrency: string;
+      startingBalance?: { toString(): string };
       createdAt: Date;
     },
     keyCount: number,
@@ -144,6 +178,7 @@ export class AccountsService {
       accountType: account.accountType,
       category: account.category ?? 'live',
       baseCurrency: account.baseCurrency,
+      startingBalance: account.startingBalance?.toString() ?? '0',
       createdAt: account.createdAt.toISOString(),
       keyCount,
     };

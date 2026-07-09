@@ -209,6 +209,7 @@ model Account {
   accountType  AccountType
   category     AccountCategory @default(live)
   baseCurrency String
+  startingBalance Decimal      @default(0) @db.Decimal(30, 10)
   createdAt    DateTime        @default(now()) @db.Timestamptz
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)

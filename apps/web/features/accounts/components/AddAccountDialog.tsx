@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError } from '@/lib/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
@@ -29,7 +24,7 @@ const inputStyle: React.CSSProperties = {
 
 const VENUES: { id: Venue; label: string; logo: string }[] = [
   { id: 'binance', label: 'Binance', logo: '/assets/binance-logo.svg' },
-  { id: 'bybit',   label: 'Bybit',   logo: '/assets/bybit-logo.svg'   },
+  { id: 'bybit', label: 'Bybit', logo: '/assets/bybit-logo.svg' },
 ];
 
 const CATEGORIES: {
@@ -76,6 +71,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
   const [venue, setVenue] = useState<Venue>('binance');
   const [category, setCategory] = useState<AccountCategory>('live');
   const [label, setLabel] = useState('');
+  const [accountSize, setAccountSize] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -83,6 +79,7 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
     setVenue('binance');
     setCategory('live');
     setLabel('');
+    setAccountSize('');
     setError('');
     setLoading(false);
   }
@@ -97,12 +94,20 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
     setError('');
     try {
       const venueLabel = venue.charAt(0).toUpperCase() + venue.slice(1);
+      const size = accountSize.trim();
+      if (size && !/^\d+(\.\d+)?$/.test(size)) {
+        setError('Account size must be a positive number.');
+        setLoading(false);
+        return;
+      }
       await accountsApi.create({
         venue,
-        label: label.trim() || `${venueLabel} ${category.charAt(0).toUpperCase() + category.slice(1)}`,
+        label:
+          label.trim() || `${venueLabel} ${category.charAt(0).toUpperCase() + category.slice(1)}`,
         accountType: 'futures',
         category,
         baseCurrency: 'USDT',
+        startingBalance: size || '0',
       });
       await qc.invalidateQueries({ queryKey: ['accounts'] });
       handleOpenChange(false);
@@ -119,7 +124,10 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)' }}>
+      <DialogContent
+        className="sm:max-w-md"
+        style={{ background: 'var(--eb-panel)', border: '1px solid var(--eb-border)' }}
+      >
         <DialogHeader>
           <DialogTitle style={{ color: 'var(--eb-text)', fontSize: 15 }}>
             Add subaccount
@@ -127,10 +135,18 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
           {/* Category picker */}
           <div>
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '.07em',
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
               Account type
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
@@ -155,8 +171,25 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
                       transition: 'border-color .15s, background .15s',
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 700, color: active ? color : 'var(--eb-text)' }}>{name}</span>
-                    <span style={{ fontSize: 10.5, color: 'var(--eb-muted)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: active ? color : 'var(--eb-text)',
+                      }}
+                    >
+                      {name}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: 'var(--eb-muted)',
+                        textAlign: 'center',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {desc}
+                    </span>
                   </button>
                 );
               })}
@@ -165,7 +198,16 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
 
           {/* Exchange picker */}
           <div>
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '.07em',
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
               Exchange
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -186,8 +228,16 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
                     fontFamily: 'inherit',
                   }}
                 >
-                  <Image src={logo} alt={name} width={60} height={16} style={{ objectFit: 'contain' }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)' }}>{name}</span>
+                  <Image
+                    src={logo}
+                    alt={name}
+                    width={60}
+                    height={16}
+                    style={{ objectFit: 'contain' }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text)' }}>
+                    {name}
+                  </span>
                 </button>
               ))}
             </div>
@@ -195,7 +245,16 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
 
           {/* Label */}
           <div>
-            <div style={{ fontSize: 11, color: 'var(--eb-muted)', textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 600, marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '.07em',
+                fontWeight: 600,
+                marginBottom: 6,
+              }}
+            >
               Label
             </div>
             <input
@@ -208,13 +267,44 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
             />
           </div>
 
+          {/* Account size */}
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--eb-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '.07em',
+                fontWeight: 600,
+                marginBottom: 6,
+              }}
+            >
+              Account size
+            </div>
+            <input
+              style={inputStyle}
+              placeholder="e.g. 5000"
+              inputMode="decimal"
+              value={accountSize}
+              onChange={(e) => setAccountSize(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            />
+          </div>
+
           {error && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              padding: '9px 12px', borderRadius: 8,
-              background: 'rgba(255,91,108,.06)', border: '1px solid rgba(255,91,108,.25)',
-              fontSize: 12.5, color: 'var(--eb-red)',
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '9px 12px',
+                borderRadius: 8,
+                background: 'rgba(255,91,108,.06)',
+                border: '1px solid rgba(255,91,108,.25)',
+                fontSize: 12.5,
+                color: 'var(--eb-red)',
+              }}
+            >
               <AlertCircle size={13} style={{ flexShrink: 0 }} />
               {error}
             </div>
@@ -226,9 +316,14 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
               onClick={() => handleOpenChange(false)}
               disabled={loading}
               style={{
-                padding: '8px 14px', borderRadius: 9,
-                border: '1px solid var(--eb-border)', background: 'var(--eb-panel-2)',
-                color: 'var(--eb-muted-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                padding: '8px 14px',
+                borderRadius: 9,
+                border: '1px solid var(--eb-border)',
+                background: 'var(--eb-panel-2)',
+                color: 'var(--eb-muted-2)',
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               Cancel
@@ -238,11 +333,17 @@ export function AddAccountDialog({ open, onOpenChange }: Props) {
               onClick={handleCreate}
               disabled={loading}
               style={{
-                padding: '8px 18px', borderRadius: 9,
+                padding: '8px 18px',
+                borderRadius: 9,
                 border: '1px solid #00b67a',
-                background: loading ? 'rgba(0,182,122,.5)' : 'linear-gradient(180deg,#00d68f,#00b67a)',
-                color: '#06140f', fontSize: 13, fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                background: loading
+                  ? 'rgba(0,182,122,.5)'
+                  : 'linear-gradient(180deg,#00d68f,#00b67a)',
+                color: '#06140f',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               {loading ? 'Creating…' : 'Create subaccount'}

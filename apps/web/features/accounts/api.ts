@@ -6,12 +6,17 @@ import {
   OkResponse,
   SyncResponse,
 } from './schemas';
-import type { AddApiKeyInput, CreateAccountInput } from './schemas';
+import type { AddApiKeyInput, CreateAccountInput, UpdateAccountInputType } from './schemas';
 
 export const accountsApi = {
   list: () => api.get('/accounts', AccountListResponse),
 
+  get: (accountId: string) => api.get(`/accounts/${accountId}`, AccountResponse),
+
   create: (body: CreateAccountInput) => api.post('/accounts', AccountResponse, body),
+
+  update: (accountId: string, body: UpdateAccountInputType) =>
+    api.patch(`/accounts/${accountId}`, AccountResponse, body),
 
   delete: (accountId: string) => api.delete(`/accounts/${accountId}`, OkResponse),
 
@@ -21,6 +26,5 @@ export const accountsApi = {
   revokeApiKey: (accountId: string, keyId: string) =>
     api.delete(`/accounts/${accountId}/keys/${keyId}`, OkResponse),
 
-  triggerSync: (accountId: string) =>
-    api.post(`/accounts/${accountId}/sync`, SyncResponse, {}),
+  triggerSync: (accountId: string) => api.post(`/accounts/${accountId}/sync`, SyncResponse, {}),
 };

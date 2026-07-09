@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const decimalNonNegative = (label: string) =>
+  z.string().regex(/^\d+(\.\d+)?$/, `${label} must be a positive decimal.`);
+
 export const VenueSchema = z.enum(['binance', 'bybit']);
 export type Venue = z.infer<typeof VenueSchema>;
 
@@ -21,8 +24,15 @@ export const CreateAccountInput = z.object({
     .min(2)
     .max(10)
     .regex(/^[A-Z0-9]+$/, 'Base currency must be alphanumeric.'),
+  startingBalance: decimalNonNegative('Account size').default('0'),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInput>;
+
+export const UpdateAccountInput = z.object({
+  label: z.string().trim().min(1, 'Label is required.').max(64, 'Label too long.').optional(),
+  startingBalance: decimalNonNegative('Account size').optional(),
+});
+export type UpdateAccountInput = z.infer<typeof UpdateAccountInput>;
 
 export const AddApiKeyInput = z.object({
   apiKey: z.string().trim().min(8, 'API key too short.').max(256),
@@ -47,6 +57,7 @@ export const AccountSchema = z.object({
   accountType: AccountTypeSchema,
   category: AccountCategorySchema,
   baseCurrency: z.string(),
+  startingBalance: z.string(),
   createdAt: z.string(),
   keyCount: z.number().int(),
 });
