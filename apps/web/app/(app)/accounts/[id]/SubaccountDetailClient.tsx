@@ -138,10 +138,13 @@ const tdStyle: React.CSSProperties = {
 
 // ─── main component ─────────────────────────────────────────────────────────────
 
+type EquityTimeframe = '7D' | '30D' | '90D' | 'YTD' | 'ALL';
+
 export function SubaccountDetailClient({ accountId }: { accountId: string }) {
   const { data: account, isLoading: loadingAccount, isError } = useAccount(accountId);
   const { data: positions, isLoading: loadingPositions } = usePositions(accountId);
   const [editOpen, setEditOpen] = useState(false);
+  const [equityTf, setEquityTf] = useState<EquityTimeframe>('ALL');
 
   const stats = useMemo(() => {
     const list = positions ?? [];
@@ -522,8 +525,13 @@ export function SubaccountDetailClient({ accountId }: { accountId: string }) {
               <div style={panel}>
                 <h3 style={panelTitle}>
                   <span>Equity curve · this account only</span>
+                  <EquityTimeframeTabs value={equityTf} onChange={setEquityTf} />
                 </h3>
-                <EquityCurve startingBalance={startingBalance} closedAsc={stats.closedSortedAsc} />
+                <EquityCurve
+                  startingBalance={startingBalance}
+                  closedAsc={stats.closedSortedAsc}
+                  timeframe={equityTf}
+                />
               </div>
 
               {/* balance composition */}
@@ -1081,18 +1089,82 @@ function PositionRow({ position, kind }: { position: Position; kind: 'open' | 'c
   );
 }
 
+const EQUITY_TIMEFRAMES: EquityTimeframe[] = ['7D', '30D', '90D', 'YTD', 'ALL'];
+
+function timeframeCutoff(tf: EquityTimeframe): number {
+  const now = Date.now();
+  switch (tf) {
+    case '7D':
+      return now - 7 * 86_400_000;
+    case '30D':
+      return now - 30 * 86_400_000;
+    case '90D':
+      return now - 90 * 86_400_000;
+    case 'YTD':
+      return new Date(new Date().getFullYear(), 0, 1).getTime();
+    default:
+      return Number.NEGATIVE_INFINITY;
+  }
+}
+
+function EquityTimeframeTabs({
+  value,
+  onChange,
+}: { value: EquityTimeframe; onChange: (v: EquityTimeframe) => void }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        background: 'var(--eb-panel-2)',
+        border: '1px solid var(--eb-border)',
+        borderRadius: 6,
+        padding: 2,
+        gap: 1,
+      }}
+    >
+      {EQUITY_TIMEFRAMES.map((tf) => (
+        <button
+          key={tf}
+          type="button"
+          onClick={() => onChange(tf)}
+          style={{
+            background: value === tf ? 'var(--eb-nav-active)' : 'transparent',
+            border: 0,
+            color: value === tf ? 'var(--eb-text)' : 'var(--eb-muted)',
+            padding: '3px 8px',
+            borderRadius: 5,
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: value === tf ? 600 : 400,
+            fontFamily: 'inherit',
+          }}
+        >
+          {tf}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 function EquityCurve({
   startingBalance,
   closedAsc,
-}: { startingBalance: number; closedAsc: Position[] }) {
-  if (closedAsc.length < 2) {
-    return <EmptyRow text="Not enough closed trades yet to draw an equity curve." />;
+  timeframe,
+}: { startingBalance: number; closedAsc: Position[]; timeframe: EquityTimeframe }) {
+  const cutoff = timeframeCutoff(timeframe);
+  const before = closedAsc.filter((p) => new Date(p.closedAt ?? 0).getTime() < cutoff);
+  const within = closedAsc.filter((p) => new Date(p.closedAt ?? 0).getTime() >= cutoff);
+  const windowStart =
+    startingBalance + before.reduce((sum, p) => sum + Number.parseFloat(p.netPnl), 0);
+
+  if (within.length < 2) {
+    return <EmptyRow text="Not enough closed trades in this window to draw an equity curve." />;
   }
 
-  let running = startingBalance;
+  let running = windowStart;
   const series = [
-    { equity: startingBalance },
-    ...closedAsc.map((p) => {
+    { equity: windowStart },
+    ...within.map((p) => {
       running += Number.parseFloat(p.netPnl);
       return { equity: running };
     }),
@@ -1116,7 +1188,7 @@ function EquityCurve({
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(' ');
   const areaPath = `${path} L${W},${H} L0,${H} Z`;
-  const startEquity = startingBalance;
+  const startEquity = windowStart;
   const endEquity = running;
   const lastPoint = points[lastIndex] ?? { x: W, y: H / 2 };
   const netAllTime = endEquity - startEquity;
@@ -1312,7 +1384,7 @@ function StatsSkeleton() {
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14 }}>
         {/* left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          <SkPanel titleWidth="45%">
+          <SkPanel titleWidth="45%" badgeWidth={140}>
             <Sk h={200} r={10} />
           </SkPanel>
 
