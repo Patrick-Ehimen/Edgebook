@@ -3245,6 +3245,7 @@ export function JournalDetailClient({ date: dateStr }: { date: string }) {
       toast.success('Journal entry deleted');
       qc.invalidateQueries({ queryKey: ['journal-recent'] });
       qc.invalidateQueries({ queryKey: ['journal-stats'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
       router.push('/journal');
     },
     onError: (err) => {

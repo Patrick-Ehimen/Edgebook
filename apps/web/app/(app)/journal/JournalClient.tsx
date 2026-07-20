@@ -321,6 +321,7 @@ function EntryCard({ entry, isToday }: { entry: JournalEntry | RecentEntry; isTo
       qc.invalidateQueries({ queryKey: ['journal-recent'] });
       qc.invalidateQueries({ queryKey: ['journal-stats'] });
       qc.invalidateQueries({ queryKey: ['journal-entry'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
       toast.success('Journal entry deleted');
       setConfirmDelete(false);
     },
@@ -505,6 +506,7 @@ function ListRow({ entry, isToday }: { entry: RecentEntry; isToday: boolean }) {
       qc.invalidateQueries({ queryKey: ['journal-recent'] });
       qc.invalidateQueries({ queryKey: ['journal-stats'] });
       qc.invalidateQueries({ queryKey: ['journal-entry'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
       toast.success('Journal entry deleted');
       setConfirmDelete(false);
     },

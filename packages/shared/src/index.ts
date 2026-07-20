@@ -10,3 +10,5 @@ export * as prop from './prop';
 export * from './prop';
 export * as watchlist from './watchlist';
 export * from './watchlist';
+export * as archive from './archive';
+export * from './archive';

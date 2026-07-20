@@ -9,16 +9,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAccounts } from '@/features/accounts';
+import { useArchiveList } from '@/features/archive';
 import { useSignOut } from '@/features/auth';
 import { journalApi } from '@/features/journal';
 import { useNotes } from '@/features/notes';
 import { usePlaybooks } from '@/features/playbooks';
 import { useAllPositions } from '@/features/positions';
 import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
+import { useArchiveSettings } from '@/providers/archive-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useQuery } from '@tanstack/react-query';
 import type { LucideIcon } from 'lucide-react';
 import {
+  Archive,
   BookMarked,
   BookOpen,
   Brain,
@@ -101,6 +104,7 @@ const COACHING: {
 
 const OTHERS: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/tools', Icon: Wrench, label: 'Tools' },
+  { href: '/archive', Icon: Archive, label: 'Archive' },
 ];
 
 export default function SidebarNav() {
@@ -150,12 +154,15 @@ export default function SidebarNav() {
   });
 
   const { data: watchlistItems } = useWatchlist();
+  const { data: archiveItems } = useArchiveList();
+  const { settings: archiveSettings } = useArchiveSettings();
 
   const tradeCount = positions?.length ?? 0;
   const playbookCount = playbooks?.length ?? 0;
   const noteCount = notes?.length ?? 0;
   const journalCount = journalEntries?.length ?? 0;
   const watchlistCount = watchlistItems?.length ?? 0;
+  const archiveCount = archiveItems?.length ?? 0;
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -415,6 +422,10 @@ export default function SidebarNav() {
             <Link key={href} href={href} style={linkStyle(isActive(href))}>
               <Icon size={14} style={{ flexShrink: 0 }} />
               <span>{label}</span>
+              {href === '/archive' &&
+                archiveSettings.showSidebarCount &&
+                archiveCount > 0 &&
+                pill(String(archiveCount), 'rgba(245,165,36,.15)', 'var(--eb-yellow)')}
             </Link>
           ))}
         </nav>

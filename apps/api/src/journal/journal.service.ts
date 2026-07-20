@@ -92,7 +92,7 @@ export class JournalService {
     // ── All entry dates (for streak + month count — always global / today) ──
     const today = this.todayUTC();
     const entries = await this.prisma.journalEntry.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       select: { date: true },
       orderBy: { date: 'desc' },
     });
@@ -128,12 +128,12 @@ export class JournalService {
 
     // ── Entries (date-only field, fine with anchor) ──
     const recentEntries = await this.prisma.journalEntry.findMany({
-      where: { userId, date: { gte: since30d, lte: anchor } },
+      where: { userId, deletedAt: null, date: { gte: since30d, lte: anchor } },
       select: { planAdherence: true, finalizedAt: true, intentMd: true, eodMd: true },
     });
 
     const oldEntries = await this.prisma.journalEntry.findMany({
-      where: { userId, date: { gte: since60d, lt: since30d } },
+      where: { userId, deletedAt: null, date: { gte: since60d, lt: since30d } },
       select: { planAdherence: true, finalizedAt: true, intentMd: true, eodMd: true },
     });
 
@@ -186,8 +186,8 @@ export class JournalService {
 
   async getByDate(userId: string, dateStr: string) {
     const date = new Date(dateStr);
-    return this.prisma.journalEntry.findUnique({
-      where: { userId_date: { userId, date } },
+    return this.prisma.journalEntry.findFirst({
+      where: { userId, date, deletedAt: null },
     });
   }
 
@@ -195,7 +195,9 @@ export class JournalService {
     const date = new Date(dateStr);
     const { userId: _u, date: _d, ...fields } = data as Record<string, unknown> & { userId?: unknown; date?: unknown };
     const createData = { userId, date, ...fields } as Prisma.JournalEntryUncheckedCreateInput;
-    const updateData = fields as Prisma.JournalEntryUncheckedUpdateInput;
+    // Writing to a date always brings it back from the archive — matches the
+    // "auto-restore on same-day re-add" behavior used elsewhere in Archive.
+    const updateData = { ...fields, deletedAt: null } as Prisma.JournalEntryUncheckedUpdateInput;
     return this.prisma.journalEntry.upsert({
       where: { userId_date: { userId, date } },
       create: createData,
@@ -205,18 +207,19 @@ export class JournalService {
 
   async delete(userId: string, dateStr: string) {
     const date = new Date(dateStr);
-    const entry = await this.prisma.journalEntry.findUnique({
-      where: { userId_date: { userId, date } },
+    const entry = await this.prisma.journalEntry.findFirst({
+      where: { userId, date, deletedAt: null },
     });
     if (!entry) throw new NotFoundException('Journal entry not found');
-    return this.prisma.journalEntry.delete({
+    return this.prisma.journalEntry.update({
       where: { userId_date: { userId, date } },
+      data: { deletedAt: new Date() },
     });
   }
 
   async listRecent(userId: string, limit = 10, accountId?: string) {
     const entries = await this.prisma.journalEntry.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       orderBy: { date: 'desc' },
       take: limit,
       select: { id: true, date: true, bias: true, finalizedAt: true, lesson: true, moodTagsJson: true, tagsJson: true, conviction: true, sleepHours: true, intentMd: true, pinned: true },
@@ -227,7 +230,7 @@ export class JournalService {
     // ── All entry dates (for streak + month count) ──
     const today = this.todayUTC();
     const allEntryDates = await this.prisma.journalEntry.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       select: { date: true },
       orderBy: { date: 'desc' },
     });
@@ -255,7 +258,7 @@ export class JournalService {
     const listAccFilter = accountId ? { userId, id: accountId } : { userId };
     const [windowEntries, windowPositions] = await Promise.all([
       this.prisma.journalEntry.findMany({
-        where: { userId, date: { gte: rangeStart } },
+        where: { userId, deletedAt: null, date: { gte: rangeStart } },
         select: { date: true, planAdherence: true, finalizedAt: true, intentMd: true, eodMd: true },
       }),
       this.prisma.position.findMany({

@@ -1,9 +1,10 @@
-import type { CreatePlaybook, UpdateChecklist, UpdatePlaybook, UpdatePlaybookImages } from '@edgebook/shared';
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import type {
+  CreatePlaybook,
+  UpdateChecklist,
+  UpdatePlaybook,
+  UpdatePlaybookImages,
+} from '@edgebook/shared';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -12,7 +13,7 @@ export class PlaybooksService {
 
   async list(userId: string) {
     return this.prisma.playbook.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       include: {
         checklists: { select: { id: true, playbookId: true, itemsJson: true } },
         _count: { select: { positions: true } },
@@ -76,7 +77,10 @@ export class PlaybooksService {
 
   async remove(userId: string, playbookId: string) {
     await this.assertOwnership(userId, playbookId);
-    await this.prisma.playbook.delete({ where: { id: playbookId } });
+    await this.prisma.playbook.update({
+      where: { id: playbookId },
+      data: { deletedAt: new Date() },
+    });
     return { deleted: true };
   }
 

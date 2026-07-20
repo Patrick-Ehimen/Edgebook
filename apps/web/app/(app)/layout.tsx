@@ -1,5 +1,6 @@
 import { AuthGuard } from '@/components/AuthGuard';
 import { TiltBanner } from '@/components/TiltBanner';
+import { ArchiveProvider } from '@/providers/archive-provider';
 import { GoalsProvider } from '@/providers/goals-provider';
 import { LogTradeProvider } from '@/providers/log-trade-provider';
 import { SelectedAccountProvider } from '@/providers/selected-account-provider';
@@ -10,7 +11,8 @@ import Topbar from './_components/topbar';
 
 function MobileBlock() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-8 text-center"
+    <div
+      className="flex min-h-screen flex-col items-center justify-center gap-6 px-8 text-center"
       style={{ background: 'var(--eb-bg)' }}
     >
       <div
@@ -29,11 +31,20 @@ function MobileBlock() {
       </div>
 
       <div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--eb-text)', marginBottom: 8, letterSpacing: '-.02em' }}>
+        <div
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            color: 'var(--eb-text)',
+            marginBottom: 8,
+            letterSpacing: '-.02em',
+          }}
+        >
           Edgebook needs more space
         </div>
         <div style={{ fontSize: 14, color: 'var(--eb-muted-2)', lineHeight: 1.6, maxWidth: 280 }}>
-          This platform is built for serious analysis. Open it on a laptop or desktop for the full experience.
+          This platform is built for serious analysis. Open it on a laptop or desktop for the full
+          experience.
         </div>
       </div>
 
@@ -71,21 +82,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SelectedAccountProvider>
           <LogTradeProvider>
             <TiltProvider>
-              <div
-                className="hidden lg:grid"
-                style={{
-                  gridTemplateColumns: '228px 1fr',
-                  minHeight: '100vh',
-                  background: 'var(--eb-bg)',
-                }}
-              >
-                <SidebarNav />
-                <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <Topbar />
-                  <TiltBanner />
-                  {children}
-                </main>
-              </div>
+              <ArchiveProvider>
+                <div
+                  className="hidden lg:grid"
+                  style={{
+                    gridTemplateColumns: '228px 1fr',
+                    minHeight: '100vh',
+                    background: 'var(--eb-bg)',
+                  }}
+                >
+                  <SidebarNav />
+                  <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <Topbar />
+                    <TiltBanner />
+                    {children}
+                  </main>
+                </div>
+              </ArchiveProvider>
             </TiltProvider>
           </LogTradeProvider>
         </SelectedAccountProvider>

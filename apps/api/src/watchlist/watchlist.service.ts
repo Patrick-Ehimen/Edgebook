@@ -1,13 +1,6 @@
-import type {
-  CreateWatchlistItem,
-  UpdateWatchlistItem,
-} from "@edgebook/shared";
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import type { CreateWatchlistItem, UpdateWatchlistItem } from '@edgebook/shared';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WatchlistService {
@@ -15,14 +8,14 @@ export class WatchlistService {
 
   async list(userId: string) {
     return this.prisma.watchlistItem.findMany({
-      where: { userId },
-      orderBy: { createdAt: "asc" },
+      where: { userId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
   async getById(userId: string, id: string) {
     const item = await this.prisma.watchlistItem.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException("Watchlist item not found.");
+    if (!item) throw new NotFoundException('Watchlist item not found.');
     if (item.userId !== userId) throw new ForbiddenException();
     return item;
   }
@@ -50,7 +43,7 @@ export class WatchlistService {
       where: { id },
       select: { userId: true },
     });
-    if (!item) throw new NotFoundException("Watchlist item not found.");
+    if (!item) throw new NotFoundException('Watchlist item not found.');
     if (item.userId !== userId) throw new ForbiddenException();
     return this.prisma.watchlistItem.update({
       where: { id },
@@ -79,9 +72,12 @@ export class WatchlistService {
       where: { id },
       select: { userId: true },
     });
-    if (!item) throw new NotFoundException("Watchlist item not found.");
+    if (!item) throw new NotFoundException('Watchlist item not found.');
     if (item.userId !== userId) throw new ForbiddenException();
-    await this.prisma.watchlistItem.delete({ where: { id } });
+    await this.prisma.watchlistItem.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     return { deleted: true };
   }
 }

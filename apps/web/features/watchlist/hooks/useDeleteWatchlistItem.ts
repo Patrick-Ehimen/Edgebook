@@ -7,6 +7,7 @@ export function useDeleteWatchlistItem() {
     mutationFn: (id: string) => watchlistApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['watchlist'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
     },
   });
 }

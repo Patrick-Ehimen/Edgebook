@@ -7,6 +7,7 @@ export function useDeleteNote() {
     mutationFn: (id: string) => notesApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notes'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
     },
   });
 }

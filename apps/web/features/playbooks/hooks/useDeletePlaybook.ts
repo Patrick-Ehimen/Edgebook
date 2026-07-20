@@ -7,6 +7,7 @@ export function useDeletePlaybook() {
     mutationFn: (id: string) => playbooksApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['playbooks'] });
+      qc.invalidateQueries({ queryKey: ['archive'] });
     },
   });
 }

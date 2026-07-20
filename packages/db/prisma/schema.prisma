@@ -362,6 +362,7 @@ model Playbook {
   images         String[]
   createdAt      DateTime       @default(now()) @db.Timestamptz
   updatedAt      DateTime       @updatedAt @db.Timestamptz
+  deletedAt      DateTime?      @db.Timestamptz
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   checklists   Checklist[]
@@ -369,6 +370,7 @@ model Playbook {
   libraryNotes LibraryNote[]
 
   @@index([userId])
+  @@index([userId, deletedAt])
 }
 
 model Checklist {
@@ -435,13 +437,15 @@ model JournalEntry {
   pinned        Boolean   @default(false)
 
   images    String[]
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  deletedAt DateTime? @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
+  @@index([userId, deletedAt])
 }
 
 // ─── Goals ────────────────────────────────────────────────────────────────────
@@ -509,17 +513,18 @@ model AiReport {
 // ─── Library / Notes ──────────────────────────────────────────────────────────
 
 model LibraryNote {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   folderId   String
   name       String
-  iconId     String   @default("file")
-  bodyMd     String   @default("")
-  pinned     Boolean  @default(false)
-  tags       String[] @default([])
+  iconId     String    @default("file")
+  bodyMd     String    @default("")
+  pinned     Boolean   @default(false)
+  tags       String[]  @default([])
   playbookId String?
-  createdAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt  DateTime @updatedAt @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @db.Timestamptz
+  deletedAt  DateTime? @db.Timestamptz
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   playbook Playbook? @relation(fields: [playbookId], references: [id], onDelete: SetNull)
@@ -527,6 +532,7 @@ model LibraryNote {
   @@index([userId])
   @@index([userId, folderId])
   @@index([userId, pinned])
+  @@index([userId, deletedAt])
   @@index([playbookId])
 }
 
@@ -709,23 +715,25 @@ model PropPayout {
 // ─── Watchlist ────────────────────────────────────────────────────────────────
 
 model WatchlistItem {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   userId           String
   symbol           String
   horizon          String
   bias             String
   notes            String?
-  conviction       Int      @default(3)
+  conviction       Int       @default(3)
   convictionReason String?
   tags             String[]
   playbookNames    String[]
-  keyLevelsJson    Json     @default("[]")
-  images           String[] @default([])
-  createdAt        DateTime @default(now()) @db.Timestamptz
-  updatedAt        DateTime @updatedAt @db.Timestamptz
+  keyLevelsJson    Json      @default("[]")
+  images           String[]  @default([])
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @db.Timestamptz
+  deletedAt        DateTime? @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, horizon])
+  @@index([userId, deletedAt])
 }
