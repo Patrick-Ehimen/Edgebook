@@ -44,7 +44,7 @@
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.33",
     "@types/express": "^5.0.0",
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.9.2",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^2.1.8",
     "globals": "^17.0.0",
