@@ -80,6 +80,14 @@ const ACCOUNT_DOT_PALETTE = [
   '#4ade80',
 ];
 
+/** Account category grouping — order and labels mirror the accounts page */
+const ACCOUNT_CATEGORY_ORDER = ['live', 'demo', 'prop'] as const;
+const ACCOUNT_CATEGORY_META: Record<string, { label: string; color: string }> = {
+  live: { label: 'Live', color: 'var(--green)' },
+  demo: { label: 'Demo', color: 'var(--eb-cyan)' },
+  prop: { label: 'Prop', color: 'var(--eb-purple)' },
+};
+
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/trades', Icon: BookOpen, label: 'Trade log' },
@@ -177,6 +185,18 @@ export default function SidebarNav() {
   const journalCount = journalEntries?.length ?? 0;
   const watchlistCount = watchlistItems?.length ?? 0;
   const archiveCount = archiveItems?.length ?? 0;
+
+  // Accounts split into live / demo / prop groups; empty groups are dropped.
+  // Dot colors are assigned over the flattened grouped order so every account
+  // in the sidebar keeps a distinct color.
+  const accountGroups = ACCOUNT_CATEGORY_ORDER.map((category) => ({
+    category,
+    meta: ACCOUNT_CATEGORY_META[category] as { label: string; color: string },
+    items: (accounts ?? []).filter((a) => a.category === category),
+  })).filter((group) => group.items.length > 0);
+  const accountDotIndex = new Map(
+    accountGroups.flatMap((g) => g.items).map((a, i) => [a.id, i] as const),
+  );
 
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
@@ -338,55 +358,100 @@ export default function SidebarNav() {
         </button>
         {accountsOpen && (
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {(accounts ?? []).map((account, i) => {
-              const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
-              const dotColor = ACCOUNT_DOT_PALETTE[i % ACCOUNT_DOT_PALETTE.length] as string;
-              const connected = account.keyCount > 0;
-              return (
-                <Link
-                  key={account.id}
-                  href="/accounts"
+            {accountGroups.map((group) => (
+              <div
+                key={group.category}
+                style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+              >
+                <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 9,
-                    padding: '5px 9px',
-                    borderRadius: 7,
-                    textDecoration: 'none',
-                    background: 'transparent',
-                    color: 'var(--eb-muted-2)',
-                    fontSize: 12,
+                    gap: 6,
+                    padding: '6px 9px 2px',
                   }}
                 >
                   <span
-                    title={connected ? account.label : `${account.label} — no API key connected`}
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      // Filled = keys connected, hollow ring = not yet connected
-                      background: connected ? dotColor : 'transparent',
-                      boxShadow: connected ? 'none' : `inset 0 0 0 1.5px ${dotColor}`,
-                      flexShrink: 0,
-                      display: 'inline-block',
-                    }}
-                  />
-                  <span
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: '.06em',
+                      textTransform: 'uppercase',
+                      color: group.meta.color,
                     }}
                   >
-                    {account.label}
+                    {group.meta.label}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: venueColor, flexShrink: 0 }}>
-                    {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: '0 5px',
+                      borderRadius: 8,
+                      background: 'var(--eb-panel-2)',
+                      color: 'var(--eb-muted)',
+                    }}
+                  >
+                    {group.items.length}
                   </span>
-                </Link>
-              );
-            })}
+                  <span style={{ flex: 1, height: 1, background: 'var(--eb-border)' }} />
+                </div>
+                {group.items.map((account) => {
+                  const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
+                  const dotColor = ACCOUNT_DOT_PALETTE[
+                    (accountDotIndex.get(account.id) ?? 0) % ACCOUNT_DOT_PALETTE.length
+                  ] as string;
+                  const connected = account.keyCount > 0;
+                  return (
+                    <Link
+                      key={account.id}
+                      href="/accounts"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 9,
+                        padding: '5px 9px',
+                        borderRadius: 7,
+                        textDecoration: 'none',
+                        background: 'transparent',
+                        color: 'var(--eb-muted-2)',
+                        fontSize: 12,
+                      }}
+                    >
+                      <span
+                        title={
+                          connected ? account.label : `${account.label} — no API key connected`
+                        }
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          // Filled = keys connected, hollow ring = not yet connected
+                          background: connected ? dotColor : 'transparent',
+                          boxShadow: connected ? 'none' : `inset 0 0 0 1.5px ${dotColor}`,
+                          flexShrink: 0,
+                          display: 'inline-block',
+                        }}
+                      />
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                        }}
+                      >
+                        {account.label}
+                      </span>
+                      <span
+                        style={{ fontSize: 10, fontWeight: 600, color: venueColor, flexShrink: 0 }}
+                      >
+                        {account.venue === 'binance' ? 'BNB' : 'BYBIT'}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
             <Link
               href="/accounts"
               style={{
