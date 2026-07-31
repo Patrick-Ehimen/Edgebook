@@ -66,6 +66,20 @@ const AVATAR_PRESETS = [
   '#64748b',
 ];
 
+/** Distinct dot color per connected account — assigned by position in the list */
+const ACCOUNT_DOT_PALETTE = [
+  '#60a5fa',
+  '#34d399',
+  '#a78bfa',
+  '#f472b6',
+  '#fbbf24',
+  '#22d3ee',
+  '#fb923c',
+  '#c084fc',
+  '#f87171',
+  '#4ade80',
+];
+
 const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/trades', Icon: BookOpen, label: 'Trade log' },
@@ -324,8 +338,10 @@ export default function SidebarNav() {
         </button>
         {accountsOpen && (
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {(accounts ?? []).map((account) => {
+            {(accounts ?? []).map((account, i) => {
               const venueColor = account.venue === 'binance' ? '#F0B90B' : '#F7A600';
+              const dotColor = ACCOUNT_DOT_PALETTE[i % ACCOUNT_DOT_PALETTE.length] as string;
+              const connected = account.keyCount > 0;
               return (
                 <Link
                   key={account.id}
@@ -343,11 +359,14 @@ export default function SidebarNav() {
                   }}
                 >
                   <span
+                    title={connected ? account.label : `${account.label} — no API key connected`}
                     style={{
                       width: 6,
                       height: 6,
                       borderRadius: '50%',
-                      background: account.keyCount > 0 ? 'var(--green)' : 'var(--eb-yellow)',
+                      // Filled = keys connected, hollow ring = not yet connected
+                      background: connected ? dotColor : 'transparent',
+                      boxShadow: connected ? 'none' : `inset 0 0 0 1.5px ${dotColor}`,
                       flexShrink: 0,
                       display: 'inline-block',
                     }}
