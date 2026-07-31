@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@edgebook/shared": "workspace:*",
-    "ccxt": "^4.5.53"
+    "ccxt": "^4.5.56"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
