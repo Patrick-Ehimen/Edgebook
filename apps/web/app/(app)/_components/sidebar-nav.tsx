@@ -13,6 +13,7 @@ import { useArchiveList } from '@/features/archive';
 import { useSignOut } from '@/features/auth';
 import { journalApi } from '@/features/journal';
 import { useNotes } from '@/features/notes';
+import { usePlans } from '@/features/plans';
 import { usePlaybooks } from '@/features/playbooks';
 import { useAllPositions } from '@/features/positions';
 import { useWatchlist } from '@/features/watchlist/hooks/useWatchlist';
@@ -35,6 +36,7 @@ import {
   Link2,
   LogOut,
   NotebookPen,
+  ScrollText,
   Settings,
   ShieldCheck,
   Target,
@@ -94,6 +96,7 @@ const WORKSPACE: { href: string; Icon: LucideIcon; label: string }[] = [
   { href: '/analytics', Icon: TrendingUp, label: 'Analytics' },
   { href: '/calendar', Icon: CalendarDays, label: 'Calendar' },
   { href: '/mind-lab', Icon: Brain, label: 'Mind Lab' },
+  { href: '/plans', Icon: ScrollText, label: 'Plans' },
   { href: '/playbooks', Icon: Target, label: 'Playbook' },
   { href: '/watchlist', Icon: Eye, label: 'Watchlist' },
 ];
@@ -163,6 +166,7 @@ export default function SidebarNav() {
   const { data: accounts } = useAccounts();
   const { data: positions } = useAllPositions(accounts);
   const { data: playbooks } = usePlaybooks();
+  const { data: plans } = usePlans();
   const { data: notes } = useNotes();
   const { data: journalStats } = useQuery({
     queryKey: ['journal-stats'],
@@ -181,6 +185,7 @@ export default function SidebarNav() {
 
   const tradeCount = positions?.length ?? 0;
   const playbookCount = playbooks?.length ?? 0;
+  const planCount = plans?.length ?? 0;
   const noteCount = notes?.length ?? 0;
   const journalCount = journalEntries?.length ?? 0;
   const watchlistCount = watchlistItems?.length ?? 0;
@@ -307,6 +312,9 @@ export default function SidebarNav() {
                   'var(--eb-panel-2)',
                   'var(--eb-muted-2)',
                 )}
+              {href === '/plans' &&
+                planCount > 0 &&
+                pill(String(planCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}
               {href === '/playbooks' &&
                 playbookCount > 0 &&
                 pill(String(playbookCount), 'var(--eb-panel-2)', 'var(--eb-muted-2)')}

@@ -108,6 +108,7 @@ model User {
   libraryNotes   LibraryNote[]
   propAccounts   PropAccount[]
   watchlistItems WatchlistItem[]
+  plans          Plan[]
 }
 
 model Session {
@@ -344,6 +345,36 @@ model PositionNote {
 }
 
 // ─── Playbooks ────────────────────────────────────────────────────────────────
+
+enum PlanStatus {
+  draft
+  active
+  archived
+}
+
+/// A written trading plan. The section/subsection *structure* lives in code
+/// (`@edgebook/shared` PLAN_TEMPLATE); this row stores the filled-in values
+/// keyed by field id, plus the typed subset the tilt engine reads.
+model Plan {
+  id            String     @id @default(cuid())
+  userId        String
+  name          String
+  owner         String     @default("")
+  method        String     @default("")
+  version       String     @default("1.0")
+  status        PlanStatus @default(draft)
+  effectiveFrom DateTime?  @db.Timestamptz
+  valuesJson    Json       @default("{}")
+  rulesJson     Json       @default("{}")
+  createdAt     DateTime   @default(now()) @db.Timestamptz
+  updatedAt     DateTime   @updatedAt @db.Timestamptz
+  deletedAt     DateTime?  @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+}
 
 enum PlaybookStatus {
   experimental

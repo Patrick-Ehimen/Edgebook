@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { JournalModule } from './journal/journal.module';
 import { NotesModule } from './notes/notes.module';
+import { PlansModule } from './plans/plans.module';
 import { PlaybooksModule } from './playbooks/playbooks.module';
 import { PositionsModule } from './positions/positions.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,6 +19,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     AccountsModule,
     PositionsModule,
     PlaybooksModule,
+    PlansModule,
     NotesModule,
     JournalModule,
     WatchlistModule,

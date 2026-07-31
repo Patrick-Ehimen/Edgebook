@@ -11,7 +11,8 @@
     "./accounts": "./src/accounts/index.ts",
     "./positions": "./src/positions/index.ts",
     "./queues": "./src/queues/index.ts",
-    "./playbooks": "./src/playbooks/index.ts"
+    "./playbooks": "./src/playbooks/index.ts",
+    "./plans": "./src/plans/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
